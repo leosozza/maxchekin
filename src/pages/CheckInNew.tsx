@@ -20,7 +20,7 @@ interface ModelData {
 }
 
 export default function CheckInNew() {
-  const [scanning, setScanning] = useState(true);
+  const [scanning, setScanning] = useState(false); // Start false until webhook loads
   const [modelData, setModelData] = useState<ModelData | null>(null);
   const [manualSearchOpen, setManualSearchOpen] = useState(false);
   const [searchId, setSearchId] = useState("");
@@ -29,6 +29,7 @@ export default function CheckInNew() {
   const [welcomeMessage, setWelcomeMessage] = useState("Seja bem-vinda");
   const [lastScannedCode, setLastScannedCode] = useState<string>("");
   const [lastScanTime, setLastScanTime] = useState<number>(0);
+  const [configLoaded, setConfigLoaded] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const usbInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -37,24 +38,50 @@ export default function CheckInNew() {
 
   // Load webhook config on mount
   useEffect(() => {
-    loadWebhookConfig();
-    loadCheckInConfig();
+    const loadConfigs = async () => {
+      console.log("[CHECK-IN] Iniciando carregamento de configurações...");
+      await Promise.all([loadWebhookConfig(), loadCheckInConfig()]);
+      setConfigLoaded(true);
+      console.log("[CHECK-IN] Configurações carregadas com sucesso");
+    };
+    
+    loadConfigs();
   }, []);
 
   const loadWebhookConfig = async () => {
-    const { data } = await supabase
-      .from("webhook_config")
-      .select("bitrix_webhook_url")
-      .eq("is_active", true)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    try {
+      console.log("[CHECK-IN] Buscando webhook config...");
+      const { data, error } = await supabase
+        .from("webhook_config")
+        .select("bitrix_webhook_url")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-    if (data?.bitrix_webhook_url) {
-      console.log("[CHECK-IN] Webhook URL carregada:", data.bitrix_webhook_url);
-      setWebhookUrl(data.bitrix_webhook_url);
-    } else {
-      console.error("[CHECK-IN] Nenhum webhook ativo encontrado!");
+      if (error) {
+        console.error("[CHECK-IN] Erro ao buscar webhook:", error);
+        toast({
+          title: "Erro de configuração",
+          description: "Erro ao carregar webhook. Verifique as permissões.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (data?.bitrix_webhook_url) {
+        console.log("[CHECK-IN] Webhook URL carregada:", data.bitrix_webhook_url.substring(0, 30) + "...");
+        setWebhookUrl(data.bitrix_webhook_url);
+      } else {
+        console.error("[CHECK-IN] Nenhum webhook ativo encontrado!");
+        toast({
+          title: "Webhook não configurado",
+          description: "Configure o webhook em Admin → Webhooks",
+          variant: "destructive",
+        });
+      }
+    } catch (err) {
+      console.error("[CHECK-IN] Exceção ao carregar webhook:", err);
     }
   };
 
@@ -79,11 +106,15 @@ export default function CheckInNew() {
   }, [manualSearchOpen, scanning]);
 
   useEffect(() => {
-    initScanner();
+    if (configLoaded && webhookUrl) {
+      console.log("[CHECK-IN] Iniciando scanner...");
+      setScanning(true);
+      initScanner();
+    }
     return () => {
       stopScanner();
     };
-  }, []);
+  }, [configLoaded, webhookUrl]);
 
   const initScanner = async () => {
     try {
@@ -117,8 +148,17 @@ export default function CheckInNew() {
 
   const fetchModelDataFromBitrix = async (leadId: string) => {
     try {
+      console.log("[CHECK-IN] Webhook atual:", webhookUrl ? "CONFIGURADO" : "VAZIO");
+      
       if (!webhookUrl) {
-        throw new Error("Webhook URL não configurada. Configure em Admin → Webhooks");
+        console.error("[CHECK-IN] webhookUrl está vazio no momento da busca");
+        // Tentar recarregar o webhook
+        await loadWebhookConfig();
+        
+        // Verificar novamente após recarregar
+        if (!webhookUrl) {
+          throw new Error("Webhook URL não configurada. Configure em Admin → Webhooks");
+        }
       }
 
       console.log(`[CHECK-IN] Buscando Lead ${leadId} no Bitrix...`);
@@ -364,7 +404,21 @@ export default function CheckInNew() {
         </button>
       )}
 
-      {scanning && !modelData && (
+      {!configLoaded && (
+        <div className="flex flex-col items-center space-y-4 sm:space-y-8 animate-fade-in flex-1 justify-center w-full">
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-gold blur-3xl opacity-20 animate-pulse-glow"></div>
+            <QrCode className="w-20 h-20 sm:w-32 sm:h-32 text-gold animate-pulse relative z-10" />
+          </div>
+          <div className="text-center space-y-2 px-4">
+            <p className="text-xl sm:text-2xl font-light text-foreground">
+              Carregando configurações...
+            </p>
+          </div>
+        </div>
+      )}
+
+      {configLoaded && scanning && !modelData && (
         <div className="flex flex-col items-center space-y-4 sm:space-y-8 animate-fade-in flex-1 justify-center w-full">
           <div className="relative">
             <div className="absolute inset-0 bg-gradient-gold blur-3xl opacity-20 animate-pulse-glow"></div>
