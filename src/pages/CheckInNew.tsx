@@ -40,10 +40,15 @@ export default function CheckInNew() {
       .from("webhook_config")
       .select("bitrix_webhook_url")
       .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     if (data?.bitrix_webhook_url) {
+      console.log("[CHECK-IN] Webhook URL carregada:", data.bitrix_webhook_url);
       setWebhookUrl(data.bitrix_webhook_url);
+    } else {
+      console.error("[CHECK-IN] Nenhum webhook ativo encontrado!");
     }
   };
 
