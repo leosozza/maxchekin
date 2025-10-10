@@ -1,13 +1,23 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Smartphone, Download, QrCode } from "lucide-react";
+import { ArrowLeft, Smartphone, Download, QrCode, Menu } from "lucide-react";
 
 export default function AppDownload() {
   const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-studio-dark via-background to-studio-dark p-6">
+      {/* Botão Menu */}
+      <Button
+        onClick={() => navigate("/")}
+        variant="outline"
+        size="icon"
+        className="fixed top-4 left-4 z-50 border-gold/20 hover:bg-gold/10"
+      >
+        <Menu className="w-5 h-5 text-gold" />
+      </Button>
+
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex items-center gap-3">
           <Button

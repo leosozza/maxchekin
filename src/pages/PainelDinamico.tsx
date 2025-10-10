@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Clock, User, MapPin } from "lucide-react";
+import { Clock, User, MapPin, Menu } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RenderCustomLayout } from "@/components/admin/RenderCustomLayout";
+import { Button } from "@/components/ui/button";
 
 interface Call {
   id: string;
@@ -21,6 +22,7 @@ interface Panel {
 
 export default function PainelDinamico() {
   const { slug } = useParams();
+  const navigate = useNavigate();
   const [panel, setPanel] = useState<Panel | null>(null);
   const [currentCall, setCurrentCall] = useState<Call | null>(null);
   const [recentCalls, setRecentCalls] = useState<Call[]>([]);
@@ -120,6 +122,16 @@ export default function PainelDinamico() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-studio-dark via-background to-studio-dark landscape:orientation-landscape">
+      {/* Botão Menu */}
+      <Button
+        onClick={() => navigate("/")}
+        variant="outline"
+        size="icon"
+        className="fixed top-4 left-4 z-50 border-gold/20 hover:bg-gold/10"
+      >
+        <Menu className="w-5 h-5 text-gold" />
+      </Button>
+
       {/* Header */}
       <header className="flex items-center justify-between p-6 border-b border-primary/20 bg-card/30 backdrop-blur">
         <div className="flex items-center space-x-4">

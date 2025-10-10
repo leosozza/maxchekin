@@ -1,8 +1,9 @@
 import { useEffect, useState, useRef } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { supabase } from "@/integrations/supabase/client";
-import { Sparkles, QrCode, Search, X, Delete, User } from "lucide-react";
+import { Sparkles, QrCode, Search, X, Delete, User, Menu } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 import {
   Dialog,
   DialogContent,
@@ -33,8 +34,28 @@ export default function CheckInNew() {
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const usbInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
   
   const SCAN_COOLDOWN_MS = 3000; // 3 segundos de cooldown
+
+  // Salvar/Carregar configurações do localStorage para persistir no PWA
+  const saveConfigToStorage = (key: string, value: string) => {
+    try {
+      localStorage.setItem(key, value);
+      console.log(`[CONFIG] Salvo no localStorage: ${key}`);
+    } catch (error) {
+      console.error(`[CONFIG] Erro ao salvar ${key}:`, error);
+    }
+  };
+
+  const loadConfigFromStorage = (key: string): string | null => {
+    try {
+      return localStorage.getItem(key);
+    } catch (error) {
+      console.error(`[CONFIG] Erro ao carregar ${key}:`, error);
+      return null;
+    }
+  };
 
   // Load webhook config on mount
   useEffect(() => {
@@ -51,6 +72,15 @@ export default function CheckInNew() {
   const loadWebhookConfig = async () => {
     try {
       console.log("[CHECK-IN] Buscando webhook config...");
+      
+      // Tentar carregar do cache primeiro
+      const cachedWebhook = loadConfigFromStorage('maxcheckin_webhook_url');
+      if (cachedWebhook) {
+        console.log("[CHECK-IN] Webhook carregado do cache");
+        setWebhookUrl(cachedWebhook);
+      }
+      
+      // Buscar do banco e atualizar cache
       const { data, error } = await supabase
         .from("webhook_config")
         .select("bitrix_webhook_url")
@@ -70,8 +100,9 @@ export default function CheckInNew() {
       }
 
       if (data?.bitrix_webhook_url) {
-        console.log("[CHECK-IN] Webhook URL carregada:", data.bitrix_webhook_url.substring(0, 30) + "...");
+        console.log("[CHECK-IN] Webhook URL carregada do banco");
         setWebhookUrl(data.bitrix_webhook_url);
+        saveConfigToStorage('maxcheckin_webhook_url', data.bitrix_webhook_url);
       } else {
         console.error("[CHECK-IN] Nenhum webhook ativo encontrado!");
         toast({
@@ -293,19 +324,10 @@ export default function CheckInNew() {
         description: `Bem-vinda, ${modelData.name}!`,
       });
 
-      // Auto-reset after 5 seconds
-      setTimeout(async () => {
-        setModelData(null);
-        setScanning(true);
-        setLastScannedCode("");
-        setLastScanTime(0);
-        if (method !== 'manual') {
-          await initScanner();
-        }
-        if (usbInputRef.current) {
-          usbInputRef.current.value = "";
-          usbInputRef.current.focus();
-        }
+      // Auto-reset after 5 seconds e volta para Home
+      setTimeout(() => {
+        console.log("[NAVIGATION] Voltando para Home após check-in");
+        navigate("/");
       }, 5000);
     } catch (error) {
       console.error(`[CHECK-IN] Erro:`, error);
@@ -386,6 +408,16 @@ export default function CheckInNew() {
         onKeyDown={handleUsbInput}
         autoFocus
       />
+
+      {/* Botão Menu */}
+      <Button
+        onClick={() => navigate("/")}
+        variant="outline"
+        size="icon"
+        className="fixed top-4 left-4 z-50 border-gold/20 hover:bg-gold/10"
+      >
+        <Menu className="w-5 h-5 text-gold" />
+      </Button>
 
       {/* Logo */}
       <div className="w-full text-center mb-4 sm:mb-8">
