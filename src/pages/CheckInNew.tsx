@@ -27,9 +27,13 @@ export default function CheckInNew() {
   const [isLoading, setIsLoading] = useState(false);
   const [webhookUrl, setWebhookUrl] = useState("");
   const [welcomeMessage, setWelcomeMessage] = useState("Seja bem-vinda");
+  const [lastScannedCode, setLastScannedCode] = useState<string>("");
+  const [lastScanTime, setLastScanTime] = useState<number>(0);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const usbInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  
+  const SCAN_COOLDOWN_MS = 3000; // 3 segundos de cooldown
 
   // Load webhook config on mount
   useEffect(() => {
@@ -253,6 +257,8 @@ export default function CheckInNew() {
       setTimeout(async () => {
         setModelData(null);
         setScanning(true);
+        setLastScannedCode("");
+        setLastScanTime(0);
         if (method !== 'manual') {
           await initScanner();
         }
@@ -279,7 +285,18 @@ export default function CheckInNew() {
   };
 
   const onScanSuccess = async (decodedText: string) => {
+    const now = Date.now();
+    
+    // Ignorar se for o mesmo código dentro do cooldown period
+    if (decodedText === lastScannedCode && (now - lastScanTime) < SCAN_COOLDOWN_MS) {
+      console.log(`[CHECK-IN] Ignorando leitura duplicada do Lead ${decodedText}`);
+      return;
+    }
+    
     console.log("QR Code detected:", decodedText);
+    setLastScannedCode(decodedText);
+    setLastScanTime(now);
+    
     await processCheckIn(decodedText, 'qr');
   };
 
