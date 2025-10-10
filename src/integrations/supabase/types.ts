@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_logs: {
+        Row: {
+          created_at: string | null
+          event_type: string
+          id: string
+          ip_address: string | null
+          message: string
+          metadata: Json | null
+          panel_id: string | null
+          severity: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_type: string
+          id?: string
+          ip_address?: string | null
+          message: string
+          metadata?: Json | null
+          panel_id?: string | null
+          severity: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_type?: string
+          id?: string
+          ip_address?: string | null
+          message?: string
+          metadata?: Json | null
+          panel_id?: string | null
+          severity?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_logs_panel_id_fkey"
+            columns: ["panel_id"]
+            isOneToOne: false
+            referencedRelation: "panels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calls: {
         Row: {
           called_at: string | null
@@ -91,6 +135,36 @@ export type Database = {
           model_name?: string
           model_photo?: string | null
           responsible?: string | null
+        }
+        Relationships: []
+      }
+      field_mapping: {
+        Row: {
+          bitrix_field_name: string
+          created_at: string | null
+          field_type: string
+          id: string
+          is_active: boolean | null
+          maxcheckin_field_name: string
+          transform_function: string | null
+        }
+        Insert: {
+          bitrix_field_name: string
+          created_at?: string | null
+          field_type: string
+          id?: string
+          is_active?: boolean | null
+          maxcheckin_field_name: string
+          transform_function?: string | null
+        }
+        Update: {
+          bitrix_field_name?: string
+          created_at?: string | null
+          field_type?: string
+          id?: string
+          is_active?: boolean | null
+          maxcheckin_field_name?: string
+          transform_function?: string | null
         }
         Relationships: []
       }
@@ -174,15 +248,86 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      webhook_config: {
+        Row: {
+          auth_token: string | null
+          bitrix_webhook_url: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          notify_on_call: boolean | null
+          notify_on_checkin: boolean | null
+          panel_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          auth_token?: string | null
+          bitrix_webhook_url: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          notify_on_call?: boolean | null
+          notify_on_checkin?: boolean | null
+          panel_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          auth_token?: string | null
+          bitrix_webhook_url?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          notify_on_call?: boolean | null
+          notify_on_checkin?: boolean | null
+          panel_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_config_panel_id_fkey"
+            columns: ["panel_id"]
+            isOneToOne: false
+            referencedRelation: "panels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "operator" | "viewer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -309,6 +454,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "operator", "viewer"],
+    },
   },
 } as const

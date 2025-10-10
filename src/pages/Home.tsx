@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Monitor, Camera, Video, Users, QrCode } from "lucide-react";
+import { Monitor, Camera, Video, Users, QrCode, Settings } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 interface Panel {
   id: string;
@@ -49,6 +50,17 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-studio-dark to-background p-8">
       <div className="max-w-7xl mx-auto">
+        <div className="absolute top-8 right-8">
+          <Button
+            onClick={() => navigate("/admin/dashboard")}
+            variant="outline"
+            className="border-gold/20 hover:bg-gold/10"
+          >
+            <Settings className="mr-2 h-4 w-4" />
+            Admin
+          </Button>
+        </div>
+
         <div className="text-center mb-12 animate-fade-in">
           <h1 className="text-6xl font-bold mb-4 bg-gradient-gold bg-clip-text text-transparent">
             MaxCheckin
