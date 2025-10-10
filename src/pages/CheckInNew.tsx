@@ -97,19 +97,22 @@ export default function CheckInNew() {
         throw new Error("Webhook URL não configurada. Configure em Admin → Webhooks");
       }
 
+      console.log(`[CHECK-IN] Buscando Lead ${leadId} no Bitrix...`);
+
       // Get lead data from Bitrix24
       const getResponse = await fetch(
         `${webhookUrl}/crm.lead.get.json?ID=${leadId}`
       );
       
       if (!getResponse.ok) {
-        throw new Error("Lead não encontrado");
+        throw new Error(`Lead ${leadId} não encontrado no Bitrix (Status: ${getResponse.status})`);
       }
 
       const getData = await getResponse.json();
+      console.log(`[CHECK-IN] Resposta Bitrix:`, getData);
       
-      if (!getData.result) {
-        throw new Error("Lead não encontrado no Bitrix24");
+      if (!getData.result || Object.keys(getData.result).length === 0) {
+        throw new Error(`Lead ${leadId} não existe no Bitrix24`);
       }
 
       const lead = getData.result;
@@ -120,6 +123,8 @@ export default function CheckInNew() {
         .select("*")
         .eq("is_active", true);
 
+      console.log(`[CHECK-IN] Mapeamentos encontrados:`, mappings);
+
       // Build model data dynamically from mappings
       const modelData: any = { lead_id: leadId };
 
@@ -127,23 +132,30 @@ export default function CheckInNew() {
         mappings.forEach((mapping) => {
           const bitrixValue = lead[mapping.bitrix_field_name];
           
-          // Set value with fallback
+          // Set value with fallback chain
           if (mapping.maxcheckin_field_name === "model_name") {
-            modelData.name = bitrixValue || lead.NAME || lead.TITLE || "Modelo";
+            modelData.name = bitrixValue || lead.NAME || lead.TITLE || "Modelo Sem Nome";
           } else if (mapping.maxcheckin_field_name === "model_photo") {
-            modelData.photo = bitrixValue || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400";
+            modelData.photo = bitrixValue || lead.PHOTO || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400";
           } else if (mapping.maxcheckin_field_name === "responsible") {
             modelData.responsible = bitrixValue || lead.ASSIGNED_BY_NAME || "MaxFama";
           } else {
-            modelData[mapping.maxcheckin_field_name] = bitrixValue;
+            modelData[mapping.maxcheckin_field_name] = bitrixValue || null;
           }
         });
       } else {
         // Fallback to default fields if no mappings configured
-        modelData.name = lead.NAME || lead.TITLE || "Modelo";
+        console.log(`[CHECK-IN] Sem mapeamentos, usando campos padrão`);
+        modelData.name = lead.NAME || lead.TITLE || "Modelo Sem Nome";
         modelData.photo = lead.PHOTO || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400";
         modelData.responsible = lead.ASSIGNED_BY_NAME || "MaxFama";
       }
+
+      console.log(`[CHECK-IN] Dados extraídos:`, {
+        name: modelData.name,
+        photo: modelData.photo,
+        responsible: modelData.responsible
+      });
 
       // Find presenca_confirmada field mapping
       const presencaMapping = mappings?.find(
@@ -178,7 +190,16 @@ export default function CheckInNew() {
   const processCheckIn = async (leadId: string, method: 'qr' | 'manual' | 'usb') => {
     try {
       setIsLoading(true);
+      console.log(`[CHECK-IN] Iniciando check-in - Lead: ${leadId}, Método: ${method}`);
+      
       const modelData = await fetchModelDataFromBitrix(leadId);
+      
+      // Validate mandatory fields
+      if (!modelData.name || modelData.name === "Modelo Sem Nome") {
+        throw new Error(`Nome do modelo não encontrado no Lead ${leadId}. Verifique os campos no Bitrix24.`);
+      }
+      
+      console.log(`[CHECK-IN] Validação OK, salvando no banco...`);
       
       setModelData(modelData);
       setScanning(false);
@@ -189,12 +210,19 @@ export default function CheckInNew() {
       }
 
       // Save to database
-      await supabase.from("check_ins").insert({
+      const { error: insertError } = await supabase.from("check_ins").insert({
         lead_id: leadId,
         model_name: modelData.name,
         model_photo: modelData.photo,
         responsible: modelData.responsible,
       });
+
+      if (insertError) {
+        console.error(`[CHECK-IN] Erro ao salvar:`, insertError);
+        throw new Error(`Erro ao salvar check-in: ${insertError.message}`);
+      }
+
+      console.log(`[CHECK-IN] Sucesso!`);
 
       toast({
         title: "Check-in realizado!",
@@ -214,9 +242,15 @@ export default function CheckInNew() {
         }
       }, 5000);
     } catch (error) {
+      console.error(`[CHECK-IN] Erro:`, error);
+      
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : `Lead ${leadId} não encontrado ou erro desconhecido`;
+      
       toast({
         title: "Erro no check-in",
-        description: error instanceof Error ? error.message : "ID não encontrado",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
