@@ -9,6 +9,7 @@ import {
   Settings,
   LogOut,
   Database,
+  QrCode,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -32,6 +33,7 @@ const menuItems = [
   { title: 'Mídias', url: '/admin/media', icon: Film },
   { title: 'Campos Customizados', url: '/admin/custom-fields', icon: Database },
   { title: 'Mapeamento', url: '/admin/field-mapping', icon: Map },
+  { title: 'Check-in', url: '/admin/checkin-settings', icon: QrCode },
   { title: 'Logs', url: '/admin/logs', icon: FileText },
   { title: 'Configurações', url: '/admin/settings', icon: Settings },
 ];

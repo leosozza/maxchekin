@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Monitor, Camera, Video, Users, QrCode, Settings, Smartphone } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ const iconMap: Record<string, any> = {
 export default function Home() {
   const [panels, setPanels] = useState<Panel[]>([]);
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
 
   useEffect(() => {
     loadPanels();
@@ -51,14 +53,16 @@ export default function Home() {
     <div className="min-h-screen bg-gradient-to-br from-background via-studio-dark to-background p-8">
       <div className="max-w-7xl mx-auto">
         <div className="absolute top-8 right-8">
-          <Button
-            onClick={() => navigate("/admin/dashboard")}
-            variant="outline"
-            className="border-gold/20 hover:bg-gold/10"
-          >
-            <Settings className="mr-2 h-4 w-4" />
-            Admin
-          </Button>
+          {isAdmin && (
+            <Button
+              onClick={() => navigate("/admin/dashboard")}
+              variant="outline"
+              className="border-gold/20 hover:bg-gold/10"
+            >
+              <Settings className="mr-2 h-4 w-4" />
+              Admin
+            </Button>
+          )}
         </div>
 
         <div className="text-center mb-12 animate-fade-in">

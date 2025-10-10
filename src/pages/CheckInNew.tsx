@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { supabase } from "@/integrations/supabase/client";
-import { Sparkles, QrCode, Search, X, Delete } from "lucide-react";
+import { Sparkles, QrCode, Search, X, Delete, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -26,6 +26,7 @@ export default function CheckInNew() {
   const [searchId, setSearchId] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [webhookUrl, setWebhookUrl] = useState("");
+  const [welcomeMessage, setWelcomeMessage] = useState("Seja bem-vinda");
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const usbInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -33,6 +34,7 @@ export default function CheckInNew() {
   // Load webhook config on mount
   useEffect(() => {
     loadWebhookConfig();
+    loadCheckInConfig();
   }, []);
 
   const loadWebhookConfig = async () => {
@@ -49,6 +51,19 @@ export default function CheckInNew() {
       setWebhookUrl(data.bitrix_webhook_url);
     } else {
       console.error("[CHECK-IN] Nenhum webhook ativo encontrado!");
+    }
+  };
+
+  const loadCheckInConfig = async () => {
+    const { data } = await supabase
+      .from("check_in_config")
+      .select("welcome_message")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (data?.welcome_message) {
+      setWelcomeMessage(data.welcome_message);
     }
   };
 
@@ -173,7 +188,7 @@ export default function CheckInNew() {
       };
 
       if (presencaMapping?.bitrix_field_name) {
-        updateFields[presencaMapping.bitrix_field_name] = "Sim";
+        updateFields[presencaMapping.bitrix_field_name] = "1";
       }
 
       await fetch(`${webhookUrl}/crm.lead.update.json`, {
@@ -372,17 +387,24 @@ export default function CheckInNew() {
           {/* Model Photo */}
           <div className="relative">
             <div className="absolute inset-0 bg-gradient-gold blur-2xl opacity-40"></div>
-            <img
-              src={modelData.photo}
-              alt={modelData.name}
-              className="w-48 h-48 sm:w-64 sm:h-64 rounded-full object-cover border-4 border-gold shadow-glow relative z-10 animate-scale-in"
-            />
+            {modelData.photo ? (
+              <img
+                src={modelData.photo}
+                alt={modelData.name}
+                className="w-48 h-48 sm:w-64 sm:h-64 rounded-full object-cover border-4 border-gold shadow-glow relative z-10 animate-scale-in"
+              />
+            ) : (
+              <div className="w-48 h-48 sm:w-64 sm:h-64 rounded-full bg-muted border-4 border-gold shadow-glow relative z-10 animate-scale-in flex flex-col items-center justify-center">
+                <User className="w-24 h-24 sm:w-32 sm:h-32 text-muted-foreground mb-2" />
+                <p className="text-sm text-muted-foreground">Sem Foto</p>
+              </div>
+            )}
           </div>
 
           {/* Welcome Message */}
           <div className="text-center space-y-2 sm:space-y-4 z-10 px-4">
             <h2 className="text-3xl sm:text-5xl font-bold bg-gradient-gold bg-clip-text text-transparent">
-              Seja bem-vinda,
+              {welcomeMessage},
             </h2>
             <p className="text-4xl sm:text-6xl font-bold text-foreground animate-shimmer">
               {modelData.name}!

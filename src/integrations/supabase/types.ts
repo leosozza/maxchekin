@@ -111,6 +111,30 @@ export type Database = {
           },
         ]
       }
+      check_in_config: {
+        Row: {
+          created_at: string | null
+          id: string
+          show_photo_placeholder: boolean | null
+          updated_at: string | null
+          welcome_message: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          show_photo_placeholder?: boolean | null
+          updated_at?: string | null
+          welcome_message?: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          show_photo_placeholder?: boolean | null
+          updated_at?: string | null
+          welcome_message?: string
+        }
+        Relationships: []
+      }
       check_ins: {
         Row: {
           bitrix_updated: boolean | null
