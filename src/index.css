@@ -122,3 +122,40 @@ All colors MUST be HSL.
     animation: pulse-glow 2s ease-in-out infinite;
   }
 }
+
+/* Mobile PWA Optimizations */
+@media (max-width: 768px) {
+  button, a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  body {
+    font-size: 16px;
+  }
+
+  input, select, textarea {
+    font-size: 16px;
+  }
+
+  ::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* PWA Standalone mode */
+@media (display-mode: standalone) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Portrait mode optimization */
+@media (orientation: portrait) {
+  .portrait-mode {
+    width: 100vw;
+    height: 100vh;
+    max-width: none;
+  }
+}

@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Clock, User, MapPin } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RenderCustomLayout } from "@/components/admin/RenderCustomLayout";
 
 interface Call {
   id: string;
@@ -24,6 +25,7 @@ export default function PainelDinamico() {
   const [currentCall, setCurrentCall] = useState<Call | null>(null);
   const [recentCalls, setRecentCalls] = useState<Call[]>([]);
   const [layout, setLayout] = useState<string>("clean");
+  const [customLayout, setCustomLayout] = useState<any>(null);
 
   useEffect(() => {
     if (slug) {
@@ -35,7 +37,7 @@ export default function PainelDinamico() {
   const loadPanel = async () => {
     const { data: panelData } = await supabase
       .from("panels")
-      .select("name, default_layout")
+      .select("id, name, default_layout")
       .eq("slug", slug)
       .single();
 
@@ -43,6 +45,19 @@ export default function PainelDinamico() {
       setPanel(panelData);
       setLayout(panelData.default_layout || "clean");
       loadCalls(panelData.name);
+      loadCustomLayout(panelData.id);
+    }
+  };
+
+  const loadCustomLayout = async (panelId: string) => {
+    const { data } = await supabase
+      .from("panel_layouts")
+      .select("*")
+      .eq("panel_id", panelId)
+      .maybeSingle();
+
+    if (data) {
+      setCustomLayout(data);
     }
   };
 
@@ -89,6 +104,19 @@ export default function PainelDinamico() {
       minute: "2-digit",
     });
   };
+
+  // If custom layout exists, render it instead of default
+  if (customLayout && layout === "clean") {
+    return (
+      <RenderCustomLayout 
+        config={{
+          ...customLayout,
+          elements: customLayout.elements as any
+        }} 
+        currentCall={currentCall} 
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-studio-dark via-background to-studio-dark landscape:orientation-landscape">

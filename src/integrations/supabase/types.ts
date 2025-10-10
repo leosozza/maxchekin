@@ -209,6 +209,47 @@ export type Database = {
           },
         ]
       }
+      panel_layouts: {
+        Row: {
+          canvas_height: number
+          canvas_width: number
+          created_at: string | null
+          elements: Json
+          id: string
+          orientation: string
+          panel_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          canvas_height?: number
+          canvas_width?: number
+          created_at?: string | null
+          elements?: Json
+          id?: string
+          orientation?: string
+          panel_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          canvas_height?: number
+          canvas_width?: number
+          created_at?: string | null
+          elements?: Json
+          id?: string
+          orientation?: string
+          panel_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "panel_layouts_panel_id_fkey"
+            columns: ["panel_id"]
+            isOneToOne: true
+            referencedRelation: "panels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       panels: {
         Row: {
           bitrix_stage_id: string | null

@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Trash2, Eye } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Paintbrush } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 
@@ -132,20 +132,31 @@ export default function Panels() {
               <p className="text-sm text-white/80 mb-4">
                 {panel.description || 'Sem descrição'}
               </p>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => window.open(`/painel/${panel.slug}`, '_blank')}
                   className="border-gold/20"
+                  title="Visualizar"
                 >
                   <Eye className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
+                  onClick={() => navigate(`/admin/panels/${panel.id}/editor`)}
+                  className="border-gold/20"
+                  title="Editor Visual"
+                >
+                  <Paintbrush className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => navigate(`/admin/panels/${panel.id}/edit`)}
                   className="border-gold/20"
+                  title="Editar"
                 >
                   <Edit className="h-4 w-4" />
                 </Button>
@@ -154,6 +165,7 @@ export default function Panels() {
                   size="sm"
                   onClick={() => handleToggleActive(panel)}
                   className="border-gold/20"
+                  title={panel.is_active ? 'Desativar' : 'Ativar'}
                 >
                   {panel.is_active ? 'Desativar' : 'Ativar'}
                 </Button>
@@ -161,6 +173,7 @@ export default function Panels() {
                   variant="destructive"
                   size="sm"
                   onClick={() => handleDelete(panel.id)}
+                  title="Deletar"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>

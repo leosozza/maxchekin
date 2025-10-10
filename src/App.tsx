@@ -12,11 +12,13 @@ import AdminLayout from "./pages/admin/AdminLayout";
 import Dashboard from "./pages/admin/Dashboard";
 import Panels from "./pages/admin/Panels";
 import PanelForm from "./pages/admin/PanelForm";
+import PanelLayoutEditor from "./pages/admin/PanelLayoutEditor";
 import Webhooks from "./pages/admin/Webhooks";
 import Media from "./pages/admin/Media";
 import FieldMapping from "./pages/admin/FieldMapping";
 import Logs from "./pages/admin/Logs";
 import Settings from "./pages/admin/Settings";
+import { InstallPWA } from "./components/InstallPWA";
 
 const queryClient = new QueryClient();
 
@@ -25,6 +27,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <InstallPWA />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Home />} />
@@ -38,6 +41,7 @@ const App = () => (
             <Route path="panels" element={<Panels />} />
             <Route path="panels/new" element={<PanelForm />} />
             <Route path="panels/:id/edit" element={<PanelForm />} />
+            <Route path="panels/:id/editor" element={<PanelLayoutEditor />} />
             <Route path="webhooks" element={<Webhooks />} />
             <Route path="media" element={<Media />} />
             <Route path="field-mapping" element={<FieldMapping />} />
