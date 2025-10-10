@@ -41,6 +41,21 @@ export default function Webhooks() {
     }
   }, [config]);
 
+  const cleanBitrixUrl = (url: string): string => {
+    // Remove trailing slash and whitespace
+    let cleaned = url.trim().replace(/\/$/, '');
+    
+    // Extract base webhook URL (remove API methods and parameters)
+    // Pattern: https://domain.bitrix24.com.br/rest/USER_ID/TOKEN
+    const match = cleaned.match(/(https:\/\/[^\/]+\.bitrix24\.[^\/]+\/rest\/\d+\/[a-z0-9]+)/i);
+    
+    if (match) {
+      return match[1];
+    }
+    
+    return cleaned;
+  };
+
   const copyToClipboard = () => {
     navigator.clipboard.writeText(webhookUrl);
     setCopied(true);
@@ -61,12 +76,25 @@ export default function Webhooks() {
       return;
     }
 
+    // Clean URL automatically
+    const cleanedUrl = cleanBitrixUrl(bitrixUrl);
+    
+    // Validate format
+    if (!cleanedUrl.match(/^https:\/\/[^\/]+\.bitrix24\.[^\/]+\/rest\/\d+\/[a-z0-9]+$/i)) {
+      toast({
+        title: 'URL Inválida',
+        description: 'A URL deve estar no formato: https://empresa.bitrix24.com.br/rest/USER_ID/TOKEN',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsSaving(true);
 
     const { error } = await supabase
       .from('webhook_config')
       .upsert({
-        bitrix_webhook_url: bitrixUrl,
+        bitrix_webhook_url: cleanedUrl,
         notify_on_checkin: notifyOnCheckin,
         notify_on_call: notifyOnCall,
         is_active: true,
@@ -83,9 +111,12 @@ export default function Webhooks() {
       return;
     }
 
+    // Update state with cleaned URL
+    setBitrixUrl(cleanedUrl);
+
     toast({
-      title: 'Configurações salvas!',
-      description: 'A URL do webhook foi configurada com sucesso',
+      title: 'Webhook configurado com sucesso! ✓',
+      description: `URL: ${cleanedUrl}`,
     });
 
     refetch();
@@ -150,6 +181,13 @@ export default function Webhooks() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label className="text-white/80">URL Base Bitrix24</Label>
+            {bitrixUrl && !cleanBitrixUrl(bitrixUrl).match(/^https:\/\/[^\/]+\.bitrix24\.[^\/]+\/rest\/\d+\/[a-z0-9]+$/i) && (
+              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
+                <p className="text-sm text-yellow-400">
+                  ⚠️ A URL será ajustada automaticamente ao salvar
+                </p>
+              </div>
+            )}
             <Input
               value={bitrixUrl}
               onChange={(e) => setBitrixUrl(e.target.value)}
@@ -159,6 +197,25 @@ export default function Webhooks() {
             <p className="text-xs text-white/40">
               Exemplo: https://maxsystem.bitrix24.com.br/rest/9/ia31i2r3aenevk0g
             </p>
+          </div>
+
+          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+            <h4 className="text-sm font-semibold text-blue-400 mb-2">
+              Como obter a URL do Bitrix24:
+            </h4>
+            <ol className="text-sm text-white/70 space-y-1 list-decimal list-inside">
+              <li>Acesse Bitrix24 → Desenvolvedor → Webhooks REST</li>
+              <li>Crie um novo webhook de <strong>entrada</strong></li>
+              <li>Selecione as permissões: <code className="text-gold">crm (CRM)</code></li>
+              <li>Copie a URL que termina em <code className="text-gold">/rest/[número]/[token]</code></li>
+              <li>Cole aqui (sem métodos como <code className="text-gold/60">/crm.lead.update</code>)</li>
+            </ol>
+            <div className="mt-2 p-2 bg-black/20 rounded border border-gold/10">
+              <p className="text-xs text-white/60">Formato correto:</p>
+              <code className="text-xs text-gold">
+                https://empresa.bitrix24.com.br/rest/9/abc123xyz
+              </code>
+            </div>
           </div>
 
           <div className="space-y-4">
