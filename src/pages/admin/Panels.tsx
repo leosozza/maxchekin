@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Trash2, Eye, Paintbrush } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Paintbrush, QrCode, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 
@@ -117,6 +117,49 @@ export default function Panels() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Check-in Panel (Special) */}
+        <Card className="border-gold/20 bg-gradient-to-br from-gold/10 to-black/40 backdrop-blur-sm">
+          <CardHeader>
+            <div className="flex justify-between items-start">
+              <div className="flex items-center gap-2">
+                <QrCode className="w-5 h-5 text-gold" />
+                <CardTitle className="text-gold">Painel de Boas-Vindas</CardTitle>
+              </div>
+              <Badge className="bg-gold/20 text-gold border-gold/30">
+                Check-in
+              </Badge>
+            </div>
+            <p className="text-sm text-white/60">Tela de entrada com scanner QR</p>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-white/80 mb-4">
+              Configure os campos e layout da tela de check-in
+            </p>
+            <div className="flex gap-2 flex-wrap">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.open('/checkin', '_blank')}
+                className="border-gold/20"
+                title="Visualizar"
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/admin/custom-fields')}
+                className="border-gold/20"
+                title="Configurar Campos"
+              >
+                <Settings className="h-4 w-4 mr-1" />
+                Campos
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Dynamic Panels */}
         {panels.map((panel) => (
           <Card key={panel.id} className="border-gold/20 bg-black/40 backdrop-blur-sm">
             <CardHeader>

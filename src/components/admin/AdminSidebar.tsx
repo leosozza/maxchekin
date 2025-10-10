@@ -8,6 +8,7 @@ import {
   FileText,
   Settings,
   LogOut,
+  Database,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -29,6 +30,7 @@ const menuItems = [
   { title: 'Painéis', url: '/admin/panels', icon: Monitor },
   { title: 'Webhooks', url: '/admin/webhooks', icon: Webhook },
   { title: 'Mídias', url: '/admin/media', icon: Film },
+  { title: 'Campos Customizados', url: '/admin/custom-fields', icon: Database },
   { title: 'Mapeamento', url: '/admin/field-mapping', icon: Map },
   { title: 'Logs', url: '/admin/logs', icon: FileText },
   { title: 'Configurações', url: '/admin/settings', icon: Settings },

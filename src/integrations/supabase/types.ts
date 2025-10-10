@@ -63,6 +63,7 @@ export type Database = {
           called_at: string | null
           completed_at: string | null
           created_at: string | null
+          custom_data: Json | null
           id: string
           lead_id: string
           model_name: string
@@ -76,6 +77,7 @@ export type Database = {
           called_at?: string | null
           completed_at?: string | null
           created_at?: string | null
+          custom_data?: Json | null
           id?: string
           lead_id: string
           model_name: string
@@ -89,6 +91,7 @@ export type Database = {
           called_at?: string | null
           completed_at?: string | null
           created_at?: string | null
+          custom_data?: Json | null
           id?: string
           lead_id?: string
           model_name?: string
@@ -135,6 +138,45 @@ export type Database = {
           model_name?: string
           model_photo?: string | null
           responsible?: string | null
+        }
+        Relationships: []
+      }
+      custom_fields: {
+        Row: {
+          bitrix_field_name: string | null
+          created_at: string | null
+          field_key: string
+          field_label: string
+          field_type: string
+          id: string
+          is_active: boolean | null
+          show_in_checkin: boolean | null
+          show_in_panels: boolean | null
+          sort_order: number | null
+        }
+        Insert: {
+          bitrix_field_name?: string | null
+          created_at?: string | null
+          field_key: string
+          field_label: string
+          field_type: string
+          id?: string
+          is_active?: boolean | null
+          show_in_checkin?: boolean | null
+          show_in_panels?: boolean | null
+          sort_order?: number | null
+        }
+        Update: {
+          bitrix_field_name?: string | null
+          created_at?: string | null
+          field_key?: string
+          field_label?: string
+          field_type?: string
+          id?: string
+          is_active?: boolean | null
+          show_in_checkin?: boolean | null
+          show_in_panels?: boolean | null
+          sort_order?: number | null
         }
         Relationships: []
       }
@@ -204,6 +246,50 @@ export type Database = {
             foreignKeyName: "media_panel_id_fkey"
             columns: ["panel_id"]
             isOneToOne: false
+            referencedRelation: "panels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      panel_config: {
+        Row: {
+          auto_advance: boolean | null
+          auto_advance_seconds: number | null
+          bitrix_webhook_url: string | null
+          created_at: string | null
+          id: string
+          notify_on_call: boolean | null
+          panel_id: string | null
+          updated_at: string | null
+          visible_fields: Json | null
+        }
+        Insert: {
+          auto_advance?: boolean | null
+          auto_advance_seconds?: number | null
+          bitrix_webhook_url?: string | null
+          created_at?: string | null
+          id?: string
+          notify_on_call?: boolean | null
+          panel_id?: string | null
+          updated_at?: string | null
+          visible_fields?: Json | null
+        }
+        Update: {
+          auto_advance?: boolean | null
+          auto_advance_seconds?: number | null
+          bitrix_webhook_url?: string | null
+          created_at?: string | null
+          id?: string
+          notify_on_call?: boolean | null
+          panel_id?: string | null
+          updated_at?: string | null
+          visible_fields?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "panel_config_panel_id_fkey"
+            columns: ["panel_id"]
+            isOneToOne: true
             referencedRelation: "panels"
             referencedColumns: ["id"]
           },

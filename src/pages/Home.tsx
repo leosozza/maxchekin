@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Monitor, Camera, Video, Users, QrCode, Settings } from "lucide-react";
+import { Monitor, Camera, Video, Users, QrCode, Settings, Smartphone } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -83,6 +83,22 @@ export default function Home() {
               <h2 className="text-2xl font-bold text-foreground">Check-in</h2>
               <p className="text-sm text-muted-foreground">
                 Tela de boas-vindas com scanner QR
+              </p>
+            </div>
+          </Card>
+
+          {/* App Download Panel */}
+          <Card
+            onClick={() => navigate("/app-download")}
+            className="group cursor-pointer p-8 hover:shadow-elegant hover:scale-105 transition-all duration-300 bg-card/50 backdrop-blur border-primary/20 hover:border-primary/50"
+          >
+            <div className="flex flex-col items-center text-center space-y-4">
+              <div className="p-6 rounded-full bg-gradient-gold group-hover:shadow-glow transition-all">
+                <Smartphone className="w-12 h-12 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold text-foreground">Baixar App</h2>
+              <p className="text-sm text-muted-foreground">
+                Instalar aplicativo móvel
               </p>
             </div>
           </Card>
