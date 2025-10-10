@@ -47,16 +47,27 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        sidebar: {
-          DEFAULT: "hsl(var(--sidebar-background))",
-          foreground: "hsl(var(--sidebar-foreground))",
-          primary: "hsl(var(--sidebar-primary))",
-          "primary-foreground": "hsl(var(--sidebar-primary-foreground))",
-          accent: "hsl(var(--sidebar-accent))",
-          "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
-          border: "hsl(var(--sidebar-border))",
-          ring: "hsl(var(--sidebar-ring))",
+        studio: {
+          dark: "hsl(var(--studio-dark))",
+          light: "hsl(var(--studio-light))",
         },
+        gold: {
+          DEFAULT: "hsl(var(--primary))",
+          shimmer: "hsl(var(--gold-shimmer))",
+        },
+        neon: {
+          DEFAULT: "hsl(var(--neon-glow))",
+        },
+      },
+      backgroundImage: {
+        'gradient-gold': 'var(--gradient-gold)',
+        'gradient-studio': 'var(--gradient-studio)',
+        'gradient-neon': 'var(--gradient-neon)',
+      },
+      boxShadow: {
+        'gold': 'var(--shadow-gold)',
+        'neon': 'var(--shadow-neon)',
+        'elevation': 'var(--shadow-elevation)',
       },
       borderRadius: {
         lg: "var(--radius)",
