@@ -2,15 +2,44 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Copy, CheckCircle2 } from 'lucide-react';
-import { useState } from 'react';
+import { Switch } from '@/components/ui/switch';
+import { Copy, CheckCircle2, Loader2, Save } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
 
 export default function Webhooks() {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
+  const [bitrixUrl, setBitrixUrl] = useState('');
+  const [notifyOnCheckin, setNotifyOnCheckin] = useState(true);
+  const [notifyOnCall, setNotifyOnCall] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   
   const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bitrix-webhook`;
+
+  const { data: config, refetch } = useQuery({
+    queryKey: ['webhook-config'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('webhook_config')
+        .select('*')
+        .eq('is_active', true)
+        .maybeSingle();
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  useEffect(() => {
+    if (config) {
+      setBitrixUrl(config.bitrix_webhook_url || '');
+      setNotifyOnCheckin(config.notify_on_checkin ?? true);
+      setNotifyOnCall(config.notify_on_call ?? true);
+    }
+  }, [config]);
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(webhookUrl);
@@ -20,6 +49,46 @@ export default function Webhooks() {
       description: 'A URL do webhook foi copiada para a área de transferência.',
     });
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleSave = async () => {
+    if (!bitrixUrl.trim()) {
+      toast({
+        title: 'Erro',
+        description: 'Digite uma URL válida do Bitrix24',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsSaving(true);
+
+    const { error } = await supabase
+      .from('webhook_config')
+      .upsert({
+        bitrix_webhook_url: bitrixUrl,
+        notify_on_checkin: notifyOnCheckin,
+        notify_on_call: notifyOnCall,
+        is_active: true,
+      });
+
+    setIsSaving(false);
+
+    if (error) {
+      toast({
+        title: 'Erro ao salvar',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    toast({
+      title: 'Configurações salvas!',
+      description: 'A URL do webhook foi configurada com sucesso',
+    });
+
+    refetch();
   };
 
   return (
@@ -82,14 +151,60 @@ export default function Webhooks() {
           <div className="space-y-2">
             <Label className="text-white/80">URL Base Bitrix24</Label>
             <Input
-              defaultValue="https://maxsystem.bitrix24.com.br/rest/9/ia31i2r3aenevk0g"
+              value={bitrixUrl}
+              onChange={(e) => setBitrixUrl(e.target.value)}
               className="bg-black/20 border-gold/20 text-white font-mono text-sm"
               placeholder="https://sua-empresa.bitrix24.com.br/rest/..."
             />
+            <p className="text-xs text-white/40">
+              Exemplo: https://maxsystem.bitrix24.com.br/rest/9/ia31i2r3aenevk0g
+            </p>
           </div>
 
-          <Button className="bg-gold hover:bg-gold/90 text-black">
-            Salvar Configurações
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label className="text-white/80">Notificar no Check-in</Label>
+                <p className="text-xs text-white/40">
+                  Atualizar campo "Presença Confirmada" no Bitrix ao fazer check-in
+                </p>
+              </div>
+              <Switch
+                checked={notifyOnCheckin}
+                onCheckedChange={setNotifyOnCheckin}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label className="text-white/80">Notificar ao Chamar Modelo</Label>
+                <p className="text-xs text-white/40">
+                  Atualizar status no Bitrix quando chamar modelo no painel
+                </p>
+              </div>
+              <Switch
+                checked={notifyOnCall}
+                onCheckedChange={setNotifyOnCall}
+              />
+            </div>
+          </div>
+
+          <Button 
+            onClick={handleSave}
+            disabled={isSaving}
+            className="bg-gold hover:bg-gold/90 text-black"
+          >
+            {isSaving ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Salvando...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4 mr-2" />
+                Salvar Configurações
+              </>
+            )}
           </Button>
         </CardContent>
       </Card>

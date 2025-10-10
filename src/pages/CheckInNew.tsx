@@ -16,9 +16,8 @@ interface ModelData {
   name: string;
   photo: string;
   responsible: string;
+  [key: string]: any;
 }
-
-const BITRIX_WEBHOOK_URL = "https://maxsystem.bitrix24.com.br/rest/9/ia31i2r3aenevk0g";
 
 export default function CheckInNew() {
   const [scanning, setScanning] = useState(true);
@@ -26,9 +25,27 @@ export default function CheckInNew() {
   const [manualSearchOpen, setManualSearchOpen] = useState(false);
   const [searchId, setSearchId] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [webhookUrl, setWebhookUrl] = useState("");
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const usbInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  // Load webhook config on mount
+  useEffect(() => {
+    loadWebhookConfig();
+  }, []);
+
+  const loadWebhookConfig = async () => {
+    const { data } = await supabase
+      .from("webhook_config")
+      .select("bitrix_webhook_url")
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (data?.bitrix_webhook_url) {
+      setWebhookUrl(data.bitrix_webhook_url);
+    }
+  };
 
   // Focus USB input when not in manual search
   useEffect(() => {
@@ -76,9 +93,13 @@ export default function CheckInNew() {
 
   const fetchModelDataFromBitrix = async (leadId: string) => {
     try {
+      if (!webhookUrl) {
+        throw new Error("Webhook URL não configurada. Configure em Admin → Webhooks");
+      }
+
       // Get lead data from Bitrix24
       const getResponse = await fetch(
-        `${BITRIX_WEBHOOK_URL}/crm.lead.get.json?ID=${leadId}`
+        `${webhookUrl}/crm.lead.get.json?ID=${leadId}`
       );
       
       if (!getResponse.ok) {
@@ -93,25 +114,61 @@ export default function CheckInNew() {
 
       const lead = getData.result;
 
-      // Update lead status to checked-in
-      await fetch(`${BITRIX_WEBHOOK_URL}/crm.lead.update.json`, {
+      // Get field mappings
+      const { data: mappings } = await supabase
+        .from("field_mapping")
+        .select("*")
+        .eq("is_active", true);
+
+      // Build model data dynamically from mappings
+      const modelData: any = { lead_id: leadId };
+
+      if (mappings && mappings.length > 0) {
+        mappings.forEach((mapping) => {
+          const bitrixValue = lead[mapping.bitrix_field_name];
+          
+          // Set value with fallback
+          if (mapping.maxcheckin_field_name === "model_name") {
+            modelData.name = bitrixValue || lead.NAME || lead.TITLE || "Modelo";
+          } else if (mapping.maxcheckin_field_name === "model_photo") {
+            modelData.photo = bitrixValue || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400";
+          } else if (mapping.maxcheckin_field_name === "responsible") {
+            modelData.responsible = bitrixValue || lead.ASSIGNED_BY_NAME || "MaxFama";
+          } else {
+            modelData[mapping.maxcheckin_field_name] = bitrixValue;
+          }
+        });
+      } else {
+        // Fallback to default fields if no mappings configured
+        modelData.name = lead.NAME || lead.TITLE || "Modelo";
+        modelData.photo = lead.PHOTO || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400";
+        modelData.responsible = lead.ASSIGNED_BY_NAME || "MaxFama";
+      }
+
+      // Find presenca_confirmada field mapping
+      const presencaMapping = mappings?.find(
+        m => m.maxcheckin_field_name === "presenca_confirmada"
+      );
+
+      // Update lead in Bitrix24
+      const updateFields: any = {
+        UF_CRM_CHECK_IN_TIME: new Date().toISOString(),
+      };
+
+      if (presencaMapping?.bitrix_field_name) {
+        updateFields[presencaMapping.bitrix_field_name] = "Sim";
+      }
+
+      await fetch(`${webhookUrl}/crm.lead.update.json`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ID: leadId,
-          fields: {
-            STATUS_ID: "CHECKED_IN",
-            UF_CRM_CHECK_IN_TIME: new Date().toISOString(),
-          },
+          fields: updateFields,
         }),
       });
 
-      return {
-        lead_id: leadId,
-        name: lead.NAME || lead.TITLE || "Modelo",
-        photo: lead.PHOTO || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400",
-        responsible: lead.ASSIGNED_BY_NAME || "MaxFama",
-      };
+      return modelData as ModelData;
     } catch (error) {
       console.error("Error fetching from Bitrix:", error);
       throw error;
