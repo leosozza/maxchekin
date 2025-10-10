@@ -159,3 +159,24 @@ All colors MUST be HSL.
     max-width: none;
   }
 }
+
+/* QR Scanner height constraints for small screens */
+@media (max-height: 700px) {
+  #qr-reader {
+    max-height: 200px !important;
+  }
+  
+  #qr-reader video {
+    max-height: 200px !important;
+  }
+}
+
+@media (min-height: 701px) and (max-height: 900px) {
+  #qr-reader {
+    max-height: 250px !important;
+  }
+  
+  #qr-reader video {
+    max-height: 250px !important;
+  }
+}

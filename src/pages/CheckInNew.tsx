@@ -266,7 +266,7 @@ export default function CheckInNew() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-studio-dark via-background to-studio-dark flex flex-col items-center justify-center p-8 portrait:orientation-portrait">
+    <div className="min-h-screen max-h-screen overflow-hidden bg-gradient-to-b from-studio-dark via-background to-studio-dark flex flex-col items-center justify-between p-4 md:p-8 portrait:orientation-portrait">
       {/* Hidden USB input for barcode scanner */}
       <input
         ref={usbInputRef}
@@ -277,8 +277,8 @@ export default function CheckInNew() {
       />
 
       {/* Logo */}
-      <div className="absolute top-8 left-1/2 -translate-x-1/2 z-10">
-        <h1 className="text-4xl font-bold bg-gradient-gold bg-clip-text text-transparent">
+      <div className="w-full text-center mb-4 sm:mb-8">
+        <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-gold bg-clip-text text-transparent">
           MaxFama
         </h1>
       </div>
@@ -287,26 +287,26 @@ export default function CheckInNew() {
       {scanning && !modelData && (
         <button
           onClick={() => setManualSearchOpen(true)}
-          className="fixed bottom-8 right-8 w-20 h-20 rounded-full bg-gold/20 backdrop-blur-sm border-2 border-gold/40 hover:bg-gold/30 hover:border-gold/60 transition-all shadow-glow z-50 flex items-center justify-center group"
+          className="fixed bottom-4 right-4 sm:bottom-8 sm:right-8 w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gold/20 backdrop-blur-sm border-2 border-gold/40 hover:bg-gold/30 hover:border-gold/60 transition-all shadow-glow z-50 flex items-center justify-center group"
         >
-          <Search className="w-10 h-10 text-gold group-hover:scale-110 transition-transform" />
+          <Search className="w-8 h-8 sm:w-10 sm:h-10 text-gold group-hover:scale-110 transition-transform" />
         </button>
       )}
 
       {scanning && !modelData && (
-        <div className="flex flex-col items-center space-y-8 animate-fade-in">
+        <div className="flex flex-col items-center space-y-4 sm:space-y-8 animate-fade-in flex-1 justify-center w-full">
           <div className="relative">
             <div className="absolute inset-0 bg-gradient-gold blur-3xl opacity-20 animate-pulse-glow"></div>
-            <QrCode className="w-32 h-32 text-gold animate-pulse relative z-10" />
+            <QrCode className="w-20 h-20 sm:w-32 sm:h-32 text-gold animate-pulse relative z-10" />
           </div>
           
-          <div id="qr-reader" className="w-full max-w-md"></div>
+          <div id="qr-reader" className="w-full max-w-md max-h-[250px] sm:max-h-[400px] min-h-[200px] overflow-hidden"></div>
           
-          <div className="text-center space-y-2">
-            <p className="text-2xl font-light text-foreground">
+          <div className="text-center space-y-2 px-4">
+            <p className="text-xl sm:text-2xl font-light text-foreground">
               Bem-vindo à MaxFama
             </p>
-            <p className="text-lg text-muted-foreground">
+            <p className="text-base sm:text-lg text-muted-foreground">
               Aproxime sua credencial ou use o leitor USB
             </p>
           </div>
@@ -314,7 +314,7 @@ export default function CheckInNew() {
       )}
 
       {modelData && (
-        <div className="flex flex-col items-center space-y-8 animate-scale-in">
+        <div className="flex flex-col items-center space-y-4 sm:space-y-8 animate-scale-in flex-1 justify-center">
           {/* Confetti Effect */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
             {[...Array(20)].map((_, i) => (
@@ -336,19 +336,19 @@ export default function CheckInNew() {
             <img
               src={modelData.photo}
               alt={modelData.name}
-              className="w-64 h-64 rounded-full object-cover border-4 border-gold shadow-glow relative z-10 animate-scale-in"
+              className="w-48 h-48 sm:w-64 sm:h-64 rounded-full object-cover border-4 border-gold shadow-glow relative z-10 animate-scale-in"
             />
           </div>
 
           {/* Welcome Message */}
-          <div className="text-center space-y-4 z-10">
-            <h2 className="text-5xl font-bold bg-gradient-gold bg-clip-text text-transparent">
+          <div className="text-center space-y-2 sm:space-y-4 z-10 px-4">
+            <h2 className="text-3xl sm:text-5xl font-bold bg-gradient-gold bg-clip-text text-transparent">
               Seja bem-vinda,
             </h2>
-            <p className="text-6xl font-bold text-foreground animate-shimmer">
+            <p className="text-4xl sm:text-6xl font-bold text-foreground animate-shimmer">
               {modelData.name}!
             </p>
-            <p className="text-xl text-muted-foreground mt-4">
+            <p className="text-lg sm:text-xl text-muted-foreground mt-2 sm:mt-4">
               Check-in confirmado ✓
             </p>
           </div>
