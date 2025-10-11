@@ -10,6 +10,7 @@ import {
   LogOut,
   Database,
   QrCode,
+  Users,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -34,6 +35,7 @@ const menuItems = [
   { title: 'Campos Customizados', url: '/admin/custom-fields', icon: Database },
   { title: 'Mapeamento', url: '/admin/field-mapping', icon: Map },
   { title: 'Check-in', url: '/admin/checkin-settings', icon: QrCode },
+  { title: 'Usuários', url: '/admin/users', icon: Users },
   { title: 'Logs', url: '/admin/logs', icon: FileText },
   { title: 'Configurações', url: '/admin/settings', icon: Settings },
 ];

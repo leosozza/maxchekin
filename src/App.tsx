@@ -20,7 +20,7 @@ import Logs from "./pages/admin/Logs";
 import Settings from "./pages/admin/Settings";
 import CustomFields from "./pages/admin/CustomFields";
 import CheckInSettings from "./pages/admin/CheckInSettings";
-import AppDownload from "./pages/AppDownload";
+import Users from "./pages/admin/Users";
 import { InstallPWA } from "./components/InstallPWA";
 
 const queryClient = new QueryClient();
@@ -36,7 +36,6 @@ const App = () => (
           <Route path="/" element={<Home />} />
           <Route path="/checkin" element={<CheckInNew />} />
           <Route path="/painel/:slug" element={<PainelDinamico />} />
-          <Route path="/app-download" element={<AppDownload />} />
           
           {/* Admin Routes */}
           <Route path="/admin/login" element={<Login />} />
@@ -51,6 +50,7 @@ const App = () => (
             <Route path="field-mapping" element={<FieldMapping />} />
             <Route path="custom-fields" element={<CustomFields />} />
             <Route path="checkin-settings" element={<CheckInSettings />} />
+            <Route path="users" element={<Users />} />
             <Route path="logs" element={<Logs />} />
             <Route path="settings" element={<Settings />} />
           </Route>
