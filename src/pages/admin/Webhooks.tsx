@@ -25,7 +25,8 @@ export default function Webhooks() {
       const { data, error } = await supabase
         .from('webhook_config')
         .select('*')
-        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
       
       if (error) throw error;
@@ -91,28 +92,61 @@ export default function Webhooks() {
 
     setIsSaving(true);
 
-    const { error } = await supabase
-      .from('webhook_config')
-      .upsert({
-        bitrix_webhook_url: cleanedUrl,
-        notify_on_checkin: notifyOnCheckin,
-        notify_on_call: notifyOnCall,
-        is_active: true,
-      });
+    try {
+      // Se já existe um config, atualiza ele. Senão, cria um novo.
+      if (config?.id) {
+        const { error: updateError } = await supabase
+          .from('webhook_config')
+          .update({
+            bitrix_webhook_url: cleanedUrl,
+            notify_on_checkin: notifyOnCheckin,
+            notify_on_call: notifyOnCall,
+            is_active: true,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', config.id);
 
-    setIsSaving(false);
+        if (updateError) throw updateError;
+      } else {
+        // Desativa todas as outras configs primeiro
+        await supabase
+          .from('webhook_config')
+          .update({ is_active: false })
+          .eq('is_active', true);
 
-    if (error) {
+        // Cria uma nova config ativa
+        const { error: insertError } = await supabase
+          .from('webhook_config')
+          .insert({
+            bitrix_webhook_url: cleanedUrl,
+            notify_on_checkin: notifyOnCheckin,
+            notify_on_call: notifyOnCall,
+            is_active: true,
+          });
+
+        if (insertError) throw insertError;
+      }
+    } catch (err: any) {
+      setIsSaving(false);
       toast({
         title: 'Erro ao salvar',
-        description: error.message,
+        description: err.message,
         variant: 'destructive',
       });
       return;
     }
 
+    setIsSaving(false);
+
     // Update state with cleaned URL
     setBitrixUrl(cleanedUrl);
+
+    // Atualizar cache do localStorage
+    try {
+      localStorage.setItem('maxcheckin_webhook_url', cleanedUrl);
+    } catch (e) {
+      console.error('[WEBHOOK] Erro ao salvar no cache:', e);
+    }
 
     toast({
       title: 'Webhook configurado com sucesso! ✓',
