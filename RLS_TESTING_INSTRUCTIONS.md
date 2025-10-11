@@ -384,3 +384,42 @@ DROP POLICY IF EXISTS "Admins can manage custom fields" ON public.custom_fields;
 - [Supabase RLS Documentation](https://supabase.com/docs/guides/auth/row-level-security)
 - [Supabase RLS Policies](https://supabase.com/docs/guides/auth/row-level-security#policies)
 - [PostgreSQL Row Security Policies](https://www.postgresql.org/docs/current/ddl-rowsecurity.html)
+
+## Appendix: Database-Wide RLS Audit
+
+Run this query to audit RLS coverage across the entire database:
+
+```sql
+-- Check all tables with RLS enabled
+SELECT 
+  schemaname, 
+  tablename, 
+  rowsecurity as rls_enabled
+FROM pg_tables 
+WHERE schemaname = 'public'
+ORDER BY rowsecurity DESC, tablename;
+
+-- Check policy count per table
+SELECT 
+  schemaname,
+  tablename,
+  COUNT(*) as policy_count
+FROM pg_policies 
+WHERE schemaname = 'public'
+GROUP BY schemaname, tablename
+ORDER BY tablename;
+
+-- List all policies with their details
+SELECT 
+  schemaname,
+  tablename,
+  policyname,
+  permissive,
+  roles,
+  cmd,
+  qual,
+  with_check
+FROM pg_policies 
+WHERE schemaname = 'public'
+ORDER BY tablename, policyname;
+```
