@@ -12,6 +12,28 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
+/**
+ * FLUXO DE CARREGAMENTO DO WEBHOOK:
+ * 
+ * 1. Ao montar o componente, tenta carregar o webhook do cache (localStorage)
+ * 2. Verifica se o usuário está autenticado (supabase.auth.getSession())
+ * 3. Se NÃO AUTENTICADO:
+ *    - Usa o valor do cache se disponível
+ *    - Mostra mensagem pedindo login se não houver cache
+ *    - NÃO tenta buscar do banco de dados
+ * 4. Se AUTENTICADO:
+ *    - Busca o webhook ativo do banco (webhook_config)
+ *    - Se houver erro de permissão (401/403), mostra mensagem clara
+ *    - Se encontrar webhook, atualiza o cache
+ *    - Se NÃO encontrar webhook, mantém o cache (não sobrescreve)
+ * 5. Em caso de erro ou exceção, preserva o valor do cache
+ * 
+ * LOGS DETALHADOS:
+ * - Todos os passos do fluxo são logados com prefixo [CHECK-IN]
+ * - Erros são logados com console.error para fácil identificação
+ * - Warnings usam console.warn para situações não críticas
+ */
+
 interface ModelData {
   lead_id: string;
   name: string;
@@ -76,9 +98,41 @@ export default function CheckInNew() {
       // Tentar carregar do cache primeiro
       const cachedWebhook = loadConfigFromStorage('maxcheckin_webhook_url');
       if (cachedWebhook) {
-        console.log("[CHECK-IN] Webhook carregado do cache");
+        console.log("[CHECK-IN] Webhook carregado do cache:", cachedWebhook.substring(0, 30) + "...");
         setWebhookUrl(cachedWebhook);
       }
+      
+      // Verificar se há sessão de usuário autenticado antes de buscar do banco
+      console.log("[CHECK-IN] Verificando autenticação do usuário...");
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error("[CHECK-IN] Erro ao verificar sessão:", sessionError);
+        toast({
+          title: "Erro de autenticação",
+          description: "Não foi possível verificar a sessão do usuário.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (!sessionData?.session) {
+        console.warn("[CHECK-IN] Usuário não autenticado - usando cache se disponível");
+        
+        // Se não há cache, avisar o usuário
+        if (!cachedWebhook) {
+          toast({
+            title: "Login necessário",
+            description: "Faça login para carregar o webhook do servidor.",
+            variant: "destructive",
+          });
+        } else {
+          console.log("[CHECK-IN] Usando webhook do cache (usuário não autenticado)");
+        }
+        return;
+      }
+      
+      console.log("[CHECK-IN] Usuário autenticado, buscando webhook do banco...");
       
       // Buscar do banco e atualizar cache
       const { data, error } = await supabase
@@ -91,28 +145,62 @@ export default function CheckInNew() {
 
       if (error) {
         console.error("[CHECK-IN] Erro ao buscar webhook:", error);
-        toast({
-          title: "Erro de configuração",
-          description: "Erro ao carregar webhook. Verifique as permissões.",
-          variant: "destructive",
-        });
+        
+        // Verificar se é erro de permissão (401/403)
+        const errorMessage = error.message || "";
+        const isPermissionError = errorMessage.includes("401") || 
+                                  errorMessage.includes("403") || 
+                                  errorMessage.includes("permission") ||
+                                  errorMessage.includes("denied");
+        
+        if (isPermissionError) {
+          console.error("[CHECK-IN] Erro de permissão detectado");
+          toast({
+            title: "Sem permissão",
+            description: "Você não tem permissão para acessar a configuração do webhook. Entre em contato com o administrador.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Erro de configuração",
+            description: "Erro ao carregar webhook. Verifique as permissões.",
+            variant: "destructive",
+          });
+        }
+        
+        // Usar cache se disponível em caso de erro
+        if (cachedWebhook) {
+          console.log("[CHECK-IN] Mantendo webhook do cache após erro");
+        }
         return;
       }
 
       if (data?.bitrix_webhook_url) {
-        console.log("[CHECK-IN] Webhook URL carregada do banco");
+        console.log("[CHECK-IN] Webhook URL carregada do banco:", data.bitrix_webhook_url.substring(0, 30) + "...");
         setWebhookUrl(data.bitrix_webhook_url);
         saveConfigToStorage('maxcheckin_webhook_url', data.bitrix_webhook_url);
       } else {
-        console.error("[CHECK-IN] Nenhum webhook ativo encontrado!");
-        toast({
-          title: "Webhook não configurado",
-          description: "Configure o webhook em Admin → Webhooks",
-          variant: "destructive",
-        });
+        console.warn("[CHECK-IN] Nenhum webhook ativo encontrado no banco!");
+        
+        // Não limpar o cache se não encontrar webhook no banco
+        if (!cachedWebhook) {
+          toast({
+            title: "Webhook não configurado",
+            description: "Configure o webhook em Admin → Webhooks",
+            variant: "destructive",
+          });
+        } else {
+          console.log("[CHECK-IN] Mantendo webhook do cache (nenhum webhook ativo no banco)");
+        }
       }
     } catch (err) {
       console.error("[CHECK-IN] Exceção ao carregar webhook:", err);
+      
+      // Em caso de exceção, preservar o cache
+      const cachedWebhook = loadConfigFromStorage('maxcheckin_webhook_url');
+      if (cachedWebhook) {
+        console.log("[CHECK-IN] Mantendo webhook do cache após exceção");
+      }
     }
   };
 
