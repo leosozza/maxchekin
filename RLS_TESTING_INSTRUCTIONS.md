@@ -57,6 +57,10 @@ SELECT * FROM public.panel_config;
 
 SELECT * FROM public.custom_fields;
 -- Expected: ERROR: new row violates row-level security policy
+
+-- Attempt to view panel layouts
+SELECT * FROM public.panel_layouts;
+-- Expected: ERROR: new row violates row-level security policy
 ```
 
 ### Test 2: Authenticated Non-Admin User
@@ -88,6 +92,10 @@ SELECT * FROM public.panel_config;
 -- Expected: SUCCESS (returns data)
 
 SELECT * FROM public.custom_fields;
+-- Expected: SUCCESS (returns data)
+
+-- View panel layouts
+SELECT * FROM public.panel_layouts;
 -- Expected: SUCCESS (returns data)
 ```
 
@@ -137,6 +145,15 @@ WHERE field_key = 'model_name';
 DELETE FROM public.custom_fields
 WHERE field_key = 'model_name';
 -- Expected: ERROR: new row violates row-level security policy
+
+-- Attempt to update panel_layouts
+UPDATE public.panel_layouts
+SET orientation = 'portrait';
+-- Expected: ERROR: new row violates row-level security policy
+
+-- Attempt to delete panel_layouts
+DELETE FROM public.panel_layouts;
+-- Expected: ERROR: new row violates row-level security policy
 ```
 
 ### Test 3: Authenticated Admin User
@@ -177,6 +194,12 @@ SET bitrix_webhook_url = EXCLUDED.bitrix_webhook_url;
 UPDATE public.custom_fields
 SET field_label = 'Admin Updated Label'
 WHERE field_key = 'responsible';
+-- Expected: SUCCESS
+
+-- Update panel_layouts
+UPDATE public.panel_layouts
+SET orientation = 'portrait'
+WHERE id IN (SELECT id FROM public.panel_layouts LIMIT 1);
 -- Expected: SUCCESS
 
 -- Delete test records (cleanup)

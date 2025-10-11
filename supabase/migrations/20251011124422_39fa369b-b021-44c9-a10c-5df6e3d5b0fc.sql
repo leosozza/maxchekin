@@ -13,6 +13,7 @@
 --   - check_in_config: Check-in screen configuration
 --   - panel_config: Panel-specific configuration
 --   - custom_fields: Custom field definitions
+--   - panel_layouts: Panel UI layout configuration
 --
 -- References:
 --   - https://supabase.com/docs/guides/auth/row-level-security
@@ -154,6 +155,30 @@ USING (public.has_role(auth.uid(), 'admin'))
 WITH CHECK (public.has_role(auth.uid(), 'admin'));
 
 -- ============================================================================
+-- 7. RESTRICT ACCESS TO panel_layouts TABLE
+-- ============================================================================
+-- Panel layouts contain UI configuration and should be protected.
+
+-- Drop existing overly permissive policies
+DROP POLICY IF EXISTS "Anyone can view panel layouts" ON public.panel_layouts;
+DROP POLICY IF EXISTS "Admins can manage panel layouts" ON public.panel_layouts;
+
+-- Authenticated users can view panel layouts
+CREATE POLICY "Authenticated users can view panel layouts"
+ON public.panel_layouts
+FOR SELECT
+TO authenticated
+USING (auth.uid() IS NOT NULL);
+
+-- Only admins can manage panel layouts
+CREATE POLICY "Admins can manage panel layouts"
+ON public.panel_layouts
+FOR ALL
+TO authenticated
+USING (public.has_role(auth.uid(), 'admin'))
+WITH CHECK (public.has_role(auth.uid(), 'admin'));
+
+-- ============================================================================
 -- SUMMARY OF CHANGES
 -- ============================================================================
 -- This migration has successfully:
@@ -163,7 +188,8 @@ WITH CHECK (public.has_role(auth.uid(), 'admin'));
 -- 4. Updated check_in_config to require authentication for viewing
 -- 5. Updated panel_config to require authentication for viewing
 -- 6. Updated custom_fields to require authentication for viewing
--- 7. Maintained admin-only access for modifications to configuration tables
+-- 7. Updated panel_layouts to require authentication for viewing
+-- 8. Maintained admin-only access for modifications to configuration tables
 --
 -- All tables now require authentication (auth.uid() IS NOT NULL) for access,
 -- and configuration tables require the 'admin' role for modifications.
