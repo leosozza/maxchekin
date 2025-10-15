@@ -120,8 +120,8 @@ export default function Home() {
             </Card>
           )}
 
-          {/* Dynamic Panels */}
-          {panels
+          {/* Dynamic Panels - Only shown if panels exist AND are explicitly enabled */}
+          {isAdmin && panels.length > 0 && panels
             .filter(panel => canAccessPanel(panel.id))
             .map((panel) => {
               const Icon = iconMap[panel.icon] || Monitor;

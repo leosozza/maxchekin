@@ -105,7 +105,9 @@ export default function Panels() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gold mb-2">Painéis</h1>
-          <p className="text-white/60">Gerenciar painéis de chamadas</p>
+          <p className="text-white/60">
+            Gerenciar painéis de chamadas. Use o botão Ativar/Desativar para controlar quais painéis ficam visíveis.
+          </p>
         </div>
         <Button
           onClick={() => navigate('/admin/panels/new')}
@@ -165,8 +167,11 @@ export default function Panels() {
             <CardHeader>
               <div className="flex justify-between items-start">
                 <CardTitle className="text-gold">{panel.name}</CardTitle>
-                <Badge variant={panel.is_active ? 'default' : 'secondary'}>
-                  {panel.is_active ? 'Ativo' : 'Inativo'}
+                <Badge 
+                  variant={panel.is_active ? 'default' : 'secondary'}
+                  className={panel.is_active ? 'bg-green-600' : 'bg-gray-600'}
+                >
+                  {panel.is_active ? 'Visível' : 'Oculto'}
                 </Badge>
               </div>
               <p className="text-sm text-white/60">{panel.slug}</p>
@@ -204,13 +209,16 @@ export default function Panels() {
                   <Edit className="h-4 w-4" />
                 </Button>
                 <Button
-                  variant="outline"
+                  variant={panel.is_active ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => handleToggleActive(panel)}
-                  className="border-gold/20"
-                  title={panel.is_active ? 'Desativar' : 'Ativar'}
+                  className={panel.is_active 
+                    ? 'bg-green-600 hover:bg-green-700 text-white' 
+                    : 'border-gold/20 hover:bg-gold/10'
+                  }
+                  title={panel.is_active ? 'Ocultar painel' : 'Tornar visível'}
                 >
-                  {panel.is_active ? 'Desativar' : 'Ativar'}
+                  {panel.is_active ? '✓ Visível' : 'Mostrar'}
                 </Button>
                 <Button
                   variant="destructive"
