@@ -3,9 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserPermissions, hasPermission } from "@/hooks/useUserPermissions";
-import { Monitor, Camera, Video, Users, QrCode, Settings, LogOut } from "lucide-react";
+import { Monitor, Camera, Video, Users, QrCode, Settings, LogOut, ArrowLeft } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { AuthGuard } from "@/components/admin/AuthGuard";
 
 interface Panel {
   id: string;
@@ -67,10 +68,22 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-studio-dark to-background p-4 md:p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="absolute top-4 md:top-8 right-4 md:right-8 flex gap-2">
-          {isAdmin && (
+    <AuthGuard requireRole="admin">
+      <div className="min-h-screen bg-gradient-to-br from-background via-studio-dark to-background p-4 md:p-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="absolute top-4 md:top-8 left-4 md:left-8">
+            <Button
+              onClick={() => navigate("/checkin")}
+              variant="ghost"
+              size="icon"
+              className="hover:bg-gold/10"
+              title="Voltar para Check-in"
+            >
+              <ArrowLeft className="w-5 h-5 text-gold" />
+            </Button>
+          </div>
+
+          <div className="absolute top-4 md:top-8 right-4 md:right-8 flex gap-2">
             <Button
               onClick={() => navigate("/admin/dashboard")}
               variant="outline"
@@ -80,26 +93,25 @@ export default function Home() {
               <Settings className="md:mr-2 h-4 w-4" />
               <span className="hidden md:inline">Admin</span>
             </Button>
-          )}
-          <Button
-            onClick={signOut}
-            variant="outline"
-            className="border-gold/20 hover:bg-gold/10"
-            size="sm"
-          >
-            <LogOut className="md:mr-2 h-4 w-4" />
-            <span className="hidden md:inline">Sair</span>
-          </Button>
-        </div>
+            <Button
+              onClick={signOut}
+              variant="outline"
+              className="border-gold/20 hover:bg-gold/10"
+              size="sm"
+            >
+              <LogOut className="md:mr-2 h-4 w-4" />
+              <span className="hidden md:inline">Sair</span>
+            </Button>
+          </div>
 
-        <div className="text-center mb-8 md:mb-12 animate-fade-in">
-          <h1 className="text-4xl md:text-6xl font-bold mb-4 bg-gradient-gold bg-clip-text text-transparent">
-            MaxCheckin
-          </h1>
-          <p className="text-lg md:text-xl text-muted-foreground">
-            Selecione o painel para esta tela
-          </p>
-        </div>
+          <div className="text-center mb-8 md:mb-12 animate-fade-in">
+            <h1 className="text-4xl md:text-6xl font-bold mb-4 bg-gradient-gold bg-clip-text text-transparent">
+              Seleção de Painéis
+            </h1>
+            <p className="text-lg md:text-xl text-muted-foreground">
+              Escolha qual painel você deseja visualizar
+            </p>
+          </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {/* Check-in Panel */}
@@ -143,7 +155,8 @@ export default function Home() {
               );
             })}
         </div>
+        </div>
       </div>
-    </div>
+    </AuthGuard>
   );
 }

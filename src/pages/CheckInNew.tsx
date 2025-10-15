@@ -1,9 +1,10 @@
 import { useEffect, useState, useRef } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { supabase } from "@/integrations/supabase/client";
-import { Sparkles, QrCode, Search, X, Delete, User, Menu } from "lucide-react";
+import { Sparkles, QrCode, Search, X, Delete, User, LayoutDashboard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Dialog,
   DialogContent,
@@ -35,6 +36,7 @@ export default function CheckInNew() {
   const usbInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   
   const SCAN_COOLDOWN_MS = 3000; // 3 segundos de cooldown
 
@@ -323,10 +325,12 @@ export default function CheckInNew() {
         description: `Bem-vinda, ${modelData.name}!`,
       });
 
-      // Auto-reset after 5 seconds e volta para Home
+      // Auto-reset after 5 seconds and restart scanner
       setTimeout(() => {
-        console.log("[NAVIGATION] Voltando para Home após check-in");
-        navigate("/");
+        console.log("[CHECK-IN] Reiniciando scanner...");
+        setModelData(null);
+        setScanning(true);
+        initScanner();
       }, 5000);
     } catch (error) {
       console.error(`[CHECK-IN] Erro:`, error);
@@ -408,15 +412,18 @@ export default function CheckInNew() {
         autoFocus
       />
 
-      {/* Botão Menu */}
-      <Button
-        onClick={() => navigate("/")}
-        variant="outline"
-        size="icon"
-        className="fixed top-4 left-4 z-50 border-gold/20 hover:bg-gold/10"
-      >
-        <Menu className="w-5 h-5 text-gold" />
-      </Button>
+      {/* Botão Admin (apenas para admins) */}
+      {isAdmin && (
+        <Button
+          onClick={() => navigate("/admin/dashboard")}
+          variant="outline"
+          size="icon"
+          className="fixed top-4 left-4 z-50 border-gold/20 hover:bg-gold/10"
+          title="Painel Admin"
+        >
+          <LayoutDashboard className="w-5 h-5 text-gold" />
+        </Button>
+      )}
 
       {/* Logo */}
       <div className="w-full text-center mb-4 sm:mb-8">

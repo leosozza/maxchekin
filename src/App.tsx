@@ -33,8 +33,12 @@ const App = () => (
       <InstallPWA />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Home />} />
+          {/* PWA Main Route - Directly to Check-in */}
+          <Route path="/" element={<CheckInNew />} />
           <Route path="/checkin" element={<CheckInNew />} />
+          
+          {/* Panel Selection (Admin Only) */}
+          <Route path="/home" element={<Home />} />
           <Route path="/painel/:slug" element={<PainelDinamico />} />
           
           {/* Admin Routes */}
