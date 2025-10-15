@@ -11,11 +11,13 @@ export function useBitrixFields() {
   return useQuery({
     queryKey: ["bitrix-fields"],
     queryFn: async () => {
-      // Get webhook URL from database
+      // Get webhook URL from database - always fresh
       const { data: config } = await supabase
         .from("webhook_config")
         .select("bitrix_webhook_url")
         .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       if (!config?.bitrix_webhook_url) {
@@ -48,7 +50,8 @@ export function useBitrixFields() {
 
       return fields;
     },
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    staleTime: 0, // Nunca usar cache - sempre buscar dados atualizados
+    gcTime: 0, // Não manter em cache (novo nome em React Query v5)
     retry: 2,
   });
 }

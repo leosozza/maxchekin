@@ -1,4 +1,4 @@
-const CACHE_NAME = 'maxcheckin-v1';
+const CACHE_NAME = 'maxcheckin-v2';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -12,9 +12,23 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME)
       .then((cache) => cache.addAll(urlsToCache))
   );
+  self.skipWaiting();
 });
 
 self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+  
+  // Nunca cachear requisições do Supabase ou APIs externas
+  if (
+    url.hostname.includes('supabase') ||
+    url.hostname.includes('bitrix24') ||
+    event.request.method !== 'GET'
+  ) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  // Para outros recursos, usar cache-first com network fallback
   event.respondWith(
     caches.match(event.request)
       .then((response) => response || fetch(event.request))

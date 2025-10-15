@@ -71,16 +71,9 @@ export default function CheckInNew() {
 
   const loadWebhookConfig = async () => {
     try {
-      console.log("[CHECK-IN] Buscando webhook config...");
+      console.log("[CHECK-IN] Buscando webhook config do servidor...");
       
-      // Tentar carregar do cache primeiro
-      const cachedWebhook = loadConfigFromStorage('maxcheckin_webhook_url');
-      if (cachedWebhook) {
-        console.log("[CHECK-IN] Webhook carregado do cache");
-        setWebhookUrl(cachedWebhook);
-      }
-      
-      // Buscar do banco e atualizar cache
+      // SEMPRE buscar do banco primeiro para garantir dados atualizados
       const { data, error } = await supabase
         .from("webhook_config")
         .select("bitrix_webhook_url")
@@ -91,9 +84,15 @@ export default function CheckInNew() {
 
       if (error) {
         console.error("[CHECK-IN] Erro ao buscar webhook:", error);
+        // Tentar fallback do cache apenas em caso de erro
+        const cachedWebhook = loadConfigFromStorage('maxcheckin_webhook_url');
+        if (cachedWebhook) {
+          console.log("[CHECK-IN] Usando webhook do cache como fallback");
+          setWebhookUrl(cachedWebhook);
+        }
         toast({
           title: "Erro de configuração",
-          description: "Erro ao carregar webhook. Verifique as permissões.",
+          description: "Erro ao carregar webhook. Usando cache local.",
           variant: "destructive",
         });
         return;
