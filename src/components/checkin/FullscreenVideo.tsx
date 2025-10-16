@@ -1,9 +1,10 @@
 interface FullscreenVideoProps {
   url: string;
   title?: string;
+  showControls?: boolean;
 }
 
-export function FullscreenVideo({ url, title }: FullscreenVideoProps) {
+export function FullscreenVideo({ url, title, showControls = false }: FullscreenVideoProps) {
   // Extract video ID based on platform
   const getEmbedUrl = (videoUrl: string): string => {
     // YouTube
@@ -11,13 +12,16 @@ export function FullscreenVideo({ url, title }: FullscreenVideoProps) {
       const videoId = videoUrl.includes('youtu.be')
         ? videoUrl.split('youtu.be/')[1]?.split('?')[0]
         : new URL(videoUrl).searchParams.get('v');
-      return `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&controls=0&showinfo=0&rel=0&modestbranding=1`;
+      
+      const controlsParam = showControls ? '&controls=1' : '&controls=0';
+      return `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}${controlsParam}&showinfo=0&rel=0&modestbranding=1`;
     }
     
     // Vimeo
     if (videoUrl.includes('vimeo.com')) {
       const videoId = videoUrl.split('vimeo.com/')[1]?.split('?')[0];
-      return `https://player.vimeo.com/video/${videoId}?autoplay=1&muted=1&loop=1&background=1&controls=0`;
+      const controlsParam = showControls ? '' : '&background=1';
+      return `https://player.vimeo.com/video/${videoId}?autoplay=1&muted=1&loop=1${controlsParam}`;
     }
     
     // Direct video file
@@ -28,7 +32,7 @@ export function FullscreenVideo({ url, title }: FullscreenVideoProps) {
   const isDirectVideo = !url.includes('youtube') && !url.includes('vimeo');
 
   return (
-    <div className="fixed inset-0 bg-black">
+    <div className="relative w-full h-full bg-black">
       {isDirectVideo ? (
         <video
           className="w-full h-full object-cover"
@@ -37,6 +41,7 @@ export function FullscreenVideo({ url, title }: FullscreenVideoProps) {
           muted
           loop
           playsInline
+          controls={showControls}
         />
       ) : (
         <iframe

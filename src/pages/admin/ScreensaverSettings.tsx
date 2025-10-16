@@ -475,10 +475,12 @@ export default function ScreensaverSettings() {
       </div>
 
       <Dialog open={!!previewMedia} onOpenChange={() => setPreviewMedia(null)}>
-        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 border-0">
-          {previewMedia && (
-            <FullscreenVideo url={previewMedia.url} title={previewMedia.title} />
-          )}
+        <DialogContent className="max-w-[95vw] max-h-[95vh] w-full h-full p-0 border-0 bg-black">
+          <div className="w-full h-full aspect-video">
+            {previewMedia && (
+              <FullscreenVideo url={previewMedia.url} title={previewMedia.title} showControls={true} />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
