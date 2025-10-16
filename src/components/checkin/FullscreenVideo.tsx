@@ -13,15 +13,23 @@ export function FullscreenVideo({ url, title, showControls = false }: Fullscreen
         ? videoUrl.split('youtu.be/')[1]?.split('?')[0]
         : new URL(videoUrl).searchParams.get('v');
       
-      const controlsParam = showControls ? '&controls=1' : '&controls=0';
-      return `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}${controlsParam}&showinfo=0&rel=0&modestbranding=1`;
+      // For screensaver (no controls), hide all YouTube branding and info
+      if (!showControls) {
+        return `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&controls=0&showinfo=0&rel=0&modestbranding=1&iv_load_policy=3&disablekb=1&fs=0&autohide=1`;
+      }
+      
+      return `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&controls=1&showinfo=0&rel=0&modestbranding=1`;
     }
     
     // Vimeo
     if (videoUrl.includes('vimeo.com')) {
       const videoId = videoUrl.split('vimeo.com/')[1]?.split('?')[0];
-      const controlsParam = showControls ? '' : '&background=1';
-      return `https://player.vimeo.com/video/${videoId}?autoplay=1&muted=1&loop=1${controlsParam}`;
+      
+      if (!showControls) {
+        return `https://player.vimeo.com/video/${videoId}?autoplay=1&muted=1&loop=1&background=1&controls=0&title=0&byline=0&portrait=0`;
+      }
+      
+      return `https://player.vimeo.com/video/${videoId}?autoplay=1&muted=1&loop=1&controls=1`;
     }
     
     // Direct video file
