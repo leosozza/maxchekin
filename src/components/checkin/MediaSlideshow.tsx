@@ -27,6 +27,19 @@ export function MediaSlideshow() {
   const preloaderRef = useRef(new MediaPreloader());
   const prngRef = useRef(new SeededRandom());
   const metricsRef = useRef<ScreensaverMetrics | null>(null);
+  
+  // Fetch screensaver config
+  const { data: screensaverConfig } = useQuery({
+    queryKey: ['screensaver-config'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('screensaver_config')
+        .select('*')
+        .single();
+      if (error) throw error;
+      return data;
+    },
+  });
   const fpsMonitorRef = useRef({
     frames: 0,
     lastTime: performance.now(),
@@ -57,12 +70,17 @@ export function MediaSlideshow() {
 
   // Initialize performance detection and metrics
   useEffect(() => {
-    const mode = detectPerformanceMode();
+    // Use config performance mode or auto-detect
+    const configMode = screensaverConfig?.performance_mode || 'auto';
+    const mode = configMode === 'auto' 
+      ? detectPerformanceMode() 
+      : configMode as PerformanceMode;
+    
     setPerformanceMode(mode);
     metricsRef.current = new ScreensaverMetrics(mode);
     
     console.log(`🎨 Screensaver running in ${mode} mode`);
-  }, []);
+  }, [screensaverConfig]);
 
   // FPS Monitor
   useEffect(() => {
@@ -117,6 +135,8 @@ export function MediaSlideshow() {
   useEffect(() => {
     if (mediaItems.length === 0) return;
 
+    const slideDuration = (screensaverConfig?.slide_duration_seconds || 7) * 1000;
+
     const interval = setInterval(() => {
       // Track media view time
       if (metricsRef.current && mediaItems[currentIndex]) {
@@ -127,8 +147,12 @@ export function MediaSlideshow() {
         );
       }
 
-      // Pick next transition via PRNG
-      const nextTransition = prngRef.current.pickTransition();
+      // Use configured transition or random
+      const configTransition = screensaverConfig?.transition_type || 'random';
+      const nextTransition = configTransition === 'random' 
+        ? prngRef.current.pickTransition()
+        : configTransition as TransitionType;
+      
       setTransitionType(nextTransition);
 
       // Track cycle
@@ -143,10 +167,10 @@ export function MediaSlideshow() {
         setIsActive(true);
         mediaStartTimeRef.current = Date.now();
       }, 300);
-    }, 7000);
+    }, slideDuration);
 
     return () => clearInterval(interval);
-  }, [mediaItems, currentIndex]);
+  }, [mediaItems, currentIndex, screensaverConfig]);
 
   // If fullscreen video exists, render it exclusively
   if (fullscreenVideo) {

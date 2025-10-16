@@ -13,6 +13,19 @@ interface ScreensaverViewProps {
 export function ScreensaverView({ onActivate }: ScreensaverViewProps) {
   const [performanceMode, setPerformanceMode] = useState<PerformanceMode>('enhanced');
 
+  // Fetch screensaver config
+  const { data: screensaverConfig } = useQuery({
+    queryKey: ['screensaver-config'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('screensaver_config')
+        .select('*')
+        .single();
+      if (error) throw error;
+      return data;
+    },
+  });
+
   useEffect(() => {
     const mode = detectPerformanceMode();
     setPerformanceMode(mode);
@@ -41,7 +54,12 @@ export function ScreensaverView({ onActivate }: ScreensaverViewProps) {
       <MediaSlideshow />
 
       {/* Premium Branding Overlay - Hidden for fullscreen videos */}
-      {!hasFullscreenVideo && <BrandingOverlay performanceMode={performanceMode} />}
+      {!hasFullscreenVideo && screensaverConfig?.show_branding && (
+        <BrandingOverlay 
+          performanceMode={performanceMode}
+          showQrCode={screensaverConfig?.show_qr_code ?? true}
+        />
+      )}
 
       {/* Tap to Activate Hint */}
       <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2 z-20">
@@ -49,7 +67,7 @@ export function ScreensaverView({ onActivate }: ScreensaverViewProps) {
           <div className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-white/10 backdrop-blur-xl border border-white/20">
             <div className="w-3 h-3 bg-gradient-gold rounded-full animate-pulse-glow" />
             <p className="text-foreground text-lg font-medium">
-              Toque na tela para realizar check-in
+              {screensaverConfig?.tap_message || 'Toque na tela para realizar check-in'}
             </p>
           </div>
         </div>

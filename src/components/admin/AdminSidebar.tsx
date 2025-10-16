@@ -11,6 +11,7 @@ import {
   Database,
   QrCode,
   Users,
+  Sparkles,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -33,6 +34,7 @@ const menuItems = [
   { title: 'Painéis', url: '/admin/panels', icon: Monitor },
   { title: 'Webhooks', url: '/admin/webhooks', icon: Webhook },
   { title: 'Mídias', url: '/admin/media', icon: Film },
+  { title: 'Screensaver', url: '/admin/screensaver-settings', icon: Sparkles },
   { title: 'Campos Customizados', url: '/admin/custom-fields', icon: Database },
   { title: 'Mapeamento', url: '/admin/field-mapping', icon: Map },
   { title: 'Check-in', url: '/admin/checkin-settings', icon: QrCode },

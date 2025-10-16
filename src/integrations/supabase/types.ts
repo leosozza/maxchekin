@@ -402,6 +402,45 @@ export type Database = {
         }
         Relationships: []
       }
+      screensaver_config: {
+        Row: {
+          created_at: string | null
+          enable_particles: boolean
+          id: string
+          performance_mode: string
+          show_branding: boolean
+          show_qr_code: boolean
+          slide_duration_seconds: number
+          tap_message: string
+          transition_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          enable_particles?: boolean
+          id?: string
+          performance_mode?: string
+          show_branding?: boolean
+          show_qr_code?: boolean
+          slide_duration_seconds?: number
+          tap_message?: string
+          transition_type?: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          enable_particles?: boolean
+          id?: string
+          performance_mode?: string
+          show_branding?: boolean
+          show_qr_code?: boolean
+          slide_duration_seconds?: number
+          tap_message?: string
+          transition_type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       user_permissions: {
         Row: {
           created_at: string | null

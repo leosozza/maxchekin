@@ -4,6 +4,7 @@ import { PremiumParticles } from './PremiumParticles';
 
 interface BrandingOverlayProps {
   performanceMode: PerformanceMode;
+  showQrCode?: boolean;
 }
 
 const TAGLINES = [
@@ -14,7 +15,7 @@ const TAGLINES = [
   "Do casting à passarela",
 ];
 
-export function BrandingOverlay({ performanceMode }: BrandingOverlayProps) {
+export function BrandingOverlay({ performanceMode, showQrCode = true }: BrandingOverlayProps) {
   const [currentTaglineIndex, setCurrentTaglineIndex] = useState(0);
 
   useEffect(() => {
@@ -61,17 +62,19 @@ export function BrandingOverlay({ performanceMode }: BrandingOverlayProps) {
       </div>
 
       {/* QR Code Corner (discreto) */}
-      <div className="absolute bottom-8 right-8 pointer-events-auto">
-        <div className="flex flex-col items-center gap-2 p-3 rounded-xl bg-black/20 backdrop-blur-sm border border-white/10">
-          <div className="w-20 h-20 bg-white/90 rounded-lg flex items-center justify-center">
-            {/* Placeholder for QR code - você pode adicionar um componente QR real */}
-            <div className="text-xs text-center text-black font-mono p-2">
-              QR<br/>Code
+      {showQrCode && (
+        <div className="absolute bottom-8 right-8 pointer-events-auto">
+          <div className="flex flex-col items-center gap-2 p-3 rounded-xl bg-black/20 backdrop-blur-sm border border-white/10">
+            <div className="w-20 h-20 bg-white/90 rounded-lg flex items-center justify-center">
+              {/* Placeholder for QR code - você pode adicionar um componente QR real */}
+              <div className="text-xs text-center text-black font-mono p-2">
+                QR<br/>Code
+              </div>
             </div>
+            <span className="text-xs text-foreground/60">Siga-nos</span>
           </div>
-          <span className="text-xs text-foreground/60">Siga-nos</span>
         </div>
-      </div>
+      )}
     </div>
   );
 }
