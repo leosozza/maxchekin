@@ -5,6 +5,7 @@ import { Sparkles, QrCode, Search, X, Delete, User, Menu } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { z } from "zod";
 import {
   Dialog,
   DialogContent,
@@ -20,6 +21,21 @@ interface ModelData {
   responsible: string;
   [key: string]: any;
 }
+
+// Validation schemas for security
+const leadIdSchema = z.string()
+  .trim()
+  .regex(/^[0-9]+$/, 'ID do Lead deve ser numérico')
+  .min(1, 'ID do Lead é obrigatório')
+  .max(20, 'ID do Lead muito longo');
+
+const bitrixResponseSchema = z.object({
+  result: z.object({
+    ID: z.string(),
+    NAME: z.string().optional(),
+    TITLE: z.string().optional(),
+  }).passthrough()
+});
 
 export default function CheckInNew() {
   const [scanning, setScanning] = useState(false); // Start false until webhook loads
@@ -182,6 +198,13 @@ export default function CheckInNew() {
     try {
       console.log("[CHECK-IN] Webhook atual:", webhookUrl ? "CONFIGURADO" : "VAZIO");
       
+      // Validate lead ID format
+      const validation = leadIdSchema.safeParse(leadId);
+      if (!validation.success) {
+        throw new Error(`Formato de ID inválido: ${validation.error.errors[0].message}`);
+      }
+      const validLeadId = validation.data;
+      
       if (!webhookUrl) {
         console.error("[CHECK-IN] webhookUrl está vazio no momento da busca");
         // Tentar recarregar o webhook
@@ -193,25 +216,31 @@ export default function CheckInNew() {
         }
       }
 
-      console.log(`[CHECK-IN] Buscando Lead ${leadId} no Bitrix...`);
+      console.log(`[CHECK-IN] Buscando Lead ${validLeadId} no Bitrix...`);
+
+      // Encode lead ID for URL safety
+      const encodedLeadId = encodeURIComponent(validLeadId);
 
       // Get lead data from Bitrix24
       const getResponse = await fetch(
-        `${webhookUrl}/crm.lead.get.json?ID=${leadId}`
+        `${webhookUrl}/crm.lead.get.json?ID=${encodedLeadId}`
       );
       
       if (!getResponse.ok) {
-        throw new Error(`Lead ${leadId} não encontrado no Bitrix (Status: ${getResponse.status})`);
+        throw new Error(`Lead ${validLeadId} não encontrado no Bitrix (Status: ${getResponse.status})`);
       }
 
       const getData = await getResponse.json();
       console.log(`[CHECK-IN] Resposta Bitrix:`, getData);
       
-      if (!getData.result || Object.keys(getData.result).length === 0) {
-        throw new Error(`Lead ${leadId} não existe no Bitrix24`);
+      // Validate Bitrix response structure
+      const validatedData = bitrixResponseSchema.parse(getData);
+      
+      if (!validatedData.result || Object.keys(validatedData.result).length === 0) {
+        throw new Error(`Lead ${validLeadId} não existe no Bitrix24`);
       }
 
-      const lead = getData.result;
+      const lead = validatedData.result;
 
       // Get field mappings
       const { data: mappings } = await supabase
@@ -222,7 +251,7 @@ export default function CheckInNew() {
       console.log(`[CHECK-IN] Mapeamentos encontrados:`, mappings);
 
       // Build model data dynamically from mappings
-      const modelData: any = { lead_id: leadId };
+      const modelData: any = { lead_id: validLeadId };
 
       if (mappings && mappings.length > 0) {
         mappings.forEach((mapping) => {
