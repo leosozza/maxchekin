@@ -11,6 +11,8 @@ import { toast } from "sonner";
 import { Loader2, Monitor, Sparkles, Image, Clock, Film, Trash2, Plus, Play, Volume2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { FullscreenVideo } from "@/components/checkin/FullscreenVideo";
 
 const TRANSITION_OPTIONS = [
   { value: 'random', label: 'Aleatório (Recomendado)' },
@@ -123,6 +125,7 @@ export default function ScreensaverSettings() {
   const [showQrCode, setShowQrCode] = useState(config?.show_qr_code ?? true);
   const [performanceMode, setPerformanceMode] = useState(config?.performance_mode || 'auto');
   const [tapMessage, setTapMessage] = useState(config?.tap_message || 'Toque para ativar');
+  const [previewMedia, setPreviewMedia] = useState<{ url: string; title: string } | null>(null);
 
   // Update local state when config loads
   if (config && transitionType === 'random' && config.transition_type !== 'random') {
@@ -359,7 +362,10 @@ export default function ScreensaverSettings() {
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {mediaItems.map((media) => (
                   <Card key={media.id} className="overflow-hidden">
-                    <div className="relative aspect-video bg-muted">
+                    <div 
+                      className="relative aspect-video bg-muted cursor-pointer group"
+                      onClick={() => media.type === 'video' && setPreviewMedia({ url: media.url, title: media.title || 'Preview' })}
+                    >
                       {media.type === 'image' ? (
                         <img
                           src={media.url}
@@ -373,8 +379,8 @@ export default function ScreensaverSettings() {
                             className="w-full h-full object-cover"
                             muted
                           />
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                            <Play className="w-12 h-12 text-white" />
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/50 transition-colors">
+                            <Play className="w-12 h-12 text-white group-hover:scale-110 transition-transform" />
                           </div>
                         </div>
                       )}
@@ -467,6 +473,14 @@ export default function ScreensaverSettings() {
           Salvar Configurações
         </Button>
       </div>
+
+      <Dialog open={!!previewMedia} onOpenChange={() => setPreviewMedia(null)}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 border-0">
+          {previewMedia && (
+            <FullscreenVideo url={previewMedia.url} title={previewMedia.title} />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
