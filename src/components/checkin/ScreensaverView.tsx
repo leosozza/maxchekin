@@ -1,10 +1,21 @@
+import { useState, useEffect } from 'react';
 import { MediaSlideshow } from './MediaSlideshow';
+import { BrandingOverlay } from './BrandingOverlay';
+import { detectPerformanceMode } from '@/utils/performanceDetector';
+import type { PerformanceMode } from '@/utils/performanceDetector';
 
 interface ScreensaverViewProps {
   onActivate: () => void;
 }
 
 export function ScreensaverView({ onActivate }: ScreensaverViewProps) {
+  const [performanceMode, setPerformanceMode] = useState<PerformanceMode>('enhanced');
+
+  useEffect(() => {
+    const mode = detectPerformanceMode();
+    setPerformanceMode(mode);
+  }, []);
+
   return (
     <div 
       className="fixed inset-0 z-50 cursor-pointer animate-screensaver-enter"
@@ -13,12 +24,8 @@ export function ScreensaverView({ onActivate }: ScreensaverViewProps) {
       {/* Media Slideshow Background */}
       <MediaSlideshow />
 
-      {/* MaxFama Logo Overlay */}
-      <div className="absolute top-12 left-1/2 transform -translate-x-1/2 z-20">
-        <h1 className="text-7xl font-bold bg-gradient-gold bg-clip-text text-transparent animate-pulse-glow">
-          MaxFama
-        </h1>
-      </div>
+      {/* Premium Branding Overlay */}
+      <BrandingOverlay performanceMode={performanceMode} />
 
       {/* Tap to Activate Hint */}
       <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2 z-20">
