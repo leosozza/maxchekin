@@ -121,6 +121,134 @@ All colors MUST be HSL.
   .animate-pulse-glow {
     animation: pulse-glow 2s ease-in-out infinite;
   }
+
+  /* Parallax slide animation for screensaver */
+  @keyframes parallax-slide {
+    0%, 100% {
+      transform: scale(1.1) translateX(0) translateY(0);
+    }
+    33% {
+      transform: scale(1.15) translateX(-30px) translateY(20px);
+    }
+    66% {
+      transform: scale(1.12) translateX(20px) translateY(-15px);
+    }
+  }
+
+  .animate-parallax-slide {
+    animation: parallax-slide 20s ease-in-out infinite;
+  }
+
+  /* Gradient shift animation */
+  @keyframes gradient-shift {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 0.7; }
+  }
+
+  .animate-gradient-shift {
+    animation: gradient-shift 8s ease-in-out infinite;
+  }
+
+  /* Floating particles */
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0) translateX(0);
+      opacity: 0;
+    }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% {
+      transform: translateY(-100vh) translateX(50px);
+      opacity: 0;
+    }
+  }
+
+  .animate-float {
+    animation: float 15s linear infinite;
+  }
+
+  /* Screensaver transitions */
+  @keyframes screensaver-enter {
+    0% {
+      opacity: 0;
+      transform: scale(0.9);
+      filter: blur(20px);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+      filter: blur(0);
+    }
+  }
+
+  .animate-screensaver-enter {
+    animation: screensaver-enter 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Scanner transitions */
+  @keyframes scanner-exit {
+    0% {
+      opacity: 1;
+      transform: scale(1);
+      filter: blur(0);
+    }
+    100% {
+      opacity: 0;
+      transform: scale(0.95);
+      filter: blur(10px);
+    }
+  }
+
+  @keyframes scanner-enter {
+    0% {
+      opacity: 0;
+      transform: scale(0.9) translateY(20px);
+      filter: blur(15px);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+      filter: blur(0);
+    }
+  }
+
+  .animate-scanner-exit {
+    animation: scanner-exit 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  .animate-scanner-enter {
+    animation: scanner-enter 1s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  /* Delayed fade in for tap hint */
+  @keyframes fade-in-delayed {
+    0% {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-in-delayed {
+    animation: fade-in-delayed 1s ease-out 0.5s both;
+  }
+
+  /* Tech grid animation */
+  .tech-grid {
+    background: 
+      linear-gradient(90deg, rgba(255,215,0,0.1) 1px, transparent 1px),
+      linear-gradient(rgba(255,215,0,0.1) 1px, transparent 1px);
+    background-size: 50px 50px;
+    animation: grid-move 20s linear infinite;
+  }
+
+  @keyframes grid-move {
+    0% { background-position: 0 0; }
+    100% { background-position: 50px 50px; }
+  }
 }
 
 /* Mobile PWA Optimizations */

@@ -6,6 +6,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { z } from "zod";
+import { useInactivityTimer } from "@/hooks/useInactivityTimer";
+import { ScreensaverView } from "@/components/checkin/ScreensaverView";
 import {
   Dialog,
   DialogContent,
@@ -34,11 +36,14 @@ const bitrixResponseSchema = z.object({
     ID: z.string(),
     NAME: z.string().optional(),
     TITLE: z.string().optional(),
-  }).passthrough()
+}).passthrough()
 });
 
+type ScreenState = 'scanner' | 'screensaver' | 'welcome' | 'transition';
+
 export default function CheckInNew() {
-  const [scanning, setScanning] = useState(false); // Start false until webhook loads
+  const [screenState, setScreenState] = useState<ScreenState>('scanner');
+  const [scanning, setScanning] = useState(false);
   const [modelData, setModelData] = useState<ModelData | null>(null);
   const [manualSearchOpen, setManualSearchOpen] = useState(false);
   const [searchId, setSearchId] = useState("");
@@ -54,7 +59,22 @@ export default function CheckInNew() {
   const navigate = useNavigate();
   const { user, isAdmin } = useAuth();
   
-  const SCAN_COOLDOWN_MS = 3000; // 3 segundos de cooldown
+  const SCAN_COOLDOWN_MS = 3000;
+
+  // Inactivity timer - após 30s sem interação, ativa screensaver
+  const { resetTimer } = useInactivityTimer({
+    onInactive: () => {
+      if (screenState === 'scanner' && !modelData) {
+        setScreenState('transition');
+        setTimeout(() => {
+          setScreenState('screensaver');
+          stopScanner();
+        }, 800);
+      }
+    },
+    timeout: 30000,
+    enabled: screenState === 'scanner' && !modelData && configLoaded,
+  });
 
   // Salvar/Carregar configurações do localStorage para persistir no PWA
   const saveConfigToStorage = (key: string, value: string) => {
@@ -354,12 +374,20 @@ export default function CheckInNew() {
         description: `Bem-vinda, ${modelData.name}!`,
       });
 
+      // Muda para tela de boas-vindas
+      setScreenState('welcome');
+
       // Auto-reset after 5 seconds and restart scanner
       setTimeout(() => {
         console.log("[CHECK-IN] Reiniciando scanner...");
         setModelData(null);
-        setScanning(true);
-        initScanner();
+        setScreenState('transition');
+        setTimeout(() => {
+          setScreenState('scanner');
+          setScanning(true);
+          initScanner();
+          resetTimer();
+        }, 800);
       }, 5000);
     } catch (error) {
       console.error(`[CHECK-IN] Erro:`, error);
@@ -432,13 +460,10 @@ export default function CheckInNew() {
 
   const handleMenuClick = () => {
     if (!user) {
-      // Não autenticado → vai para login
       navigate('/admin/login');
     } else if (isAdmin) {
-      // Admin → vai para dashboard
       navigate('/admin/dashboard');
     } else {
-      // Usuário não-admin → mostra toast
       toast({
         title: "Acesso Restrito",
         description: "Apenas administradores têm acesso ao painel.",
@@ -447,8 +472,31 @@ export default function CheckInNew() {
     }
   };
 
+  const handleScreensaverActivate = () => {
+    setScreenState('transition');
+    setTimeout(() => {
+      setScreenState('scanner');
+      setScanning(true);
+      initScanner();
+      resetTimer();
+    }, 800);
+  };
+
   return (
-    <div className="min-h-screen max-h-screen overflow-hidden bg-gradient-to-b from-studio-dark via-background to-studio-dark flex flex-col items-center justify-between p-4 md:p-8 portrait:orientation-portrait">
+    <>
+      {/* Screensaver Mode */}
+      {screenState === 'screensaver' && (
+        <ScreensaverView onActivate={handleScreensaverActivate} />
+      )}
+
+      {/* Main Check-in Interface */}
+      <div className={`min-h-screen max-h-screen overflow-hidden bg-gradient-to-b from-studio-dark via-background to-studio-dark flex flex-col items-center justify-between p-4 md:p-8 portrait:orientation-portrait transition-all duration-800 ${
+        screenState === 'screensaver' ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+      } ${
+        screenState === 'transition' ? 'animate-scanner-exit' : ''
+      } ${
+        screenState === 'scanner' && configLoaded && !modelData ? 'animate-scanner-enter' : ''
+      }`}>
       {/* Hidden USB input for barcode scanner */}
       <input
         ref={usbInputRef}
@@ -477,7 +525,7 @@ export default function CheckInNew() {
       </div>
 
       {/* Manual Search Button */}
-      {scanning && !modelData && (
+      {scanning && !modelData && screenState === 'scanner' && (
         <button
           onClick={() => setManualSearchOpen(true)}
           className="fixed bottom-4 right-4 sm:bottom-8 sm:right-8 w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gold/20 backdrop-blur-sm border-2 border-gold/40 hover:bg-gold/30 hover:border-gold/60 transition-all shadow-glow z-50 flex items-center justify-center group"
@@ -486,7 +534,7 @@ export default function CheckInNew() {
         </button>
       )}
 
-      {!configLoaded && (
+      {!configLoaded && screenState === 'scanner' && (
         <div className="flex flex-col items-center space-y-4 sm:space-y-8 animate-fade-in flex-1 justify-center w-full">
           <div className="relative">
             <div className="absolute inset-0 bg-gradient-gold blur-3xl opacity-20 animate-pulse-glow"></div>
@@ -520,7 +568,7 @@ export default function CheckInNew() {
         </div>
       )}
 
-      {modelData && (
+      {modelData && screenState === 'welcome' && (
         <div className="flex flex-col items-center space-y-4 sm:space-y-8 animate-scale-in flex-1 justify-center">
           {/* Confetti Effect */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -623,6 +671,7 @@ export default function CheckInNew() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </>
   );
 }
