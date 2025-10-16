@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { MediaSlideshow } from './MediaSlideshow';
 import { BrandingOverlay } from './BrandingOverlay';
 import { detectPerformanceMode } from '@/utils/performanceDetector';
@@ -16,6 +18,20 @@ export function ScreensaverView({ onActivate }: ScreensaverViewProps) {
     setPerformanceMode(mode);
   }, []);
 
+  // Check if there's an active fullscreen video
+  const { data: media } = useQuery({
+    queryKey: ['media-screensaver'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('media')
+        .select('display_mode')
+        .eq('is_active', true);
+      return data;
+    },
+  });
+
+  const hasFullscreenVideo = media?.some(item => item.display_mode === 'fullscreen-video');
+
   return (
     <div 
       className="fixed inset-0 z-50 cursor-pointer animate-screensaver-enter"
@@ -24,8 +40,8 @@ export function ScreensaverView({ onActivate }: ScreensaverViewProps) {
       {/* Media Slideshow Background */}
       <MediaSlideshow />
 
-      {/* Premium Branding Overlay */}
-      <BrandingOverlay performanceMode={performanceMode} />
+      {/* Premium Branding Overlay - Hidden for fullscreen videos */}
+      {!hasFullscreenVideo && <BrandingOverlay performanceMode={performanceMode} />}
 
       {/* Tap to Activate Hint */}
       <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2 z-20">

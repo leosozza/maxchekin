@@ -237,6 +237,7 @@ export type Database = {
       media: {
         Row: {
           created_at: string | null
+          display_mode: string
           id: string
           is_active: boolean | null
           panel_id: string | null
@@ -247,6 +248,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          display_mode?: string
           id?: string
           is_active?: boolean | null
           panel_id?: string | null
@@ -257,6 +259,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          display_mode?: string
           id?: string
           is_active?: boolean | null
           panel_id?: string | null

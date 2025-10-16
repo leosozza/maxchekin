@@ -32,13 +32,15 @@ export function MediaForm({ isOpen, onClose, panelId }: MediaFormProps) {
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
   const [type, setType] = useState<'video' | 'image'>('video');
+  const [displayMode, setDisplayMode] = useState<'slideshow' | 'fullscreen-video'>('slideshow');
 
   const createMedia = useMutation({
-    mutationFn: async (data: { title: string; url: string; type: string; panel_id?: string }) => {
+    mutationFn: async (data: { title: string; url: string; type: string; display_mode: string; panel_id?: string }) => {
       const { error } = await supabase.from('media').insert({
         title: data.title || 'Sem título',
         url: data.url,
         type: data.type,
+        display_mode: data.display_mode,
         panel_id: data.panel_id || null,
         is_active: true,
       });
@@ -64,6 +66,7 @@ export function MediaForm({ isOpen, onClose, panelId }: MediaFormProps) {
     setTitle('');
     setUrl('');
     setType('video');
+    setDisplayMode('slideshow');
     onClose();
   };
 
@@ -78,10 +81,20 @@ export function MediaForm({ isOpen, onClose, panelId }: MediaFormProps) {
       return;
     }
 
+    // Validate: fullscreen-video only for video type
+    if (displayMode === 'fullscreen-video' && type !== 'video') {
+      toast({
+        title: 'Modo tela cheia só é permitido para vídeos',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     createMedia.mutate({
       title: title.trim(),
       url: url.trim(),
       type,
+      display_mode: displayMode,
       panel_id: panelId,
     });
   };
@@ -141,6 +154,28 @@ export function MediaForm({ isOpen, onClose, panelId }: MediaFormProps) {
               {type === 'video'
                 ? 'Cole o link do YouTube ou Vimeo'
                 : 'Cole o link direto da imagem'}
+            </p>
+          </div>
+
+          <div>
+            <Label htmlFor="displayMode" className="text-white">
+              Modo de Exibição
+            </Label>
+            <Select value={displayMode} onValueChange={(v: 'slideshow' | 'fullscreen-video') => setDisplayMode(v)}>
+              <SelectTrigger className="bg-black/40 border-gold/20 text-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-studio-dark border-gold/20">
+                <SelectItem value="slideshow">Slideshow com Transições Premium</SelectItem>
+                <SelectItem value="fullscreen-video" disabled={type !== 'video'}>
+                  🎬 Vídeo em Tela Cheia (apenas vídeos)
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-white/40 mt-1">
+              {displayMode === 'slideshow' 
+                ? 'Mídias com transições premium (Runway Walk, Bloom Fade, etc.)'
+                : 'Vídeo em loop contínuo sem transições'}
             </p>
           </div>
 

@@ -52,16 +52,23 @@ export default function Media() {
           {media.map((item) => (
             <Card key={item.id} className="border-gold/20 bg-black/40 backdrop-blur-sm">
               <CardContent className="p-4">
-                <div className="flex items-start gap-3">
+                  <div className="flex items-start gap-3">
                   {item.type === 'video' ? (
                     <Video className="w-5 h-5 text-gold flex-shrink-0" />
                   ) : (
                     <Image className="w-5 h-5 text-gold flex-shrink-0" />
                   )}
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-white font-medium truncate">
-                      {item.title || 'Sem título'}
-                    </h3>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="text-white font-medium truncate">
+                        {item.title || 'Sem título'}
+                      </h3>
+                      {item.display_mode === 'fullscreen-video' && (
+                        <span className="text-xs bg-gold/20 text-gold px-2 py-0.5 rounded-full whitespace-nowrap">
+                          🎬 Fullscreen Loop
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-white/40 truncate">{item.url}</p>
                   </div>
                 </div>

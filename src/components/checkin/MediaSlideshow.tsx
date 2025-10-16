@@ -8,12 +8,14 @@ import type { TransitionType } from '@/utils/prng';
 import { MediaPreloader } from '@/utils/mediaPreloader';
 import { ScreensaverMetrics } from '@/utils/screensaverMetrics';
 import { TransitionOrchestrator } from './transitions/TransitionOrchestrator';
+import { FullscreenVideo } from './FullscreenVideo';
 
 interface Media {
   id: string;
   type: 'image' | 'video';
   url: string;
   title: string | null;
+  display_mode?: 'slideshow' | 'fullscreen-video';
 }
 
 export function MediaSlideshow() {
@@ -32,12 +34,12 @@ export function MediaSlideshow() {
   });
   const mediaStartTimeRef = useRef(Date.now());
 
-  const { data: mediaItems = [] } = useQuery({
+  const { data: allMedia = [] } = useQuery({
     queryKey: ['screensaver-media'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('media')
-        .select('id, type, url, title')
+        .select('id, type, url, title, display_mode')
         .eq('is_active', true)
         .order('sort_order');
 
@@ -46,6 +48,12 @@ export function MediaSlideshow() {
     },
     refetchInterval: 60000,
   });
+
+  // Check if there's a fullscreen video
+  const fullscreenVideo = allMedia.find(item => item.display_mode === 'fullscreen-video');
+  
+  // Filter slideshow items (everything that's not fullscreen-video)
+  const mediaItems = allMedia.filter(item => item.display_mode !== 'fullscreen-video');
 
   // Initialize performance detection and metrics
   useEffect(() => {
@@ -139,6 +147,11 @@ export function MediaSlideshow() {
 
     return () => clearInterval(interval);
   }, [mediaItems, currentIndex]);
+
+  // If fullscreen video exists, render it exclusively
+  if (fullscreenVideo) {
+    return <FullscreenVideo url={fullscreenVideo.url} title={fullscreenVideo.title || undefined} />;
+  }
 
   if (mediaItems.length === 0) {
     return (
