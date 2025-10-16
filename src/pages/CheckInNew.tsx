@@ -208,9 +208,21 @@ export default function CheckInNew() {
     }
   };
 
-  const stopScanner = () => {
+  const stopScanner = async () => {
     if (scannerRef.current) {
-      scannerRef.current.stop().catch(console.error);
+      try {
+        // Check if scanner is actually running before stopping
+        const state = await scannerRef.current.getState();
+        if (state === 2) { // 2 = Html5QrcodeScannerState.SCANNING
+          await scannerRef.current.stop();
+          console.log('[SCANNER] Scanner parado com sucesso');
+        } else {
+          console.log('[SCANNER] Scanner já estava parado (state:', state, ')');
+        }
+      } catch (error) {
+        // Silently handle errors - scanner might already be stopped
+        console.log('[SCANNER] Erro ao parar (provavelmente já estava parado):', error);
+      }
     }
   };
 
@@ -349,10 +361,8 @@ export default function CheckInNew() {
       setModelData(modelData);
       setScanning(false);
       
-      // Stop scanner if active
-      if (scannerRef.current) {
-        await scannerRef.current.stop();
-      }
+      // Stop scanner if active - use the safe stopScanner function
+      await stopScanner();
 
       // Save to database
       const { error: insertError } = await supabase.from("check_ins").insert({
