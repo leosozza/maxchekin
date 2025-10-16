@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2 } from 'lucide-react';
 import { z } from 'zod';
+import { useToast } from '@/hooks/use-toast';
 
 const authSchema = z.object({
   email: z.string().trim().email({ message: "Email inválido" }),
@@ -20,8 +21,9 @@ export default function Login() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string; confirmPassword?: string }>({});
-  const { signIn, signUp, user } = useAuth();
+  const { signIn, signUp, user, role } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (user) {
@@ -61,7 +63,19 @@ export default function Login() {
     const { error } = await signIn(email, password);
 
     if (!error) {
-      navigate('/home');
+      // Aguardar role ser carregado
+      setTimeout(() => {
+        if (role === 'admin') {
+          navigate('/admin/dashboard');
+        } else {
+          navigate('/');
+          toast({
+            title: "Acesso Negado",
+            description: "Você não tem permissão de administrador.",
+            variant: "destructive",
+          });
+        }
+      }, 100);
     }
     setIsLoading(false);
   };

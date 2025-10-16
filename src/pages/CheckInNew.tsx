@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { supabase } from "@/integrations/supabase/client";
-import { Sparkles, QrCode, Search, X, Delete, User, LayoutDashboard } from "lucide-react";
+import { Sparkles, QrCode, Search, X, Delete, User, Menu } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -36,7 +36,7 @@ export default function CheckInNew() {
   const usbInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
+  const { user, isAdmin } = useAuth();
   
   const SCAN_COOLDOWN_MS = 3000; // 3 segundos de cooldown
 
@@ -401,6 +401,23 @@ export default function CheckInNew() {
     // Ignore scan errors (they happen constantly while scanning)
   };
 
+  const handleMenuClick = () => {
+    if (!user) {
+      // Não autenticado → vai para login
+      navigate('/admin/login');
+    } else if (isAdmin) {
+      // Admin → vai para dashboard
+      navigate('/admin/dashboard');
+    } else {
+      // Usuário não-admin → mostra toast
+      toast({
+        title: "Acesso Restrito",
+        description: "Apenas administradores têm acesso ao painel.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen max-h-screen overflow-hidden bg-gradient-to-b from-studio-dark via-background to-studio-dark flex flex-col items-center justify-between p-4 md:p-8 portrait:orientation-portrait">
       {/* Hidden USB input for barcode scanner */}
@@ -412,18 +429,16 @@ export default function CheckInNew() {
         autoFocus
       />
 
-      {/* Botão Admin (apenas para admins) */}
-      {isAdmin && (
-        <Button
-          onClick={() => navigate("/admin/dashboard")}
-          variant="outline"
-          size="icon"
-          className="fixed top-4 left-4 z-50 border-gold/20 hover:bg-gold/10"
-          title="Painel Admin"
-        >
-          <LayoutDashboard className="w-5 h-5 text-gold" />
-        </Button>
-      )}
+      {/* Botão Menu - Sempre visível */}
+      <Button
+        onClick={handleMenuClick}
+        variant="outline"
+        size="icon"
+        className="fixed top-4 left-4 z-50 border-gold/20 hover:bg-gold/10"
+        title={user ? (isAdmin ? "Painel Admin" : "Menu") : "Login"}
+      >
+        <Menu className="w-5 h-5 text-gold" />
+      </Button>
 
       {/* Logo */}
       <div className="w-full text-center mb-4 sm:mb-8">
