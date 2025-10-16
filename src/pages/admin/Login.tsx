@@ -26,10 +26,12 @@ export default function Login() {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (user) {
-      navigate('/home');
+    if (user && role === 'admin') {
+      navigate('/admin/dashboard');
+    } else if (user) {
+      navigate('/');
     }
-  }, [user, navigate]);
+  }, [user, role, navigate]);
 
   const validateForm = (isSignUp: boolean) => {
     const newErrors: typeof errors = {};

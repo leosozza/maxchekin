@@ -1,4 +1,4 @@
-const CACHE_NAME = 'maxcheckin-v2';
+const CACHE_NAME = 'maxcheckin-v3';
 const urlsToCache = [
   '/',
   '/index.html',
