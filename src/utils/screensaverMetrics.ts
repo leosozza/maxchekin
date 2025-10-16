@@ -45,6 +45,7 @@ export class ScreensaverMetrics {
         'parallax-deep': 0,
         'vortex-spin': 0,
         'glass-morph': 0,
+        'runway-walk': 0,
       },
       performanceMode,
       sessionStartTime: Date.now(),

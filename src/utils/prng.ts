@@ -3,9 +3,12 @@ export type TransitionType =
   | 'chromatic-split'
   | 'parallax-deep'
   | 'vortex-spin'
-  | 'glass-morph';
+  | 'glass-morph'
+  | 'runway-walk';
 
 const TRANSITION_TYPES: TransitionType[] = [
+  'runway-walk',      // Fashion runway effect (higher probability - listed first)
+  'runway-walk',      // Double entry for higher selection chance
   'bloom-fade',
   'chromatic-split',
   'parallax-deep',

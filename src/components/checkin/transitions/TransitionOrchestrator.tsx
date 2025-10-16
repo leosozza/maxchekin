@@ -16,6 +16,7 @@ const ChromaticSplit = lazy(() => import('./ChromaticSplit'));
 const ParallaxDeep = lazy(() => import('./ParallaxDeep'));
 const VortexSpin = lazy(() => import('./VortexSpin'));
 const GlassMorph = lazy(() => import('./GlassMorph'));
+const RunwayWalk = lazy(() => import('./RunwayWalk'));
 
 const transitionComponents = {
   'bloom-fade': BloomFade,
@@ -23,6 +24,7 @@ const transitionComponents = {
   'parallax-deep': ParallaxDeep,
   'vortex-spin': VortexSpin,
   'glass-morph': GlassMorph,
+  'runway-walk': RunwayWalk,
 };
 
 export function TransitionOrchestrator({

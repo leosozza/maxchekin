@@ -371,3 +371,52 @@ All colors MUST be HSL.
 .animate-particle-float {
   animation: particle-float linear infinite;
 }
+
+/* Runway Walk Transition */
+.runway-perspective-container {
+  transform-style: preserve-3d;
+}
+
+.runway-layer {
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+@keyframes runway-walk-enter {
+  0% {
+    transform: translateZ(-1500px) scale(0.3);
+    opacity: 0;
+    filter: blur(30px);
+  }
+  100% {
+    transform: translateZ(0) scale(1);
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+@keyframes runway-walk-exit {
+  0% {
+    transform: translateZ(0) scale(1);
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    transform: translateZ(1000px) scale(2);
+    opacity: 0;
+    filter: blur(40px);
+  }
+}
+
+@keyframes depth-blur {
+  0% {
+    filter: blur(0);
+  }
+  50% {
+    filter: blur(15px);
+  }
+  100% {
+    filter: blur(0);
+  }
+}
