@@ -14,6 +14,11 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { FullscreenVideo } from "@/components/checkin/FullscreenVideo";
 
+const MODE_OPTIONS = [
+  { value: 'media', label: '📸 Mídias do Screensaver', description: 'Exibir imagens e vídeos cadastrados' },
+  { value: 'transitions', label: '✨ Transições Animadas', description: 'Apenas efeitos de transição sem mídias' },
+];
+
 const TRANSITION_OPTIONS = [
   { value: 'random', label: 'Aleatório (Recomendado)' },
   { value: 'runway-walk', label: 'Runway Walk - Efeito Passarela' },
@@ -118,6 +123,7 @@ export default function ScreensaverSettings() {
     },
   });
 
+  const [screensaverMode, setScreensaverMode] = useState(config?.screensaver_mode || 'media');
   const [transitionType, setTransitionType] = useState(config?.transition_type || 'random');
   const [slideDuration, setSlideDuration] = useState(config?.slide_duration_seconds || 8);
   const [enableParticles, setEnableParticles] = useState(config?.enable_particles ?? true);
@@ -129,6 +135,7 @@ export default function ScreensaverSettings() {
 
   // Update local state when config loads
   if (config && transitionType === 'random' && config.transition_type !== 'random') {
+    setScreensaverMode(config.screensaver_mode || 'media');
     setTransitionType(config.transition_type);
     setSlideDuration(config.slide_duration_seconds);
     setEnableParticles(config.enable_particles);
@@ -140,6 +147,7 @@ export default function ScreensaverSettings() {
 
   const handleSave = () => {
     updateMutation.mutate({
+      screensaver_mode: screensaverMode,
       transition_type: transitionType,
       slide_duration_seconds: slideDuration,
       enable_particles: enableParticles,
@@ -174,6 +182,50 @@ export default function ScreensaverSettings() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
+        {/* Modo do Screensaver */}
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Monitor className="w-5 h-5" />
+              Modo do Screensaver
+            </CardTitle>
+            <CardDescription>
+              Escolha entre exibir mídias ou apenas transições animadas
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-3 md:grid-cols-2">
+              {MODE_OPTIONS.map((option) => (
+                <div
+                  key={option.value}
+                  onClick={() => setScreensaverMode(option.value)}
+                  className={`cursor-pointer rounded-lg border-2 p-4 transition-all ${
+                    screensaverMode === option.value
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:border-primary/50'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`w-5 h-5 mt-0.5 rounded-full border-2 flex items-center justify-center ${
+                      screensaverMode === option.value
+                        ? 'border-primary'
+                        : 'border-border'
+                    }`}>
+                      {screensaverMode === option.value && (
+                        <div className="w-2.5 h-2.5 rounded-full bg-primary" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium mb-1">{option.label}</p>
+                      <p className="text-sm text-muted-foreground">{option.description}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Transições */}
         <Card>
           <CardHeader>
@@ -182,7 +234,10 @@ export default function ScreensaverSettings() {
               Efeitos de Transição
             </CardTitle>
             <CardDescription>
-              Configure o tipo de animação entre slides
+              {screensaverMode === 'transitions' 
+                ? 'Efeitos visuais animados em tela cheia'
+                : 'Configure o tipo de animação entre slides'
+              }
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -298,7 +353,7 @@ export default function ScreensaverSettings() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Monitor className="w-5 h-5" />
+              <Sparkles className="w-5 h-5" />
               Performance
             </CardTitle>
             <CardDescription>

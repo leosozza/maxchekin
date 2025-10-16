@@ -40,6 +40,8 @@ export function MediaSlideshow() {
       return data;
     },
   });
+
+  const isTransitionsMode = screensaverConfig?.screensaver_mode === 'transitions';
   const fpsMonitorRef = useRef({
     frames: 0,
     lastTime: performance.now(),
@@ -171,6 +173,32 @@ export function MediaSlideshow() {
 
     return () => clearInterval(interval);
   }, [mediaItems, currentIndex, screensaverConfig]);
+
+  // If in transitions mode, show only transitions without media
+  if (isTransitionsMode) {
+    return (
+      <div className="absolute inset-0 bg-gradient-studio overflow-hidden">
+        <TransitionOrchestrator
+          transitionType={transitionType}
+          isActive={isActive}
+          performanceMode={performanceMode}
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-studio-dark via-gold-shimmer/20 to-studio-dark">
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center space-y-6 animate-fade-in">
+                <h2 className="text-6xl md:text-8xl font-bold bg-gradient-gold bg-clip-text text-transparent">
+                  MaxFama
+                </h2>
+                <p className="text-muted-foreground text-2xl md:text-3xl">
+                  Agência de Modelos
+                </p>
+              </div>
+            </div>
+          </div>
+        </TransitionOrchestrator>
+      </div>
+    );
+  }
 
   // If fullscreen video exists, render it exclusively
   if (fullscreenVideo) {

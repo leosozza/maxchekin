@@ -408,6 +408,7 @@ export type Database = {
           enable_particles: boolean
           id: string
           performance_mode: string
+          screensaver_mode: string
           show_branding: boolean
           show_qr_code: boolean
           slide_duration_seconds: number
@@ -420,6 +421,7 @@ export type Database = {
           enable_particles?: boolean
           id?: string
           performance_mode?: string
+          screensaver_mode?: string
           show_branding?: boolean
           show_qr_code?: boolean
           slide_duration_seconds?: number
@@ -432,6 +434,7 @@ export type Database = {
           enable_particles?: boolean
           id?: string
           performance_mode?: string
+          screensaver_mode?: string
           show_branding?: boolean
           show_qr_code?: boolean
           slide_duration_seconds?: number
