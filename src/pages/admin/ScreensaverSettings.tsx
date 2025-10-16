@@ -8,7 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Monitor, Sparkles, Image, Clock } from "lucide-react";
+import { Loader2, Monitor, Sparkles, Image, Clock, Film, Trash2, Plus, Play, Volume2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Badge } from "@/components/ui/badge";
 
 const TRANSITION_OPTIONS = [
   { value: 'random', label: 'Aleatório (Recomendado)' },
@@ -28,6 +30,7 @@ const PERFORMANCE_OPTIONS = [
 
 export default function ScreensaverSettings() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: config, isLoading } = useQuery({
     queryKey: ['screensaver-config'],
@@ -39,6 +42,21 @@ export default function ScreensaverSettings() {
       
       if (error) throw error;
       return data;
+    },
+  });
+
+  // Fetch media items
+  const { data: mediaItems = [], isLoading: isLoadingMedia } = useQuery({
+    queryKey: ['screensaver-media-list'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('media')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order');
+      
+      if (error) throw error;
+      return data || [];
     },
   });
 
@@ -57,6 +75,44 @@ export default function ScreensaverSettings() {
     },
     onError: (error) => {
       toast.error('Erro ao salvar configurações: ' + error.message);
+    },
+  });
+
+  const deleteMediaMutation = useMutation({
+    mutationFn: async (mediaId: string) => {
+      const { error } = await supabase
+        .from('media')
+        .delete()
+        .eq('id', mediaId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['screensaver-media-list'] });
+      queryClient.invalidateQueries({ queryKey: ['screensaver-media'] });
+      toast.success('Mídia removida com sucesso!');
+    },
+    onError: (error) => {
+      toast.error('Erro ao remover mídia: ' + error.message);
+    },
+  });
+
+  const toggleMediaDisplayMode = useMutation({
+    mutationFn: async ({ id, displayMode }: { id: string; displayMode: string }) => {
+      const { error } = await supabase
+        .from('media')
+        .update({ display_mode: displayMode })
+        .eq('id', id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['screensaver-media-list'] });
+      queryClient.invalidateQueries({ queryKey: ['screensaver-media'] });
+      toast.success('Modo de exibição atualizado!');
+    },
+    onError: (error) => {
+      toast.error('Erro ao atualizar modo: ' + error.message);
     },
   });
 
@@ -91,7 +147,13 @@ export default function ScreensaverSettings() {
     });
   };
 
-  if (isLoading) {
+  const handleDeleteMedia = (mediaId: string) => {
+    if (confirm('Tem certeza que deseja remover esta mídia?')) {
+      deleteMediaMutation.mutate(mediaId);
+    }
+  };
+
+  if (isLoading || isLoadingMedia) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="w-8 h-8 animate-spin" />
@@ -259,6 +321,136 @@ export default function ScreensaverSettings() {
                 Automático detecta a capacidade do dispositivo
               </p>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Gerenciar Mídias - Full Width */}
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Film className="w-5 h-5" />
+                  Mídias do Screensaver
+                </CardTitle>
+                <CardDescription>
+                  Gerencie as imagens e vídeos exibidos no screensaver
+                </CardDescription>
+              </div>
+              <Button onClick={() => navigate('/admin/media')}>
+                <Plus className="w-4 h-4 mr-2" />
+                Adicionar Mídia
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {mediaItems.length === 0 ? (
+              <div className="text-center py-12">
+                <Film className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground mb-4">
+                  Nenhuma mídia cadastrada
+                </p>
+                <Button onClick={() => navigate('/admin/media')}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Adicionar Primeira Mídia
+                </Button>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {mediaItems.map((media) => (
+                  <Card key={media.id} className="overflow-hidden">
+                    <div className="relative aspect-video bg-muted">
+                      {media.type === 'image' ? (
+                        <img
+                          src={media.url}
+                          alt={media.title || 'Mídia'}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="relative w-full h-full">
+                          <video
+                            src={media.url}
+                            className="w-full h-full object-cover"
+                            muted
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                            <Play className="w-12 h-12 text-white" />
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Badge do modo */}
+                      <div className="absolute top-2 right-2">
+                        {media.display_mode === 'fullscreen-video' ? (
+                          <Badge variant="default" className="bg-primary">
+                            🎬 Fullscreen
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary">
+                            📸 Slideshow
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <CardContent className="p-4 space-y-3">
+                      <div>
+                        <h4 className="font-medium truncate">
+                          {media.title || 'Sem título'}
+                        </h4>
+                        <p className="text-xs text-muted-foreground">
+                          {media.type === 'image' ? 'Imagem' : 'Vídeo'}
+                        </p>
+                      </div>
+
+                      {/* Controles para vídeos */}
+                      {media.type === 'video' && (
+                        <div className="space-y-2">
+                          <Label className="text-xs">Modo de Exibição</Label>
+                          <Select
+                            value={media.display_mode || 'slideshow'}
+                            onValueChange={(value) =>
+                              toggleMediaDisplayMode.mutate({
+                                id: media.id,
+                                displayMode: value,
+                              })
+                            }
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="slideshow">
+                                📸 Slideshow (com transições)
+                              </SelectItem>
+                              <SelectItem value="fullscreen-video">
+                                🎬 Fullscreen Loop
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-muted-foreground">
+                            {media.display_mode === 'fullscreen-video'
+                              ? 'Vídeo em tela cheia sem transições'
+                              : 'Vídeo no slideshow com transições'}
+                          </p>
+                        </div>
+                      )}
+
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => handleDeleteMedia(media.id)}
+                        disabled={deleteMediaMutation.isPending}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Remover
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
