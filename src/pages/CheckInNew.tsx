@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { supabase } from "@/integrations/supabase/client";
-import { Sparkles, QrCode, Search, X, Delete, User, Menu } from "lucide-react";
+import { Sparkles, QrCode, Search, X, Delete, User, Menu, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -176,8 +176,9 @@ export default function CheckInNew() {
 
   useEffect(() => {
     if (configLoaded && webhookUrl && screenState === 'scanner') {
-      console.log("[CHECK-IN] Iniciando scanner...");
+      console.log("[CHECK-IN] Iniciando scanner com permissões liberadas...");
       setScanning(true);
+      // Iniciar scanner diretamente - ele vai solicitar permissão automaticamente
       initScanner();
     }
     return () => {
@@ -185,90 +186,94 @@ export default function CheckInNew() {
     };
   }, [configLoaded, webhookUrl, screenState]);
 
-  const checkCameraPermission = async () => {
-    try {
-      setCameraPermission('checking');
-      
-      // Check if navigator.permissions is available
-      if (navigator.permissions && navigator.permissions.query) {
-        const result = await navigator.permissions.query({ name: 'camera' as PermissionName });
-        setCameraPermission(result.state as 'granted' | 'denied' | 'prompt');
-        
-        // Listen for permission changes
-        result.onchange = () => {
-          setCameraPermission(result.state as 'granted' | 'denied' | 'prompt');
-        };
-      } else {
-        // Fallback: just set to prompt if API not available
-        setCameraPermission('prompt');
-      }
-    } catch (err) {
-      console.error("Error checking camera permission:", err);
-      setCameraPermission('prompt');
-    }
-  };
-
-  const requestCameraPermission = async () => {
-    try {
-      // Just request permission - let the scanner handle the stream
-      await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-      setCameraPermission('granted');
-      toast({
-        title: "Permissão concedida",
-        description: "Iniciando câmera...",
-      });
-      // Restart scanner
-      if (configLoaded && webhookUrl) {
-        initScanner();
-      }
-    } catch (err) {
-      console.error("Camera permission denied:", err);
-      setCameraPermission('denied');
-      toast({
-        title: "Permissão negada",
-        description: "Habilite a câmera nas configurações do navegador",
-        variant: "destructive",
-      });
-    }
+  const forceReloadCamera = async () => {
+    console.log("[CAMERA] Forçando recarregamento da câmera...");
+    await stopScanner();
+    setCameraPermission('checking');
+    setTimeout(() => {
+      initScanner();
+    }, 500);
   };
 
   const initScanner = async () => {
     try {
+      // Parar qualquer scanner existente primeiro
+      if (scannerRef.current) {
+        try {
+          await scannerRef.current.stop();
+        } catch (e) {
+          // Ignora erro se já estiver parado
+        }
+      }
+
       const scanner = new Html5Qrcode("qr-reader");
       scannerRef.current = scanner;
 
+      // Solicitar permissões de forma mais liberal
+      const config = {
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.0,
+        disableFlip: false,
+      };
+
+      // Tentar com câmera traseira primeiro (ideal para QR codes)
       await scanner.start(
         { facingMode: "environment" },
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
-        },
+        config,
         onScanSuccess,
         onScanError
       );
       
-      console.log("[SCANNER] Scanner iniciado com sucesso");
+      console.log("[SCANNER] Scanner iniciado com sucesso!");
       setCameraPermission('granted');
-    } catch (err: any) {
-      console.error("Failed to start scanner:", err);
       
-      // Check if it's a permission error
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        setCameraPermission('denied');
-        toast({
-          title: "Permissão da câmera necessária",
-          description: "Clique no botão abaixo para ativar a câmera",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Erro no scanner",
-          description: "Não foi possível iniciar o scanner QR",
-          variant: "destructive",
-        });
+      toast({
+        title: "Câmera ativada",
+        description: "Pronto para escanear QR codes",
+      });
+    } catch (err: any) {
+      console.error("[SCANNER] Erro ao iniciar:", err);
+      
+      // Tentar com qualquer câmera disponível como fallback
+      try {
+        const scanner = new Html5Qrcode("qr-reader");
+        scannerRef.current = scanner;
+        
+        await scanner.start(
+          { facingMode: "user" }, // Câmera frontal
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+          },
+          onScanSuccess,
+          onScanError
+        );
+        
+        console.log("[SCANNER] Scanner iniciado com câmera frontal");
+        setCameraPermission('granted');
+      } catch (fallbackErr: any) {
+        console.error("[SCANNER] Falha total ao iniciar câmera:", fallbackErr);
+        
+        if (fallbackErr.name === 'NotAllowedError' || fallbackErr.name === 'PermissionDeniedError') {
+          setCameraPermission('denied');
+          toast({
+            title: "Permissão da câmera negada",
+            description: "Clique em 'Recarregar Câmera' e permita o acesso",
+            variant: "destructive",
+          });
+        } else {
+          setCameraPermission('denied');
+          toast({
+            title: "Erro ao acessar câmera",
+            description: "Tente recarregar ou use a busca manual",
+            variant: "destructive",
+          });
+        }
       }
     }
   };
+
 
   const stopScanner = async () => {
     if (scannerRef.current) {
@@ -631,49 +636,49 @@ export default function CheckInNew() {
             <QrCode className="w-20 h-20 sm:w-32 sm:h-32 text-gold animate-pulse relative z-10" />
           </div>
           
-          {cameraPermission === 'denied' && (
+          {(cameraPermission === 'denied' || cameraPermission === 'prompt') && (
             <div className="w-full max-w-md space-y-4 px-4">
-              <div className="bg-destructive/10 border-2 border-destructive/50 rounded-lg p-6 text-center space-y-4">
-                <p className="text-lg font-semibold text-destructive">
-                  Câmera bloqueada
+              <div className="bg-primary/10 border-2 border-primary/50 rounded-lg p-6 text-center space-y-4">
+                <p className="text-lg font-semibold text-primary">
+                  {cameraPermission === 'denied' ? '⚠️ Câmera bloqueada' : '📷 Ativar câmera'}
                 </p>
                 <p className="text-sm text-muted-foreground">
                   Para escanear QR codes, é necessário permitir o acesso à câmera.
                 </p>
                 <Button
-                  onClick={requestCameraPermission}
-                  className="w-full bg-gold hover:bg-gold/90 text-studio-dark font-bold"
+                  onClick={forceReloadCamera}
+                  size="lg"
+                  className="w-full text-lg font-bold"
                 >
-                  Ativar Câmera
+                  🔄 Recarregar Câmera
                 </Button>
                 <p className="text-xs text-muted-foreground mt-4">
-                  Se o botão não funcionar, vá em Configurações do navegador → Permissões → Câmera e permita para este site.
+                  Ao clicar, seu navegador solicitará permissão para usar a câmera. Clique em "Permitir".
                 </p>
               </div>
             </div>
           )}
           
-          {cameraPermission === 'prompt' && (
-            <div className="w-full max-w-md space-y-4 px-4">
-              <div className="bg-gold/10 border-2 border-gold/50 rounded-lg p-6 text-center space-y-4">
-                <p className="text-lg font-semibold text-gold">
-                  Permissão necessária
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Clique no botão abaixo para permitir o acesso à câmera
-                </p>
-                <Button
-                  onClick={requestCameraPermission}
-                  className="w-full bg-gold hover:bg-gold/90 text-studio-dark font-bold"
-                >
-                  Permitir Câmera
-                </Button>
-              </div>
-            </div>
+          
+          {cameraPermission === 'granted' && (
+            <>
+              <div id="qr-reader" className="w-full max-w-md max-h-[250px] sm:max-h-[400px] min-h-[200px] overflow-hidden"></div>
+              <Button
+                onClick={forceReloadCamera}
+                variant="outline"
+                size="sm"
+                className="mt-2"
+              >
+                🔄 Recarregar Câmera
+              </Button>
+            </>
           )}
           
-          {(cameraPermission === 'granted' || cameraPermission === 'checking') && (
-            <div id="qr-reader" className="w-full max-w-md max-h-[250px] sm:max-h-[400px] min-h-[200px] overflow-hidden"></div>
+          {cameraPermission === 'checking' && (
+            <div className="w-full max-w-md space-y-4 px-4 text-center">
+              <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto" />
+              <p className="text-muted-foreground">Carregando câmera...</p>
+            </div>
           )}
           
           <div className="text-center space-y-2 px-4">
@@ -681,9 +686,11 @@ export default function CheckInNew() {
               Bem-vindo à MaxFama
             </p>
             <p className="text-base sm:text-lg text-muted-foreground">
-              {cameraPermission === 'granted' || cameraPermission === 'checking' 
+              {cameraPermission === 'granted'
                 ? "Aproxime sua credencial ou use o leitor USB"
-                : "Use o leitor USB ou busca manual"}
+                : cameraPermission === 'checking'
+                ? "Aguarde, carregando câmera..."
+                : "Clique em 'Recarregar Câmera' ou use busca manual"}
             </p>
           </div>
         </div>
