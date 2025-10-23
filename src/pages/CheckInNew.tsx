@@ -578,15 +578,19 @@ export default function CheckInNew() {
         autoFocus
       />
 
-      {/* Botão Menu - Sempre visível */}
+      {/* Botão Menu/Login - Sempre visível */}
       <Button
         onClick={handleMenuClick}
         variant="outline"
         size="icon"
-        className="fixed top-4 left-4 z-50 border-gold/20 hover:bg-gold/10"
-        title={user ? (isAdmin ? "Painel Admin" : "Menu") : "Login"}
+        className="fixed top-4 left-4 z-50 border-primary/30 hover:bg-primary/10 hover:border-primary/50 transition-all"
+        title={user ? (isAdmin ? "Painel Admin" : "Menu") : "Fazer Login"}
       >
-        <Menu className="w-5 h-5 text-gold" />
+        {user ? (
+          <Menu className="w-5 h-5 text-primary" />
+        ) : (
+          <User className="w-5 h-5 text-primary" />
+        )}
       </Button>
 
       {/* Logo */}
