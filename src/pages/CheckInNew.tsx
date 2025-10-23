@@ -215,7 +215,19 @@ export default function CheckInNew() {
       // Parar o stream temporário (apenas para verificar permissão)
       stream.getTracks().forEach(track => track.stop());
       
-      // Agora iniciar o scanner html5-qrcode
+      // ✅ IMPORTANTE: Definir como 'granted' ANTES de iniciar o scanner
+      // Isso garante que o elemento #qr-reader esteja visível no DOM
+      setCameraPermission('granted');
+      
+      toast({
+        title: "✅ Câmera Permitida",
+        description: "Iniciando scanner...",
+      });
+
+      // Pequeno delay para garantir que o React renderizou o elemento
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Agora iniciar o scanner com o elemento já no DOM
       await initScanner();
       
     } catch (err: any) {
@@ -258,15 +270,26 @@ export default function CheckInNew() {
   const initScanner = async () => {
     try {
       console.log("[SCANNER] Verificando se elemento DOM existe...");
-      const element = document.getElementById("qr-reader");
+      let element = document.getElementById("qr-reader");
       if (!element) {
-        console.error("[SCANNER] Elemento #qr-reader não encontrado!");
-        throw new Error("Elemento scanner não encontrado no DOM");
+        console.error("[SCANNER] ⚠️ Elemento #qr-reader não encontrado! Aguardando DOM...");
+        
+        // Dar mais tempo para o DOM renderizar
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        element = document.getElementById("qr-reader");
+        if (!element) {
+          console.error("[SCANNER] ❌ Elemento ainda não encontrado após retry!");
+          toast({
+            title: "Erro de Inicialização",
+            description: "Elemento scanner não encontrado após retry",
+            variant: "destructive",
+          });
+          throw new Error("Elemento scanner não encontrado após retry");
+        }
       }
 
-      console.log("[SCANNER] Elemento DOM confirmado, aguardando render...");
-      // Delay adicional para garantir que o DOM está completamente renderizado
-      await new Promise(resolve => setTimeout(resolve, 500));
+      console.log("[SCANNER] ✅ Elemento DOM confirmado");
 
       // Parar qualquer scanner existente primeiro
       if (scannerRef.current) {
@@ -780,19 +803,21 @@ export default function CheckInNew() {
           )}
           
           
-          {cameraPermission === 'granted' && (
-            <>
-              <div id="qr-reader" className="w-full max-w-md max-h-[250px] sm:max-h-[400px] min-h-[200px] overflow-hidden"></div>
-              <Button
-                onClick={forceReloadCamera}
-                variant="outline"
-                size="sm"
-                className="mt-2"
-              >
-                🔄 Recarregar Câmera
-              </Button>
-            </>
-          )}
+          {/* Sempre renderizar o container do scanner, mas ocultar visualmente se necessário */}
+          <div className={cameraPermission === 'granted' ? 'block' : 'hidden'}>
+            <div 
+              id="qr-reader" 
+              className="w-full max-w-md max-h-[250px] sm:max-h-[400px] min-h-[200px] overflow-hidden"
+            ></div>
+            <Button
+              onClick={forceReloadCamera}
+              variant="outline"
+              size="sm"
+              className="mt-2"
+            >
+              🔄 Recarregar Câmera
+            </Button>
+          </div>
           
           {cameraPermission === 'checking' && (
             <div className="w-full max-w-md space-y-4 px-4 text-center">
