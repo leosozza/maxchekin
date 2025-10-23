@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, ArrowLeft } from 'lucide-react';
+import { Loader2, ArrowLeft, QrCode, Sparkles } from 'lucide-react';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
 
@@ -111,13 +111,58 @@ export default function Login() {
         <ArrowLeft className="w-5 h-5 text-primary" />
       </Button>
 
-      <Card className="w-full max-w-md border-primary/20 bg-card/90 backdrop-blur-sm">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-primary">MaxCheckin Admin</CardTitle>
-          <CardDescription className="text-muted-foreground">
-            Faça login ou crie uma conta para acessar o painel
-          </CardDescription>
-        </CardHeader>
+      <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Painel de Check-in Visual */}
+        <Card className="border-primary/30 bg-gradient-to-br from-primary/10 via-card to-secondary/10 backdrop-blur-sm hover:border-primary/50 transition-all group">
+          <CardHeader className="space-y-1 text-center">
+            <div className="mx-auto w-20 h-20 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <QrCode className="w-10 h-10 text-primary-foreground" />
+            </div>
+            <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+              Check-in de Modelos
+            </CardTitle>
+            <CardDescription className="text-muted-foreground text-lg">
+              Escaneie o QR Code ou digite o ID manualmente
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="bg-card/50 rounded-lg p-6 space-y-4">
+              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                <Sparkles className="w-5 h-5 text-primary" />
+                <span>Scanner QR Code em tempo real</span>
+              </div>
+              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                <Sparkles className="w-5 h-5 text-secondary" />
+                <span>Busca manual de modelos</span>
+              </div>
+              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                <Sparkles className="w-5 h-5 text-accent" />
+                <span>Confirmação instantânea no Bitrix24</span>
+              </div>
+            </div>
+            
+            <Button
+              onClick={() => navigate('/')}
+              className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-primary to-secondary hover:opacity-90 transition-all shadow-lg group-hover:shadow-primary/50"
+            >
+              <QrCode className="w-6 h-6 mr-2" />
+              Iniciar Check-in
+            </Button>
+
+            <p className="text-xs text-center text-muted-foreground">
+              Não é necessário fazer login para realizar check-in
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Painel de Login Admin */}
+        <Card className="border-primary/20 bg-card/90 backdrop-blur-sm">
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-2xl font-bold text-primary">MaxCheckin Admin</CardTitle>
+            <CardDescription className="text-muted-foreground">
+              Faça login ou crie uma conta para acessar o painel
+            </CardDescription>
+          </CardHeader>
         <CardContent>
           <Tabs defaultValue="login" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
@@ -257,6 +302,7 @@ export default function Login() {
           </Tabs>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }
