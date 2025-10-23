@@ -96,7 +96,7 @@ export default function CheckInNew() {
     }
   };
 
-  // Load webhook config on mount and when user changes
+  // Load webhook config on mount - works with or without login
   useEffect(() => {
     const loadConfigs = async () => {
       console.log("[CHECK-IN] Iniciando carregamento de configurações...");
@@ -106,7 +106,7 @@ export default function CheckInNew() {
     };
     
     loadConfigs();
-  }, [user]); // Reload when user state changes
+  }, []);
 
   const loadWebhookConfig = async () => {
     try {
