@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ArrowLeft } from 'lucide-react';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
 
@@ -25,11 +25,10 @@ export default function Login() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // Auto-redirect only admin users
   useEffect(() => {
     if (user && role === 'admin') {
       navigate('/admin/dashboard');
-    } else if (user) {
-      navigate('/');
     }
   }, [user, role, navigate]);
 
@@ -100,21 +99,32 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-studio-dark via-black to-studio-dark p-4">
-      <Card className="w-full max-w-md border-gold/20 bg-studio-dark/90 backdrop-blur-sm">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background/95 to-background p-4">
+      {/* Botão Voltar ao Check-in */}
+      <Button
+        onClick={() => navigate('/')}
+        variant="outline"
+        size="icon"
+        className="fixed top-4 left-4 z-50 border-primary/30 hover:bg-primary/10 hover:border-primary/50 transition-all"
+        title="Voltar ao Check-in"
+      >
+        <ArrowLeft className="w-5 h-5 text-primary" />
+      </Button>
+
+      <Card className="w-full max-w-md border-primary/20 bg-card/90 backdrop-blur-sm">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-gold">MaxCheckin Admin</CardTitle>
-          <CardDescription className="text-white/60">
+          <CardTitle className="text-2xl font-bold text-primary">MaxCheckin Admin</CardTitle>
+          <CardDescription className="text-muted-foreground">
             Faça login ou crie uma conta para acessar o painel
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="login" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 bg-black/20">
-              <TabsTrigger value="login" className="data-[state=active]:bg-gold data-[state=active]:text-black">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="login">
                 Entrar
               </TabsTrigger>
-              <TabsTrigger value="signup" className="data-[state=active]:bg-gold data-[state=active]:text-black">
+              <TabsTrigger value="signup">
                 Criar Conta
               </TabsTrigger>
             </TabsList>
@@ -122,7 +132,7 @@ export default function Login() {
             <TabsContent value="login">
               <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="login-email" className="text-white/80">Email</Label>
+                  <Label htmlFor="login-email">Email</Label>
                   <Input
                     id="login-email"
                     type="email"
@@ -133,14 +143,13 @@ export default function Login() {
                       setErrors({});
                     }}
                     required
-                    className="bg-black/20 border-gold/20 text-white"
                   />
                   {errors.email && (
                     <p className="text-sm text-destructive">{errors.email}</p>
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="login-password" className="text-white/80">Senha</Label>
+                  <Label htmlFor="login-password">Senha</Label>
                   <Input
                     id="login-password"
                     type="password"
@@ -151,7 +160,6 @@ export default function Login() {
                       setErrors({});
                     }}
                     required
-                    className="bg-black/20 border-gold/20 text-white"
                   />
                   {errors.password && (
                     <p className="text-sm text-destructive">{errors.password}</p>
@@ -159,7 +167,7 @@ export default function Login() {
                 </div>
                 <Button
                   type="submit"
-                  className="w-full bg-gold hover:bg-gold/90 text-black font-semibold"
+                  className="w-full"
                   disabled={isLoading}
                 >
                   {isLoading ? (
@@ -177,7 +185,7 @@ export default function Login() {
             <TabsContent value="signup">
               <form onSubmit={handleSignUp} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="signup-email" className="text-white/80">Email</Label>
+                  <Label htmlFor="signup-email">Email</Label>
                   <Input
                     id="signup-email"
                     type="email"
@@ -188,14 +196,13 @@ export default function Login() {
                       setErrors({});
                     }}
                     required
-                    className="bg-black/20 border-gold/20 text-white"
                   />
                   {errors.email && (
                     <p className="text-sm text-destructive">{errors.email}</p>
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signup-password" className="text-white/80">Senha</Label>
+                  <Label htmlFor="signup-password">Senha</Label>
                   <Input
                     id="signup-password"
                     type="password"
@@ -206,14 +213,13 @@ export default function Login() {
                       setErrors({});
                     }}
                     required
-                    className="bg-black/20 border-gold/20 text-white"
                   />
                   {errors.password && (
                     <p className="text-sm text-destructive">{errors.password}</p>
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="confirm-password" className="text-white/80">Confirmar Senha</Label>
+                  <Label htmlFor="confirm-password">Confirmar Senha</Label>
                   <Input
                     id="confirm-password"
                     type="password"
@@ -224,7 +230,6 @@ export default function Login() {
                       setErrors({});
                     }}
                     required
-                    className="bg-black/20 border-gold/20 text-white"
                   />
                   {errors.confirmPassword && (
                     <p className="text-sm text-destructive">{errors.confirmPassword}</p>
@@ -232,7 +237,7 @@ export default function Login() {
                 </div>
                 <Button
                   type="submit"
-                  className="w-full bg-gold hover:bg-gold/90 text-black font-semibold"
+                  className="w-full"
                   disabled={isLoading}
                 >
                   {isLoading ? (
@@ -244,7 +249,7 @@ export default function Login() {
                     'Criar Conta'
                   )}
                 </Button>
-                <p className="text-xs text-white/60 text-center">
+                <p className="text-xs text-muted-foreground text-center">
                   Ao criar uma conta, você receberá um email de confirmação. Como estamos em desenvolvimento, a confirmação de email está desativada e você pode entrar imediatamente.
                 </p>
               </form>
