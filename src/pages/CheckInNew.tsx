@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { isNativeApp, startNativeScan, stopNativeScan } from "@/utils/capacitorScanner";
 
 interface ModelData {
   lead_id: string;
@@ -177,13 +178,38 @@ export default function CheckInNew() {
 
   useEffect(() => {
     if (configLoaded && webhookUrl && screenState === 'scanner') {
-      console.log("[CHECK-IN] Iniciando câmera diretamente...");
+      console.log("[CHECK-IN] Iniciando scanner...");
       setScanning(true);
-      // Chamar initScanner diretamente, sem delays ou funções intermediárias
-      initScanner();
+      
+      // Se for app nativo, usa scanner nativo
+      if (isNativeApp()) {
+        console.log("[CAPACITOR] Detectado app nativo, usando scanner nativo");
+        startNativeScan(
+          (code) => {
+            console.log("[CAPACITOR] QR Code escaneado:", code);
+            processCheckIn(code);
+          },
+          (error) => {
+            console.error("[CAPACITOR] Erro ao escanear:", error);
+            setCameraError(error);
+            toast({
+              variant: "destructive",
+              title: "Erro na Câmera",
+              description: error,
+            });
+          }
+        );
+      } else {
+        // Navegador: usa html5-qrcode
+        initScanner();
+      }
     }
     return () => {
-      stopScanner();
+      if (isNativeApp()) {
+        stopNativeScan();
+      } else {
+        stopScanner();
+      }
     };
   }, [configLoaded, webhookUrl, screenState]);
 
@@ -354,7 +380,7 @@ export default function CheckInNew() {
     }
   };
 
-  const fetchModelDataFromBitrix = async (leadId: string) => {
+  const fetchModelDataFromBitrix = async (leadId: string, source: 'qr' | 'usb' | 'manual' = 'qr') => {
     try {
       console.log("[CHECK-IN] Webhook atual:", webhookUrl ? "CONFIGURADO" : "VAZIO");
       
@@ -472,12 +498,12 @@ export default function CheckInNew() {
     }
   };
 
-  const processCheckIn = async (leadId: string, method: 'qr' | 'manual' | 'usb') => {
+  const processCheckIn = async (leadId: string, method: 'qr' | 'manual' | 'usb' = 'qr') => {
     try {
       setIsLoading(true);
       console.log(`[CHECK-IN] Iniciando check-in - Lead: ${leadId}, Método: ${method}`);
       
-      const modelData = await fetchModelDataFromBitrix(leadId);
+      const modelData = await fetchModelDataFromBitrix(leadId, method);
       
       // Validate mandatory fields
       if (!modelData.name || modelData.name === "Modelo Sem Nome") {
@@ -523,7 +549,23 @@ export default function CheckInNew() {
         setTimeout(() => {
           setScreenState('scanner');
           setScanning(true);
-          initScanner();
+          
+          if (isNativeApp()) {
+            startNativeScan(
+              (code) => processCheckIn(code),
+              (error) => {
+                setCameraError(error);
+                toast({
+                  variant: "destructive",
+                  title: "Erro na Câmera",
+                  description: error,
+                });
+              }
+            );
+          } else {
+            initScanner();
+          }
+          
           resetTimer();
         }, 800);
       }, 5000);
@@ -557,14 +599,14 @@ export default function CheckInNew() {
     setLastScannedCode(decodedText);
     setLastScanTime(now);
     
-    await processCheckIn(decodedText, 'qr');
+    await processCheckIn(decodedText);
   };
 
   const handleUsbInput = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && usbInputRef.current?.value) {
       const leadId = usbInputRef.current.value.trim();
       if (leadId) {
-        await processCheckIn(leadId, 'usb');
+        await processCheckIn(leadId);
       }
     }
   };
@@ -579,7 +621,7 @@ export default function CheckInNew() {
       return;
     }
 
-    await processCheckIn(searchId, 'manual');
+    await processCheckIn(searchId);
     setManualSearchOpen(false);
     setSearchId("");
   };
@@ -615,7 +657,23 @@ export default function CheckInNew() {
     setTimeout(() => {
       setScreenState('scanner');
       setScanning(true);
-      initScanner();
+      
+      if (isNativeApp()) {
+        startNativeScan(
+          (code) => processCheckIn(code),
+          (error) => {
+            setCameraError(error);
+            toast({
+              variant: "destructive",
+              title: "Erro na Câmera",
+              description: error,
+            });
+          }
+        );
+      } else {
+        initScanner();
+      }
+      
       resetTimer();
     }, 800);
   };

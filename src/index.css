@@ -158,6 +158,15 @@ All colors MUST be HSL.
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }
   
+  /* Capacitor native scanner styles */
+  body.scanner-active {
+    background: transparent !important;
+  }
+  
+  body.scanner-active * {
+    visibility: hidden !important;
+  }
+  
   /* Custom Animations */
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(20px); }
