@@ -444,6 +444,30 @@ export type Database = {
         }
         Relationships: []
       }
+      theme_preferences: {
+        Row: {
+          created_at: string
+          id: string
+          theme_mode: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          theme_mode: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          theme_mode?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       user_permissions: {
         Row: {
           created_at: string | null
