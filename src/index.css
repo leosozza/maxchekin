@@ -7,57 +7,141 @@ All colors MUST be HSL.
 */
 
 @layer base {
-  :root {
-    /* Premium Fashion Studio Theme */
-    --background: 0 0% 5%;
-    --foreground: 0 0% 98%;
+  /* Blue-Pink Theme (Default) */
+  :root, :root[data-theme="blue-pink"] {
+    /* Background - Deep blue gradient */
+    --background: 220 95% 8%;
+    --foreground: 210 40% 98%;
 
-    --card: 0 0% 8%;
-    --card-foreground: 0 0% 98%;
+    /* Primary - Vibrant pink */
+    --primary: 320 85% 65%;
+    --primary-foreground: 0 0% 100%;
 
-    --popover: 0 0% 8%;
-    --popover-foreground: 0 0% 98%;
+    /* Secondary - Cyan blue */
+    --secondary: 195 100% 60%;
+    --secondary-foreground: 220 95% 10%;
 
-    /* Champagne Gold */
-    --primary: 43 74% 66%;
-    --primary-foreground: 0 0% 10%;
+    /* Accent - Light pink */
+    --accent: 340 90% 70%;
+    --accent-foreground: 220 95% 10%;
 
-    /* Soft Neon Purple */
-    --secondary: 270 60% 65%;
-    --secondary-foreground: 0 0% 98%;
-
-    --muted: 0 0% 15%;
-    --muted-foreground: 0 0% 65%;
-
-    /* Neon Blue Accent */
-    --accent: 200 100% 60%;
-    --accent-foreground: 0 0% 10%;
-
+    --card: 220 90% 12%;
+    --card-foreground: 210 40% 98%;
+    --popover: 220 90% 12%;
+    --popover-foreground: 210 40% 98%;
+    --muted: 215 80% 18%;
+    --muted-foreground: 215 20% 70%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-
-    --border: 0 0% 20%;
-    --input: 0 0% 15%;
-    --ring: 43 74% 66%;
+    --border: 215 50% 25%;
+    --input: 215 50% 25%;
+    --ring: 320 85% 65%;
 
     --radius: 0.75rem;
 
-    /* Custom Design Tokens */
-    --studio-dark: 0 0% 3%;
-    --studio-light: 0 0% 12%;
-    --gold-shimmer: 43 100% 75%;
-    --neon-glow: 270 100% 70%;
-    
     /* Gradients */
-    --gradient-gold: linear-gradient(135deg, hsl(43 74% 66%) 0%, hsl(43 100% 75%) 100%);
-    --gradient-studio: linear-gradient(180deg, hsl(0 0% 3%) 0%, hsl(0 0% 8%) 100%);
-    --gradient-neon: linear-gradient(135deg, hsl(270 60% 65%) 0%, hsl(200 100% 60%) 100%);
-    
+    --gradient-gold: linear-gradient(135deg, hsl(320 85% 65%), hsl(340 90% 70%));
+    --gradient-studio: radial-gradient(circle at center, hsl(210 100% 15%), hsl(220 95% 8%));
+    --gradient-neon: linear-gradient(135deg, hsl(195 100% 60%), hsl(210 100% 70%));
+
     /* Shadows */
-    --shadow-gold: 0 10px 40px -10px hsl(43 74% 66% / 0.4);
-    --shadow-neon: 0 0 30px hsl(270 60% 65% / 0.3);
-    --shadow-elevation: 0 20px 60px -15px hsl(0 0% 0% / 0.6);
-    
+    --shadow-gold: 0 10px 40px -10px hsl(320 85% 65% / 0.4);
+    --shadow-neon: 0 0 60px hsl(320 85% 75% / 0.5);
+    --shadow-elevation: 0 20px 60px -15px hsl(220 95% 8% / 0.6);
+
+    /* Legacy tokens for compatibility */
+    --studio-dark: 220 95% 8%;
+    --studio-light: 220 90% 12%;
+    --gold-shimmer: 320 85% 75%;
+    --neon-glow: 340 90% 70%;
+  }
+
+  /* Dark Theme */
+  :root[data-theme="dark"] {
+    --background: 220 50% 5%;
+    --foreground: 210 40% 95%;
+
+    --primary: 320 75% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 195 90% 50%;
+    --secondary-foreground: 220 50% 10%;
+
+    --accent: 340 80% 60%;
+    --accent-foreground: 220 50% 10%;
+
+    --card: 220 45% 10%;
+    --card-foreground: 210 40% 95%;
+    --popover: 220 45% 10%;
+    --popover-foreground: 210 40% 95%;
+    --muted: 220 40% 15%;
+    --muted-foreground: 215 20% 65%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 220 40% 20%;
+    --input: 220 40% 20%;
+    --ring: 320 75% 55%;
+
+    --radius: 0.75rem;
+
+    --gradient-gold: linear-gradient(135deg, hsl(320 75% 55%), hsl(340 80% 60%));
+    --gradient-studio: radial-gradient(circle at center, hsl(220 50% 8%), hsl(220 50% 5%));
+    --gradient-neon: linear-gradient(135deg, hsl(195 90% 50%), hsl(210 90% 60%));
+
+    --shadow-gold: 0 10px 30px -10px hsl(320 75% 55% / 0.3);
+    --shadow-neon: 0 0 50px hsl(320 75% 65% / 0.4);
+    --shadow-elevation: 0 20px 60px -15px hsl(220 50% 5% / 0.6);
+
+    --studio-dark: 220 50% 5%;
+    --studio-light: 220 45% 10%;
+    --gold-shimmer: 320 75% 65%;
+    --neon-glow: 340 80% 60%;
+  }
+
+  /* Light Theme */
+  :root[data-theme="light"] {
+    --background: 220 20% 98%;
+    --foreground: 220 50% 15%;
+
+    --primary: 320 90% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 195 95% 45%;
+    --secondary-foreground: 0 0% 100%;
+
+    --accent: 340 95% 60%;
+    --accent-foreground: 0 0% 100%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 50% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 50% 15%;
+    --muted: 220 15% 92%;
+    --muted-foreground: 220 20% 45%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 220 15% 85%;
+    --input: 220 15% 85%;
+    --ring: 320 90% 55%;
+
+    --radius: 0.75rem;
+
+    --gradient-gold: linear-gradient(135deg, hsl(320 90% 55%), hsl(340 95% 60%));
+    --gradient-studio: radial-gradient(circle at center, hsl(220 30% 95%), hsl(220 20% 98%));
+    --gradient-neon: linear-gradient(135deg, hsl(195 95% 45%), hsl(210 95% 55%));
+
+    --shadow-gold: 0 10px 40px -10px hsl(320 90% 55% / 0.3);
+    --shadow-neon: 0 0 50px hsl(320 90% 65% / 0.3);
+    --shadow-elevation: 0 10px 40px -10px hsl(220 20% 80% / 0.4);
+
+    --studio-dark: 220 15% 95%;
+    --studio-light: 0 0% 100%;
+    --gold-shimmer: 320 90% 65%;
+    --neon-glow: 340 95% 60%;
+  }
+
+  :root {
+
     /* Transitions */
     --transition-smooth: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-bounce: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
