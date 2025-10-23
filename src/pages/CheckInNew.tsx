@@ -96,7 +96,7 @@ export default function CheckInNew() {
     }
   };
 
-  // Load webhook config on mount
+  // Load webhook config on mount and when user changes
   useEffect(() => {
     const loadConfigs = async () => {
       console.log("[CHECK-IN] Iniciando carregamento de configurações...");
@@ -106,7 +106,7 @@ export default function CheckInNew() {
     };
     
     loadConfigs();
-  }, []);
+  }, [user]); // Reload when user state changes
 
   const loadWebhookConfig = async () => {
     try {
@@ -175,7 +175,7 @@ export default function CheckInNew() {
   }, [manualSearchOpen, scanning]);
 
   useEffect(() => {
-    if (configLoaded && webhookUrl) {
+    if (configLoaded && webhookUrl && screenState === 'scanner') {
       console.log("[CHECK-IN] Iniciando scanner...");
       setScanning(true);
       initScanner();
@@ -183,7 +183,7 @@ export default function CheckInNew() {
     return () => {
       stopScanner();
     };
-  }, [configLoaded, webhookUrl]);
+  }, [configLoaded, webhookUrl, screenState]);
 
   const checkCameraPermission = async () => {
     try {
