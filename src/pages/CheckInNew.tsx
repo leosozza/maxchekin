@@ -199,14 +199,8 @@ export default function CheckInNew() {
           setCameraPermission(result.state as 'granted' | 'denied' | 'prompt');
         };
       } else {
-        // Fallback: try to access camera directly
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-          stream.getTracks().forEach(track => track.stop());
-          setCameraPermission('granted');
-        } catch {
-          setCameraPermission('denied');
-        }
+        // Fallback: just set to prompt if API not available
+        setCameraPermission('prompt');
       }
     } catch (err) {
       console.error("Error checking camera permission:", err);
@@ -216,12 +210,12 @@ export default function CheckInNew() {
 
   const requestCameraPermission = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-      stream.getTracks().forEach(track => track.stop());
+      // Just request permission - let the scanner handle the stream
+      await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
       setCameraPermission('granted');
       toast({
         title: "Permissão concedida",
-        description: "Câmera ativada com sucesso!",
+        description: "Iniciando câmera...",
       });
       // Restart scanner
       if (configLoaded && webhookUrl) {
@@ -240,9 +234,6 @@ export default function CheckInNew() {
 
   const initScanner = async () => {
     try {
-      // Check camera permission first
-      await checkCameraPermission();
-      
       const scanner = new Html5Qrcode("qr-reader");
       scannerRef.current = scanner;
 
@@ -256,6 +247,7 @@ export default function CheckInNew() {
         onScanError
       );
       
+      console.log("[SCANNER] Scanner iniciado com sucesso");
       setCameraPermission('granted');
     } catch (err: any) {
       console.error("Failed to start scanner:", err);
