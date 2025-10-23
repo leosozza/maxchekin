@@ -53,6 +53,7 @@ export default function CheckInNew() {
   const [lastScannedCode, setLastScannedCode] = useState<string>("");
   const [lastScanTime, setLastScanTime] = useState<number>(0);
   const [configLoaded, setConfigLoaded] = useState(false);
+  const [cameraPermission, setCameraPermission] = useState<'granted' | 'denied' | 'prompt' | 'checking'>('checking');
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const usbInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -184,8 +185,64 @@ export default function CheckInNew() {
     };
   }, [configLoaded, webhookUrl]);
 
+  const checkCameraPermission = async () => {
+    try {
+      setCameraPermission('checking');
+      
+      // Check if navigator.permissions is available
+      if (navigator.permissions && navigator.permissions.query) {
+        const result = await navigator.permissions.query({ name: 'camera' as PermissionName });
+        setCameraPermission(result.state as 'granted' | 'denied' | 'prompt');
+        
+        // Listen for permission changes
+        result.onchange = () => {
+          setCameraPermission(result.state as 'granted' | 'denied' | 'prompt');
+        };
+      } else {
+        // Fallback: try to access camera directly
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          stream.getTracks().forEach(track => track.stop());
+          setCameraPermission('granted');
+        } catch {
+          setCameraPermission('denied');
+        }
+      }
+    } catch (err) {
+      console.error("Error checking camera permission:", err);
+      setCameraPermission('prompt');
+    }
+  };
+
+  const requestCameraPermission = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      stream.getTracks().forEach(track => track.stop());
+      setCameraPermission('granted');
+      toast({
+        title: "Permissão concedida",
+        description: "Câmera ativada com sucesso!",
+      });
+      // Restart scanner
+      if (configLoaded && webhookUrl) {
+        initScanner();
+      }
+    } catch (err) {
+      console.error("Camera permission denied:", err);
+      setCameraPermission('denied');
+      toast({
+        title: "Permissão negada",
+        description: "Habilite a câmera nas configurações do navegador",
+        variant: "destructive",
+      });
+    }
+  };
+
   const initScanner = async () => {
     try {
+      // Check camera permission first
+      await checkCameraPermission();
+      
       const scanner = new Html5Qrcode("qr-reader");
       scannerRef.current = scanner;
 
@@ -198,13 +255,26 @@ export default function CheckInNew() {
         onScanSuccess,
         onScanError
       );
-    } catch (err) {
+      
+      setCameraPermission('granted');
+    } catch (err: any) {
       console.error("Failed to start scanner:", err);
-      toast({
-        title: "Erro no scanner",
-        description: "Não foi possível iniciar o scanner QR",
-        variant: "destructive",
-      });
+      
+      // Check if it's a permission error
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        setCameraPermission('denied');
+        toast({
+          title: "Permissão da câmera necessária",
+          description: "Clique no botão abaixo para ativar a câmera",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Erro no scanner",
+          description: "Não foi possível iniciar o scanner QR",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -565,14 +635,59 @@ export default function CheckInNew() {
             <QrCode className="w-20 h-20 sm:w-32 sm:h-32 text-gold animate-pulse relative z-10" />
           </div>
           
-          <div id="qr-reader" className="w-full max-w-md max-h-[250px] sm:max-h-[400px] min-h-[200px] overflow-hidden"></div>
+          {cameraPermission === 'denied' && (
+            <div className="w-full max-w-md space-y-4 px-4">
+              <div className="bg-destructive/10 border-2 border-destructive/50 rounded-lg p-6 text-center space-y-4">
+                <p className="text-lg font-semibold text-destructive">
+                  Câmera bloqueada
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Para escanear QR codes, é necessário permitir o acesso à câmera.
+                </p>
+                <Button
+                  onClick={requestCameraPermission}
+                  className="w-full bg-gold hover:bg-gold/90 text-studio-dark font-bold"
+                >
+                  Ativar Câmera
+                </Button>
+                <p className="text-xs text-muted-foreground mt-4">
+                  Se o botão não funcionar, vá em Configurações do navegador → Permissões → Câmera e permita para este site.
+                </p>
+              </div>
+            </div>
+          )}
+          
+          {cameraPermission === 'prompt' && (
+            <div className="w-full max-w-md space-y-4 px-4">
+              <div className="bg-gold/10 border-2 border-gold/50 rounded-lg p-6 text-center space-y-4">
+                <p className="text-lg font-semibold text-gold">
+                  Permissão necessária
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Clique no botão abaixo para permitir o acesso à câmera
+                </p>
+                <Button
+                  onClick={requestCameraPermission}
+                  className="w-full bg-gold hover:bg-gold/90 text-studio-dark font-bold"
+                >
+                  Permitir Câmera
+                </Button>
+              </div>
+            </div>
+          )}
+          
+          {(cameraPermission === 'granted' || cameraPermission === 'checking') && (
+            <div id="qr-reader" className="w-full max-w-md max-h-[250px] sm:max-h-[400px] min-h-[200px] overflow-hidden"></div>
+          )}
           
           <div className="text-center space-y-2 px-4">
             <p className="text-xl sm:text-2xl font-light text-foreground">
               Bem-vindo à MaxFama
             </p>
             <p className="text-base sm:text-lg text-muted-foreground">
-              Aproxime sua credencial ou use o leitor USB
+              {cameraPermission === 'granted' || cameraPermission === 'checking' 
+                ? "Aproxime sua credencial ou use o leitor USB"
+                : "Use o leitor USB ou busca manual"}
             </p>
           </div>
         </div>
