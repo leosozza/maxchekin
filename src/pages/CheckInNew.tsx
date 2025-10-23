@@ -178,38 +178,112 @@ export default function CheckInNew() {
     if (configLoaded && webhookUrl && screenState === 'scanner') {
       console.log("[CHECK-IN] Iniciando scanner com permissões liberadas...");
       setScanning(true);
-      // Iniciar scanner diretamente - ele vai solicitar permissão automaticamente
-      initScanner();
+      // Delay para garantir que o DOM está pronto antes de iniciar
+      setTimeout(() => {
+        requestCameraPermissionExplicitly();
+      }, 300);
     }
     return () => {
       stopScanner();
     };
   }, [configLoaded, webhookUrl, screenState]);
 
+  // Solicitar permissão explícita da câmera usando API nativa
+  const requestCameraPermissionExplicitly = async () => {
+    console.log("[CAMERA] Solicitando permissão explícita da câmera...");
+    setCameraPermission('checking');
+    
+    try {
+      // Primeiro, verificar se está em HTTPS ou localhost
+      const isSecureContext = window.isSecureContext;
+      if (!isSecureContext) {
+        console.warn("[CAMERA] Aplicação não está em contexto seguro (HTTPS/localhost)");
+        toast({
+          title: "⚠️ Aviso de Segurança",
+          description: "Para acessar a câmera, use HTTPS ou localhost",
+          variant: "destructive",
+        });
+      }
+
+      // Solicitar permissão explícita usando getUserMedia
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" }
+      });
+      
+      console.log("[CAMERA] Permissão concedida! Stream:", stream);
+      
+      // Parar o stream temporário (apenas para verificar permissão)
+      stream.getTracks().forEach(track => track.stop());
+      
+      // Agora iniciar o scanner html5-qrcode
+      await initScanner();
+      
+    } catch (err: any) {
+      console.error("[CAMERA] Erro ao solicitar permissão:", err);
+      
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        setCameraPermission('denied');
+        toast({
+          title: "📷 Câmera Bloqueada",
+          description: "Permita o acesso à câmera nas configurações do navegador",
+          variant: "destructive",
+        });
+      } else if (err.name === 'NotFoundError') {
+        setCameraPermission('denied');
+        toast({
+          title: "❌ Câmera não encontrada",
+          description: "Nenhuma câmera foi detectada no dispositivo",
+          variant: "destructive",
+        });
+      } else {
+        setCameraPermission('denied');
+        toast({
+          title: "⚠️ Erro ao acessar câmera",
+          description: err.message || "Erro desconhecido",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
   const forceReloadCamera = async () => {
     console.log("[CAMERA] Forçando recarregamento da câmera...");
     await stopScanner();
     setCameraPermission('checking');
     setTimeout(() => {
-      initScanner();
-    }, 500);
+      requestCameraPermissionExplicitly();
+    }, 300);
   };
 
   const initScanner = async () => {
     try {
+      console.log("[SCANNER] Verificando se elemento DOM existe...");
+      const element = document.getElementById("qr-reader");
+      if (!element) {
+        console.error("[SCANNER] Elemento #qr-reader não encontrado!");
+        throw new Error("Elemento scanner não encontrado no DOM");
+      }
+
+      console.log("[SCANNER] Elemento DOM confirmado, aguardando render...");
+      // Delay adicional para garantir que o DOM está completamente renderizado
+      await new Promise(resolve => setTimeout(resolve, 500));
+
       // Parar qualquer scanner existente primeiro
       if (scannerRef.current) {
         try {
-          await scannerRef.current.stop();
+          const state = await scannerRef.current.getState();
+          if (state === 2) {
+            await scannerRef.current.stop();
+          }
         } catch (e) {
-          // Ignora erro se já estiver parado
+          console.log("[SCANNER] Scanner anterior já estava parado");
         }
       }
 
+      console.log("[SCANNER] Criando nova instância Html5Qrcode...");
       const scanner = new Html5Qrcode("qr-reader");
       scannerRef.current = scanner;
 
-      // Solicitar permissões de forma mais liberal
       const config = {
         fps: 10,
         qrbox: { width: 250, height: 250 },
@@ -217,59 +291,105 @@ export default function CheckInNew() {
         disableFlip: false,
       };
 
-      // Tentar com câmera traseira primeiro (ideal para QR codes)
-      await scanner.start(
-        { facingMode: "environment" },
-        config,
-        onScanSuccess,
-        onScanError
-      );
-      
-      console.log("[SCANNER] Scanner iniciado com sucesso!");
-      setCameraPermission('granted');
-      
-      toast({
-        title: "Câmera ativada",
-        description: "Pronto para escanear QR codes",
-      });
-    } catch (err: any) {
-      console.error("[SCANNER] Erro ao iniciar:", err);
-      
-      // Tentar com qualquer câmera disponível como fallback
+      // Tentativa 1: Câmera traseira (environment)
+      console.log("[SCANNER] Tentativa 1: Câmera traseira (environment)...");
       try {
-        const scanner = new Html5Qrcode("qr-reader");
-        scannerRef.current = scanner;
-        
         await scanner.start(
-          { facingMode: "user" }, // Câmera frontal
-          {
-            fps: 10,
-            qrbox: { width: 250, height: 250 },
-          },
+          { facingMode: "environment" },
+          config,
           onScanSuccess,
           onScanError
         );
         
-        console.log("[SCANNER] Scanner iniciado com câmera frontal");
+        console.log("[SCANNER] ✅ Scanner iniciado com câmera traseira!");
         setCameraPermission('granted');
-      } catch (fallbackErr: any) {
-        console.error("[SCANNER] Falha total ao iniciar câmera:", fallbackErr);
         
-        if (fallbackErr.name === 'NotAllowedError' || fallbackErr.name === 'PermissionDeniedError') {
-          setCameraPermission('denied');
+        toast({
+          title: "✅ Câmera Ativada",
+          description: "Aponte para o QR Code",
+        });
+        return;
+      } catch (err: any) {
+        console.log("[SCANNER] Câmera traseira falhou, tentando frontal...", err);
+      }
+
+      // Tentativa 2: Câmera frontal (user)
+      console.log("[SCANNER] Tentativa 2: Câmera frontal (user)...");
+      try {
+        await scanner.start(
+          { facingMode: "user" },
+          config,
+          onScanSuccess,
+          onScanError
+        );
+        
+        console.log("[SCANNER] ✅ Scanner iniciado com câmera frontal!");
+        setCameraPermission('granted');
+        
+        toast({
+          title: "✅ Câmera Ativada (frontal)",
+          description: "Aponte para o QR Code",
+        });
+        return;
+      } catch (err: any) {
+        console.log("[SCANNER] Câmera frontal falhou, tentando listar câmeras...", err);
+      }
+
+      // Tentativa 3: Listar e usar primeira câmera disponível
+      console.log("[SCANNER] Tentativa 3: Listando câmeras disponíveis...");
+      try {
+        const devices = await Html5Qrcode.getCameras();
+        console.log("[SCANNER] Câmeras encontradas:", devices);
+        
+        if (devices && devices.length > 0) {
+          const firstCamera = devices[0];
+          await scanner.start(
+            firstCamera.id,
+            config,
+            onScanSuccess,
+            onScanError
+          );
+          
+          console.log("[SCANNER] ✅ Scanner iniciado com primeira câmera disponível!");
+          setCameraPermission('granted');
+          
           toast({
-            title: "Permissão da câmera negada",
-            description: "Clique em 'Recarregar Câmera' e permita o acesso",
-            variant: "destructive",
+            title: "✅ Câmera Ativada",
+            description: `Usando: ${firstCamera.label || 'Câmera padrão'}`,
           });
+          return;
         } else {
-          setCameraPermission('denied');
-          toast({
-            title: "Erro ao acessar câmera",
-            description: "Tente recarregar ou use a busca manual",
-            variant: "destructive",
-          });
+          throw new Error("Nenhuma câmera encontrada no dispositivo");
         }
+      } catch (err: any) {
+        console.error("[SCANNER] Todas as tentativas falharam:", err);
+        throw err;
+      }
+      
+    } catch (err: any) {
+      console.error("[SCANNER] ❌ ERRO FINAL:", err);
+      
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        setCameraPermission('denied');
+        toast({
+          title: "📷 Permissão Negada",
+          description: "Você precisa permitir o acesso à câmera",
+          variant: "destructive",
+        });
+      } else if (err.name === 'NotFoundError' || err.message?.includes('câmera')) {
+        setCameraPermission('denied');
+        toast({
+          title: "❌ Sem Câmera",
+          description: "Nenhuma câmera detectada no dispositivo",
+          variant: "destructive",
+        });
+      } else {
+        setCameraPermission('denied');
+        toast({
+          title: "⚠️ Erro na Câmera",
+          description: err.message || "Use o botão 'Recarregar Câmera'",
+          variant: "destructive",
+        });
       }
     }
   };
