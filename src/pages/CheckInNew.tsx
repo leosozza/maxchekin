@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { z } from "zod";
 import { useInactivityTimer } from "@/hooks/useInactivityTimer";
 import { ScreensaverView } from "@/components/checkin/ScreensaverView";
+import { SplashScreen } from "@/components/SplashScreen";
 import {
   Dialog,
   DialogContent,
@@ -56,6 +57,8 @@ export default function CheckInNew() {
   const [configLoaded, setConfigLoaded] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [showSplash, setShowSplash] = useState(true);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const usbInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -177,36 +180,58 @@ export default function CheckInNew() {
   }, [manualSearchOpen, scanning]);
 
   useEffect(() => {
-    if (configLoaded && webhookUrl && screenState === 'scanner') {
-      console.log("[CHECK-IN] Iniciando scanner...");
-      setScanning(true);
+    if (!configLoaded || !webhookUrl || screenState !== 'scanner') {
+      return;
+    }
+
+    console.log("[CHECK-IN] Iniciando câmera...");
+    setScanning(true);
+    
+    let isMounted = true;
+    
+    const initCamera = async () => {
+      if (!isMounted) return;
       
-      // Se for app nativo, usa scanner nativo
       if (isNativeApp()) {
         console.log("[CAPACITOR] Detectado app nativo, usando scanner nativo");
-        startNativeScan(
-          (code) => {
-            console.log("[CAPACITOR] QR Code escaneado:", code);
-            processCheckIn(code);
-          },
-          (error) => {
-            console.error("[CAPACITOR] Erro ao escanear:", error);
-            setCameraError(error);
-            toast({
-              variant: "destructive",
-              title: "Erro na Câmera",
-              description: error,
-            });
-          }
-        );
+        try {
+          await startNativeScan(
+            (code) => {
+              if (isMounted) {
+                console.log("[CAPACITOR] QR Code escaneado:", code);
+                processCheckIn(code);
+              }
+            },
+            (error) => {
+              if (isMounted) {
+                setCameraError(error);
+                console.error('[NATIVE SCAN] Erro:', error);
+                toast({
+                  variant: "destructive",
+                  title: "Erro na Câmera",
+                  description: error,
+                });
+              }
+            }
+          );
+        } catch (err) {
+          console.error('[NATIVE SCAN] Falha ao iniciar:', err);
+        }
       } else {
-        // Navegador: usa html5-qrcode
         initScanner();
       }
-    }
+    };
+    
+    initCamera();
+    
     return () => {
+      isMounted = false;
+      console.log("[CHECK-IN] Cleanup de câmera");
+      
       if (isNativeApp()) {
-        stopNativeScan();
+        stopNativeScan().catch(err => 
+          console.error('[NATIVE SCAN] Erro no cleanup:', err)
+        );
       } else {
         stopScanner();
       }
@@ -268,10 +293,6 @@ export default function CheckInNew() {
         
         console.log("✅ [SCANNER] Câmera traseira iniciada com sucesso!");
         setIsInitializing(false);
-        toast({
-          title: "✅ Câmera Ativa",
-          description: "Scanner pronto para ler QR codes",
-        });
         return;
         
       } catch (backError) {
@@ -288,10 +309,6 @@ export default function CheckInNew() {
           
           console.log("✅ [SCANNER] Câmera frontal iniciada!");
           setIsInitializing(false);
-          toast({
-            title: "✅ Câmera Ativa (Frontal)",
-            description: "Scanner pronto para ler QR codes",
-          });
           return;
           
         } catch (frontError) {
@@ -313,10 +330,6 @@ export default function CheckInNew() {
             
             console.log("✅ [SCANNER] Câmera iniciada (primeira disponível)!");
             setIsInitializing(false);
-            toast({
-              title: "✅ Câmera Ativa",
-              description: "Scanner pronto!",
-            });
             return;
           }
           
@@ -653,10 +666,19 @@ export default function CheckInNew() {
   };
 
   const handleScreensaverActivate = () => {
+    setIsTransitioning(true);
     setScreenState('transition');
+    
+    // Timeout de segurança: forçar conclusão após 2s
+    const safetyTimeout = setTimeout(() => {
+      setIsTransitioning(false);
+    }, 2000);
+    
     setTimeout(() => {
+      clearTimeout(safetyTimeout);
       setScreenState('scanner');
       setScanning(true);
+      setIsTransitioning(false);
       
       if (isNativeApp()) {
         startNativeScan(
@@ -680,9 +702,18 @@ export default function CheckInNew() {
 
   return (
     <>
+      {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
+      
       {/* Screensaver Mode */}
       {screenState === 'screensaver' && (
         <ScreensaverView onActivate={handleScreensaverActivate} />
+      )}
+
+      {/* Overlay durante transição */}
+      {isTransitioning && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center">
+          <Loader2 className="w-16 h-16 animate-spin text-primary" />
+        </div>
       )}
 
       {/* Main Check-in Interface */}
@@ -718,9 +749,14 @@ export default function CheckInNew() {
       </Button>
 
       {/* Logo */}
-      <div className="w-full text-center mb-4 sm:mb-8">
-        <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-gold bg-clip-text text-transparent">
-          MaxFama
+      <div className="w-full text-center mb-4 sm:mb-8 flex flex-col items-center">
+        <img 
+          src="/logo-color.png" 
+          alt="MaxCheckin" 
+          className="h-16 sm:h-20 mb-2"
+        />
+        <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-gold bg-clip-text text-transparent">
+          MaxCheckin
         </h1>
       </div>
 

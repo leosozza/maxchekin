@@ -28,16 +28,24 @@ function getPerformanceMetrics(): PerformanceMetrics {
 export function detectPerformanceMode(): PerformanceMode {
   const metrics = getPerformanceMetrics();
 
-  // Enhanced mode requires:
+  // Enhanced mode requires (critérios mais flexíveis):
   // - WebGL support
-  // - 4+ CPU cores
-  // - 4GB+ RAM
-  // - Reasonable pixel ratio
+  // - 2+ CPU cores (reduzido de 4)
+  // - 2GB+ RAM (reduzido de 4)
+  // - Pixel ratio até 3 (aumentado de 2 para suportar telas Retina/AMOLED)
   const isEnhanced =
     metrics.hasWebGL &&
-    metrics.cpuCores >= 4 &&
-    metrics.deviceMemory >= 4 &&
-    metrics.pixelRatio <= 2;
+    metrics.cpuCores >= 2 &&
+    metrics.deviceMemory >= 2 &&
+    metrics.pixelRatio <= 3;
+
+  console.log('🎨 Performance Detection:', {
+    mode: isEnhanced ? 'enhanced' : 'lite',
+    webgl: metrics.hasWebGL,
+    cores: metrics.cpuCores,
+    memory: metrics.deviceMemory + 'GB',
+    pixelRatio: metrics.pixelRatio
+  });
 
   return isEnhanced ? 'enhanced' : 'lite';
 }
