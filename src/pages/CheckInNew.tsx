@@ -8,7 +8,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { z } from "zod";
 import { useInactivityTimer } from "@/hooks/useInactivityTimer";
 import { ScreensaverView } from "@/components/checkin/ScreensaverView";
-import { SplashScreen } from "@/components/SplashScreen";
 import {
   Dialog,
   DialogContent,
@@ -57,7 +56,6 @@ export default function CheckInNew() {
   const [configLoaded, setConfigLoaded] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [showSplash, setShowSplash] = useState(true);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const usbInputRef = useRef<HTMLInputElement>(null);
@@ -702,8 +700,6 @@ export default function CheckInNew() {
 
   return (
     <>
-      {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
-      
       {/* Screensaver Mode */}
       {screenState === 'screensaver' && (
         <ScreensaverView onActivate={handleScreensaverActivate} />
