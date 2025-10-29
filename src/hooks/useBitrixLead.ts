@@ -4,14 +4,19 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
-import { createLead as createLeadUtil, NewLead, normalizePhone } from '@/utils/bitrix/createLead';
+import { 
+  createLead as createLeadUtil, 
+  NewLead, 
+  normalizePhone, 
+  BitrixLeadResponse 
+} from '@/utils/bitrix/createLead';
 
 export interface BitrixLead {
   ID: string;
   TITLE?: string;
   NAME?: string;
   PHONE?: Array<{ VALUE: string; VALUE_TYPE: string }>;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -125,7 +130,7 @@ export async function findLeadsByPhone(phone: string): Promise<BitrixLead[]> {
  * @param newLead - Lead data to create
  * @returns Promise with the created lead data from Bitrix
  */
-export async function createLead(newLead: NewLead): Promise<any> {
+export async function createLead(newLead: NewLead): Promise<BitrixLeadResponse> {
   const webhookBaseUrl = await getWebhookBaseUrl();
   
   if (!webhookBaseUrl) {
