@@ -732,6 +732,11 @@ export default function CheckInNew() {
           ? response.result
           : response;
 
+      // Validate createdId is a valid value
+      if (!createdId || (typeof createdId !== "string" && typeof createdId !== "number")) {
+        throw new Error("ID do lead criado é inválido");
+      }
+
       toast({
         title: "Lead criado com sucesso",
         description: `O novo lead foi criado no Bitrix24 (ID: ${createdId})`,
