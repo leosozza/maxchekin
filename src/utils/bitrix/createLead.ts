@@ -42,9 +42,13 @@ function normalizePhone(phone: string): string {
   // Remove all non-numeric characters
   const cleaned = phone.replace(/\D/g, '');
   
-  // If already has country code (starts with 55 and has 12-13 digits), keep as is
+  // If already has Brazilian country code (starts with 55 and has 12-13 digits)
+  // We check that it's followed by valid Brazilian area codes (starting with 1-9)
   if (cleaned.startsWith('55') && (cleaned.length === 12 || cleaned.length === 13)) {
-    return '+' + cleaned;
+    const areaCodeDigit = cleaned.charAt(2);
+    if (areaCodeDigit >= '1' && areaCodeDigit <= '9') {
+      return '+' + cleaned;
+    }
   }
   
   // If it's a 10 or 11 digit Brazilian number, add +55
@@ -117,14 +121,28 @@ export function buildLeadFields(newLead: NewLead): LeadFields {
   return fields;
 }
 
+export interface BitrixApiResponse {
+  result?: number; // Lead ID when successful
+  time?: {
+    start: number;
+    finish: number;
+    duration: number;
+    processing: number;
+    date_start: string;
+    date_finish: string;
+  };
+  error?: string;
+  error_description?: string;
+}
+
 /**
  * Creates a new lead in Bitrix24 CRM
  * 
  * @param webhookBaseUrl - Base URL for Bitrix24 webhook (e.g., https://yourcompany.bitrix24.com/rest/123/abc123)
  * @param newLead - Lead data to create
- * @returns Response from Bitrix24 API
+ * @returns Response from Bitrix24 API containing the lead ID if successful
  */
-export async function createLead(webhookBaseUrl: string, newLead: NewLead): Promise<any> {
+export async function createLead(webhookBaseUrl: string, newLead: NewLead): Promise<BitrixApiResponse> {
   if (!webhookBaseUrl) {
     throw new Error('Webhook base URL is required');
   }
@@ -153,7 +171,12 @@ export async function createLead(webhookBaseUrl: string, newLead: NewLead): Prom
     throw new Error(`Failed to create lead: ${response.status} - ${errorText}`);
   }
   
-  const data = await response.json();
+  let data: BitrixApiResponse;
+  try {
+    data = await response.json();
+  } catch (parseError) {
+    throw new Error(`Failed to parse Bitrix24 response: ${parseError instanceof Error ? parseError.message : 'Invalid JSON'}`);
+  }
   
   if (data.error) {
     throw new Error(`Bitrix24 error: ${data.error_description || data.error}`);
