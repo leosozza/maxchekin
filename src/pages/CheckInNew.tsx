@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { supabase } from "@/integrations/supabase/client";
-import { Sparkles, QrCode, Search, X, Delete, User, Menu, Loader2 } from "lucide-react";
+import { Sparkles, QrCode, Search, X, Delete, User, Menu, Loader2, Phone, UserPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,13 +16,17 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { isNativeApp, startNativeScan, stopNativeScan } from "@/utils/capacitorScanner";
+import { findLeadsByPhone, createLead, BitrixLead } from "@/hooks/useBitrixLead";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface ModelData {
   lead_id: string;
   name: string;
   photo: string;
   responsible: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 // Validation schemas for security
@@ -64,6 +68,16 @@ export default function CheckInNew() {
   const { user, isAdmin } = useAuth();
   
   const SCAN_COOLDOWN_MS = 3000;
+
+  // Phone search states
+  const [searchMode, setSearchMode] = useState<'id' | 'phone'>('id');
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [phoneSearchResults, setPhoneSearchResults] = useState<BitrixLead[]>([]);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [newLeadData, setNewLeadData] = useState({
+    nome: "",
+    telefone: "",
+  });
 
   // Inactivity timer - após 30s sem interação, ativa screensaver
   const { resetTimer } = useInactivityTimer({
@@ -645,7 +659,106 @@ export default function CheckInNew() {
     setSearchId("");
   };
 
-  const onScanError = (err: any) => {
+  const handlePhoneSearch = async () => {
+    if (!phoneNumber.trim()) {
+      toast({
+        title: "Telefone vazio",
+        description: "Digite um número de telefone",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    setPhoneSearchResults([]);
+    setShowCreateForm(false);
+
+    try {
+      const leads = await findLeadsByPhone(phoneNumber);
+      setPhoneSearchResults(leads || []);
+
+      if (!leads || leads.length === 0) {
+        // Prefill phone in create form and show it
+        setNewLeadData({ nome: "", telefone: phoneNumber });
+        setShowCreateForm(true);
+        toast({
+          title: "Nenhum lead encontrado",
+          description: "Você pode criar um novo lead com este telefone",
+        });
+      } else {
+        toast({
+          title: "Leads encontrados",
+          description: `Encontrados ${leads.length} lead(s) com este telefone`,
+        });
+      }
+    } catch (error) {
+      console.error("Error searching leads by phone:", error);
+      toast({
+        title: "Erro na busca",
+        description: error instanceof Error ? error.message : "Erro ao buscar leads",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSelectPhoneLead = async (lead: BitrixLead) => {
+    // Process check-in with the selected lead
+    await processCheckIn(lead.ID, 'manual');
+    setManualSearchOpen(false);
+    setPhoneNumber("");
+    setPhoneSearchResults([]);
+  };
+
+  const handleCreateLead = async () => {
+    if (!newLeadData.nome.trim()) {
+      toast({
+        title: "Erro",
+        description: "O nome é obrigatório",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const response = await createLead(newLeadData);
+      
+      // Support both shapes: { result: id } or direct id return
+      const createdId =
+        response && typeof response === "object" && "result" in response
+          ? response.result
+          : response;
+
+      toast({
+        title: "Lead criado com sucesso",
+        description: `O novo lead foi criado no Bitrix24 (ID: ${createdId})`,
+      });
+
+      // Perform check-in with the newly created lead
+      await processCheckIn(String(createdId), 'manual');
+      
+      // Reset form and close dialog
+      setNewLeadData({ nome: "", telefone: "" });
+      setShowCreateForm(false);
+      setPhoneNumber("");
+      setPhoneSearchResults([]);
+      setManualSearchOpen(false);
+    } catch (error) {
+      console.error("Error creating lead:", error);
+      toast({
+        title: "Erro ao criar lead",
+        description: error instanceof Error ? error.message : "Erro ao criar lead",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const onScanError = (err: unknown) => {
     // Ignore scan errors (they happen constantly while scanning)
   };
 
@@ -890,56 +1003,205 @@ export default function CheckInNew() {
 
       {/* Manual Search Dialog */}
       <Dialog open={manualSearchOpen} onOpenChange={setManualSearchOpen}>
-        <DialogContent className="bg-studio-dark border-2 border-gold/30 max-w-md">
+        <DialogContent className="bg-studio-dark border-2 border-gold/30 max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-3xl text-center bg-gradient-gold bg-clip-text text-transparent">
-              Buscar por ID
+              Buscar Lead
             </DialogTitle>
           </DialogHeader>
 
-          {/* Display Input */}
-          <div className="my-6">
-            <div className="bg-background/50 border-2 border-gold/40 rounded-lg p-6 text-center">
-              <p className="text-5xl font-mono font-bold text-foreground min-h-[60px] flex items-center justify-center">
-                {searchId || "—"}
-              </p>
-            </div>
-          </div>
+          <Tabs value={searchMode} onValueChange={(v) => setSearchMode(v as 'id' | 'phone')}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="id">Por ID</TabsTrigger>
+              <TabsTrigger value="phone">Por Telefone</TabsTrigger>
+            </TabsList>
 
-          {/* Numeric Keypad */}
-          <div className="grid grid-cols-3 gap-3 mb-4">
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-              <Button
-                key={num}
-                onClick={() => handleNumberClick(num)}
-                className="h-20 text-3xl font-bold bg-muted hover:bg-gold/20 border border-gold/20 hover:border-gold/40 transition-all"
-                disabled={isLoading}
-              >
-                {num}
-              </Button>
-            ))}
-            <Button
-              onClick={handleClear}
-              className="h-20 bg-destructive/80 hover:bg-destructive border border-destructive/40"
-              disabled={isLoading}
-            >
-              <Delete className="w-6 h-6" />
-            </Button>
-            <Button
-              onClick={() => handleNumberClick(0)}
-              className="h-20 text-3xl font-bold bg-muted hover:bg-gold/20 border border-gold/20 hover:border-gold/40"
-              disabled={isLoading}
-            >
-              0
-            </Button>
-            <Button
-              onClick={handleManualSearch}
-              className="h-20 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-lg"
-              disabled={isLoading || !searchId}
-            >
-              {isLoading ? "..." : "Buscar"}
-            </Button>
-          </div>
+            {/* ID Search Tab */}
+            <TabsContent value="id" className="space-y-4">
+              {/* Display Input */}
+              <div className="my-6">
+                <div className="bg-background/50 border-2 border-gold/40 rounded-lg p-6 text-center">
+                  <p className="text-5xl font-mono font-bold text-foreground min-h-[60px] flex items-center justify-center">
+                    {searchId || "—"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Numeric Keypad */}
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                  <Button
+                    key={num}
+                    onClick={() => handleNumberClick(num)}
+                    className="h-20 text-3xl font-bold bg-muted hover:bg-gold/20 border border-gold/20 hover:border-gold/40 transition-all"
+                    disabled={isLoading}
+                  >
+                    {num}
+                  </Button>
+                ))}
+                <Button
+                  onClick={handleClear}
+                  className="h-20 bg-destructive/80 hover:bg-destructive border border-destructive/40"
+                  disabled={isLoading}
+                >
+                  <Delete className="w-6 h-6" />
+                </Button>
+                <Button
+                  onClick={() => handleNumberClick(0)}
+                  className="h-20 text-3xl font-bold bg-muted hover:bg-gold/20 border border-gold/20 hover:border-gold/40"
+                  disabled={isLoading}
+                >
+                  0
+                </Button>
+                <Button
+                  onClick={handleManualSearch}
+                  className="h-20 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-lg"
+                  disabled={isLoading || !searchId}
+                >
+                  {isLoading ? "..." : "Buscar"}
+                </Button>
+              </div>
+            </TabsContent>
+
+            {/* Phone Search Tab */}
+            <TabsContent value="phone" className="space-y-4">
+              <div className="space-y-4">
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <Label htmlFor="phone">Telefone com DDD</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="(11) 99999-9999"
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !isLoading) {
+                          handlePhoneSearch();
+                        }
+                      }}
+                      disabled={isLoading}
+                      className="h-12 text-lg"
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <Button onClick={handlePhoneSearch} disabled={isLoading} className="h-12">
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Buscando...
+                        </>
+                      ) : (
+                        <>
+                          <Phone className="mr-2 h-4 w-4" />
+                          Buscar
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Search Results */}
+                {phoneSearchResults.length > 0 && (
+                  <div className="space-y-2">
+                    <Label>Resultados da busca:</Label>
+                    <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                      {phoneSearchResults.map((lead) => (
+                        <div
+                          key={lead.ID}
+                          className="p-4 bg-muted/50 border border-gold/20 rounded-lg cursor-pointer hover:bg-gold/10 transition-colors"
+                          onClick={() => handleSelectPhoneLead(lead)}
+                        >
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="font-semibold text-foreground">{lead.NAME || "Sem nome"}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {lead.TITLE || "Sem título"}
+                              </p>
+                              {Array.isArray(lead.PHONE) && lead.PHONE.length > 0 && (
+                                <p className="text-sm text-muted-foreground">
+                                  📞 {lead.PHONE[0].VALUE}
+                                </p>
+                              )}
+                            </div>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSelectPhoneLead(lead);
+                              }}
+                            >
+                              Selecionar
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Create Lead Form */}
+                {showCreateForm && (
+                  <div className="space-y-4 border-t border-gold/20 pt-4">
+                    <div className="flex items-center gap-2 text-gold">
+                      <UserPlus className="h-5 w-5" />
+                      <h3 className="font-semibold">Criar Novo Lead</h3>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="nome">Nome *</Label>
+                      <Input
+                        id="nome"
+                        placeholder="Nome do lead"
+                        value={newLeadData.nome}
+                        onChange={(e) => setNewLeadData({ ...newLeadData, nome: e.target.value })}
+                        disabled={isLoading}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="telefone">Telefone</Label>
+                      <Input
+                        id="telefone"
+                        placeholder="Telefone"
+                        value={newLeadData.telefone}
+                        onChange={(e) => setNewLeadData({ ...newLeadData, telefone: e.target.value })}
+                        disabled={isLoading}
+                      />
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button 
+                        onClick={handleCreateLead} 
+                        disabled={isLoading} 
+                        className="flex-1 bg-primary hover:bg-primary/90"
+                      >
+                        {isLoading ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Criando...
+                          </>
+                        ) : (
+                          <>
+                            <UserPlus className="mr-2 h-4 w-4" />
+                            Criar e Fazer Check-in
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => setShowCreateForm(false)}
+                        disabled={isLoading}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
       </div>
