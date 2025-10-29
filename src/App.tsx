@@ -23,6 +23,7 @@ import CustomFields from "./pages/admin/CustomFields";
 import CheckInSettings from "./pages/admin/CheckInSettings";
 import ScreensaverSettings from "./pages/admin/ScreensaverSettings";
 import Users from "./pages/admin/Users";
+import LeadSearch from "./pages/admin/LeadSearch";
 import { InstallPWA } from "./components/InstallPWA";
 
 const queryClient = new QueryClient();
@@ -61,6 +62,7 @@ const App = () => (
             <Route path="checkin-settings" element={<CheckInSettings />} />
             <Route path="screensaver-settings" element={<ScreensaverSettings />} />
             <Route path="users" element={<Users />} />
+            <Route path="lead-search" element={<LeadSearch />} />
             <Route path="logs" element={<Logs />} />
             <Route path="settings" element={<Settings />} />
           </Route>

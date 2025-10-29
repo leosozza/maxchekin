@@ -1,15 +1,12 @@
 /**
  * Custom hook for Bitrix24 lead operations
- * Provides functions to search and create leads in Bitrix24 CRM
+ * - Exposes findLeadsByPhone(phone) and createLead(newLead)
+ * - Keeps compatibility with different shapes of utils in utils/bitrix/createLead
+ * - Uses Supabase to fetch the active webhook URL
  */
 
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  createLead as createLeadUtil, 
-  NewLead, 
-  normalizePhone, 
-  BitrixLeadResponse 
-} from '@/utils/bitrix/createLead';
+import * as createLeadUtils from '@/utils/bitrix/createLead';
 
 export interface BitrixLead {
   ID: string;
@@ -20,11 +17,10 @@ export interface BitrixLead {
 }
 
 /**
- * Gets the active webhook base URL from Supabase
- * @returns Promise with the webhook base URL or null
+ * Get active webhook URL from DB (throws if not configured)
  */
-async function getWebhookBaseUrl(): Promise<string | null> {
-  const { data: config } = await supabase
+async function getWebhookUrl(): Promise<string> {
+  const { data: config, error } = await supabase
     .from('webhook_config')
     .select('bitrix_webhook_url')
     .eq('is_active', true)
@@ -32,110 +28,188 @@ async function getWebhookBaseUrl(): Promise<string | null> {
     .limit(1)
     .maybeSingle();
 
-  return config?.bitrix_webhook_url || null;
-}
+  if (error) {
+    console.error('Supabase error when reading webhook_config:', error);
+  }
 
-/**
- * Searches for leads by phone number using Bitrix24 duplicate detection
- * Falls back to direct lead search if duplicate detection fails
- * @param phone - Phone number to search (will be normalized)
- * @returns Promise with array of matching leads
- */
-export async function findLeadsByPhone(phone: string): Promise<BitrixLead[]> {
-  const webhookBaseUrl = await getWebhookBaseUrl();
-  
-  if (!webhookBaseUrl) {
+  const url = config?.bitrix_webhook_url;
+  if (!url) {
     throw new Error('Webhook URL not configured');
   }
-  
-  const normalizedPhone = normalizePhone(phone);
-  
-  if (!normalizedPhone) {
-    throw new Error('Invalid phone number');
+  return url;
+}
+
+// Normalizer: support both normalizePhone and normalizePhoneNumber exports
+const normalizePhone: (p: string) => string | null =
+  (createLeadUtils as any).normalizePhone ||
+  (createLeadUtils as any).normalizePhoneNumber ||
+  ((p: string) => {
+    const s = String(p || '').trim();
+    return s ? s : null;
+  });
+
+/**
+ * Finds leads by phone:
+ * - Attempts duplicate detection first (duplicate.findbycomm / crm.duplicate.findbycomm)
+ * - If it returns IDs, fetch full lead details (crm.lead.get)
+ * - Fallback to crm.lead.list with PHONE filter, then fetch details
+ * - Returns an array of BitrixLead (limited to first 10)
+ */
+export async function findLeadsByPhone(phone: string): Promise<BitrixLead[]> {
+  const webhookUrl = await getWebhookUrl();
+  const normalized = normalizePhone(phone);
+  if (!normalized) {
+    return [];
   }
-  
+
+  // Try duplicate detection API first (supporting both endpoint names/response shapes)
   try {
-    // Try using duplicate detection API first
-    const duplicateUrl = `${webhookBaseUrl}/crm.duplicate.findbycomm.json`;
-    const duplicateParams = new URLSearchParams({
-      type: 'PHONE',
-      values: JSON.stringify([normalizedPhone]),
-      entity_type: 'LEAD',
-    });
-    
-    const duplicateResponse = await fetch(`${duplicateUrl}?${duplicateParams.toString()}`);
-    
-    if (duplicateResponse.ok) {
-      const duplicateData = await duplicateResponse.json();
-      
-      if (duplicateData.result && duplicateData.result.LEAD && duplicateData.result.LEAD.length > 0) {
-        // Get full lead details for each ID
-        const leadIds = duplicateData.result.LEAD;
-        const leads: BitrixLead[] = [];
-        
-        // Limit to first 10 results
-        const limitedIds = leadIds.slice(0, 10);
-        
-        for (const leadId of limitedIds) {
-          const leadUrl = `${webhookBaseUrl}/crm.lead.get.json`;
-          const leadParams = new URLSearchParams({ id: leadId.toString() });
-          
-          const leadResponse = await fetch(`${leadUrl}?${leadParams.toString()}`);
-          
-          if (leadResponse.ok) {
-            const leadData = await leadResponse.json();
-            if (leadData.result) {
-              leads.push(leadData.result);
+    // Some installations expect crm.duplicate.findbycomm.json or duplicate.findbycomm.json
+    const duplicateBaseCandidates = [
+      `${webhookUrl}/crm.duplicate.findbycomm.json`,
+      `${webhookUrl}/duplicate.findbycomm.json`,
+      `${webhookUrl}/crm.duplicate.findbycomm`
+    ];
+
+    for (const base of duplicateBaseCandidates) {
+      try {
+        const params = new URLSearchParams({
+          type: 'PHONE',
+          values: JSON.stringify([normalized]),
+          entity_type: 'LEAD',
+        });
+        const url = base.includes('?') ? `${base}&${params.toString()}` : `${base}?${params.toString()}`;
+        const resp = await fetch(url);
+        if (!resp.ok) continue;
+        const data = await resp.json();
+
+        // Handle different result shapes:
+        // - { result: { LEAD: [ids...] } }
+        // - { result: [ids...] }
+        const leadIds =
+          (data?.result?.LEAD && Array.isArray(data.result.LEAD) && data.result.LEAD) ||
+          (Array.isArray(data?.result) && data.result) ||
+          null;
+
+        if (leadIds && leadIds.length > 0) {
+          const idsToFetch = leadIds.slice(0, 10);
+          const leads: BitrixLead[] = [];
+
+          for (const id of idsToFetch) {
+            try {
+              const getUrl = `${webhookUrl}/crm.lead.get.json?id=${encodeURIComponent(id.toString())}`;
+              const getResp = await fetch(getUrl);
+              if (!getResp.ok) continue;
+              const getData = await getResp.json();
+              if (getData?.result) leads.push(getData.result);
+            } catch (err) {
+              console.error(`Failed to fetch lead ${id}:`, err);
             }
           }
+
+          if (leads.length > 0) return leads;
         }
-        
-        return leads;
+      } catch (err) {
+        // try next candidate
+        console.warn('duplicate detection candidate failed, trying next:', base, err);
       }
     }
-  } catch (error) {
-    console.warn('Duplicate detection failed, trying fallback search:', error);
+  } catch (err) {
+    console.warn('duplicate detection overall failed, falling back to crm.lead.list:', err);
   }
-  
-  // Fallback: Search using crm.lead.list with phone filter
+
+  // Fallback: crm.lead.list with PHONE filter (use POST form data)
   try {
-    const listUrl = `${webhookBaseUrl}/crm.lead.list.json`;
-    const listParams = new URLSearchParams({
-      filter: JSON.stringify({ PHONE: normalizedPhone }),
-      select: JSON.stringify(['*', 'PHONE', 'EMAIL']),
+    const listUrl = `${webhookUrl}/crm.lead.list.json`;
+    const form = new URLSearchParams();
+    // Add filter[PHONE] because many Bitrix installations accept that shape
+    form.append('filter[PHONE]', normalized);
+    // request a minimal select and then fetch details; safer to request ID, TITLE, NAME
+    form.append('select[]', 'ID');
+    form.append('select[]', 'TITLE');
+    form.append('select[]', 'NAME');
+
+    const listResp = await fetch(listUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: form.toString(),
     });
-    
-    const listResponse = await fetch(`${listUrl}?${listParams.toString()}`);
-    
-    if (!listResponse.ok) {
-      throw new Error('Failed to search leads');
+
+    if (!listResp.ok) {
+      throw new Error(`crm.lead.list failed: ${listResp.statusText}`);
     }
-    
-    const listData = await listResponse.json();
-    
-    if (listData.result) {
-      // Limit to first 10 results
-      return listData.result.slice(0, 10);
+
+    const listData = await listResp.json();
+    const results = Array.isArray(listData?.result) ? listData.result.slice(0, 10) : [];
+
+    if (results.length === 0) return [];
+
+    // Try to fetch detailed info for each found lead
+    const detailed: BitrixLead[] = [];
+    for (const r of results) {
+      const id = r?.ID || r;
+      try {
+        const getUrl = `${webhookUrl}/crm.lead.get.json?id=${encodeURIComponent(id.toString())}`;
+        const getResp = await fetch(getUrl);
+        if (!getResp.ok) {
+          // if get fails, push the basic info from list
+          detailed.push(r as BitrixLead);
+          continue;
+        }
+        const getData = await getResp.json();
+        if (getData?.result) detailed.push(getData.result);
+        else detailed.push(r as BitrixLead);
+      } catch (err) {
+        console.error(`Failed to fetch lead details for ${id}:`, err);
+        detailed.push(r as BitrixLead);
+      }
     }
-    
-    return [];
-  } catch (error) {
-    console.error('Lead search failed:', error);
+
+    return detailed;
+  } catch (err) {
+    console.error('Lead search failed:', err);
     throw new Error('Failed to search leads in Bitrix');
   }
 }
 
 /**
- * Creates a new lead in Bitrix24 CRM
- * @param newLead - Lead data to create
- * @returns Promise with the created lead data from Bitrix
+ * Creates a lead in Bitrix. This wrapper tries to support different helper implementations exported from utils/bitrix/createLead.
+ * It expects one of these patterns to exist:
+ * - createLead(webhookUrl, newLead) -> returns object or { result: id }
+ * - createLeadInBitrix(webhookUrl, params) -> returns id
+ * - createLeadUtil(webhookUrl, newLead) -> older naming
+ *
+ * The wrapper returns whatever underlying util returns (keeps compatibility).
  */
-export async function createLead(newLead: NewLead): Promise<BitrixLeadResponse> {
-  const webhookBaseUrl = await getWebhookBaseUrl();
-  
-  if (!webhookBaseUrl) {
-    throw new Error('Webhook URL not configured');
+export async function createLead(newLead: any): Promise<any> {
+  const webhookUrl = await getWebhookUrl();
+
+  // Prefer named exports in order of commonality
+  const candidates: Array<((...args: any[]) => Promise<any>) | undefined> = [
+    (createLeadUtils as any).createLead,
+    (createLeadUtils as any).createLeadInBitrix,
+    (createLeadUtils as any).createLeadUtil,
+    (createLeadUtils as any).create, // fallback name
+  ];
+
+  const fn = candidates.find(Boolean);
+
+  if (!fn) {
+    throw new Error(
+      'No createLead function found in utils/bitrix/createLead. Expected export named createLead or createLeadInBitrix.'
+    );
   }
-  
-  return createLeadUtil(webhookBaseUrl, newLead);
+
+  // Many helper implementations expect (webhookBaseUrl, payload)
+  try {
+    return await fn.call(null, webhookUrl, newLead);
+  } catch (err) {
+    // If underlying util expects only payload and uses internal webhook config, try calling with only newLead
+    try {
+      return await fn.call(null, newLead);
+    } catch (err2) {
+      console.error('createLead wrapper failed calling underlying function:', err, err2);
+      throw new Error('Failed to create lead in Bitrix');
+    }
+  }
 }

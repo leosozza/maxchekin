@@ -1,141 +1,156 @@
-/**
- * LeadSearchByPhone Component
- * Allows searching for leads by phone number and creating new leads if none found
- */
-
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useToast } from '@/hooks/use-toast';
-import { findLeadsByPhone, createLead, BitrixLead } from '@/hooks/useBitrixLead';
-import { Loader2, Search, UserPlus, Phone } from 'lucide-react';
+import React, { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Loader2, Search, UserPlus, Phone } from "lucide-react";
+import { findLeadsByPhone, createLead, BitrixLead } from "@/hooks/useBitrixLead";
+import { useToast } from "@/hooks/use-toast";
 
 interface LeadSearchByPhoneProps {
   onSelectLead: (lead: BitrixLead) => void;
 }
 
-export function LeadSearchByPhone({ onSelectLead }: LeadSearchByPhoneProps) {
-  const [phone, setPhone] = useState('');
-  const [searching, setSearching] = useState(false);
-  const [results, setResults] = useState<BitrixLead[]>([]);
+export default function LeadSearchByPhone({ onSelectLead }: LeadSearchByPhoneProps) {
+  const [phone, setPhone] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<BitrixLead[]>([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [creating, setCreating] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
   const { toast } = useToast();
 
-  // Form state for creating new lead
+  // Detailed form data (keeps the richer create form from the feature branch)
   const [newLeadData, setNewLeadData] = useState({
-    nome: '',
-    nome_do_modelo: '',
-    idade: '',
-    telefone1: '',
-    telefone2: '',
-    telefone3: '',
-    telefone4: '',
+    nome: "",
+    nome_do_modelo: "",
+    idade: "",
+    telefone1: "",
+    telefone2: "",
+    telefone3: "",
+    telefone4: "",
   });
 
   const handleSearch = async () => {
     if (!phone.trim()) {
       toast({
-        title: 'Erro',
-        description: 'Por favor, digite um telefone para buscar',
-        variant: 'destructive',
+        title: "Erro",
+        description: "Digite um número de telefone",
+        variant: "destructive",
       });
       return;
     }
 
-    setSearching(true);
-    setResults([]);
+    setIsSearching(true);
+    setSearchResults([]);
     setShowCreateForm(false);
 
     try {
       const leads = await findLeadsByPhone(phone);
-      
-      if (leads.length === 0) {
-        toast({
-          title: 'Nenhum lead encontrado',
-          description: 'Nenhum lead foi encontrado com este telefone. Você pode criar um novo lead.',
-        });
+      setSearchResults(leads || []);
+
+      if (!leads || leads.length === 0) {
+        // prefill telefone1 in create form and show it
+        setNewLeadData((prev) => ({ ...prev, telefone1: phone }));
         setShowCreateForm(true);
-        // Pre-fill phone in create form
-        setNewLeadData(prev => ({ ...prev, telefone1: phone }));
-      } else {
-        setResults(leads);
         toast({
-          title: 'Leads encontrados',
-          description: `${leads.length} lead(s) encontrado(s)`,
+          title: "Nenhum lead encontrado",
+          description: "Você pode criar um novo lead com este telefone",
+        });
+      } else {
+        toast({
+          title: "Leads encontrados",
+          description: `Encontrados ${leads.length} lead(s) com este telefone`,
         });
       }
     } catch (error) {
-      console.error('Error searching leads:', error);
+      console.error("Error searching leads:", error);
       toast({
-        title: 'Erro ao buscar leads',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
-        variant: 'destructive',
+        title: "Erro na busca",
+        description: error instanceof Error ? error.message : "Erro ao buscar leads",
+        variant: "destructive",
       });
     } finally {
-      setSearching(false);
+      setIsSearching(false);
     }
   };
 
   const handleCreateLead = async () => {
     if (!newLeadData.nome.trim()) {
       toast({
-        title: 'Erro',
-        description: 'O nome é obrigatório',
-        variant: 'destructive',
+        title: "Erro",
+        description: "O nome é obrigatório",
+        variant: "destructive",
       });
       return;
     }
 
-    setCreating(true);
+    setIsCreating(true);
 
     try {
+      // call createLead with the detailed payload (compatible with the feature branch)
       const response = await createLead(newLeadData);
-      
+
+      // Support both shapes: { result: id } or direct id return
+      const createdId =
+        response && typeof response === "object" && "result" in response
+          ? response.result
+          : response;
+
       toast({
-        title: 'Lead criado com sucesso',
-        description: 'O novo lead foi criado no Bitrix24',
+        title: "Lead criado com sucesso",
+        description: `O novo lead foi criado no Bitrix24 (ID: ${createdId})`,
       });
 
-      // Create a BitrixLead object from the response
+      // Build a BitrixLead object to keep the same contract for onSelectLead
       const createdLead: BitrixLead = {
-        ID: response.result.toString(),
+        ID: String(createdId),
         NAME: newLeadData.nome,
-        TITLE: `NOVO LEAD`,
+        TITLE: "NOVO LEAD",
         ...(newLeadData.nome_do_modelo && { UF_CRM_MODEL_NAME: newLeadData.nome_do_modelo }),
       };
 
-      // Call onSelectLead with the created lead
+      // keep the existing binding: notify parent that a lead was selected/created
       onSelectLead(createdLead);
-      
-      // Reset form
+
+      // reset form + hide
       setNewLeadData({
-        nome: '',
-        nome_do_modelo: '',
-        idade: '',
-        telefone1: '',
-        telefone2: '',
-        telefone3: '',
-        telefone4: '',
+        nome: "",
+        nome_do_modelo: "",
+        idade: "",
+        telefone1: "",
+        telefone2: "",
+        telefone3: "",
+        telefone4: "",
       });
       setShowCreateForm(false);
-      setPhone('');
+      setPhone("");
+      setSearchResults([]);
     } catch (error) {
-      console.error('Error creating lead:', error);
+      console.error("Error creating lead:", error);
       toast({
-        title: 'Erro ao criar lead',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
-        variant: 'destructive',
+        title: "Erro ao criar lead",
+        description: error instanceof Error ? error.message : "Erro ao criar lead",
+        variant: "destructive",
       });
     } finally {
-      setCreating(false);
+      setIsCreating(false);
     }
   };
 
   const handleSelectLead = (lead: BitrixLead) => {
     onSelectLead(lead);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && !isSearching) {
+      handleSearch();
+    }
   };
 
   return (
@@ -150,6 +165,7 @@ export function LeadSearchByPhone({ onSelectLead }: LeadSearchByPhoneProps) {
             Digite o telefone com DDD para buscar leads existentes
           </CardDescription>
         </CardHeader>
+
         <CardContent className="space-y-4">
           <div className="flex gap-2">
             <div className="flex-1">
@@ -160,17 +176,14 @@ export function LeadSearchByPhone({ onSelectLead }: LeadSearchByPhoneProps) {
                 placeholder="(11) 99999-9999"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleSearch();
-                  }
-                }}
-                disabled={searching}
+                onKeyDown={handleKeyDown}
+                disabled={isSearching || isCreating}
               />
             </div>
+
             <div className="flex items-end">
-              <Button onClick={handleSearch} disabled={searching}>
-                {searching ? (
+              <Button onClick={handleSearch} disabled={isSearching || isCreating}>
+                {isSearching ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Buscando...
@@ -185,11 +198,11 @@ export function LeadSearchByPhone({ onSelectLead }: LeadSearchByPhoneProps) {
             </div>
           </div>
 
-          {results.length > 0 && (
+          {searchResults.length > 0 && (
             <div className="space-y-2">
               <Label>Resultados da busca:</Label>
               <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                {results.map((lead) => (
+                {searchResults.map((lead) => (
                   <Card
                     key={lead.ID}
                     className="cursor-pointer hover:bg-accent transition-colors"
@@ -198,17 +211,18 @@ export function LeadSearchByPhone({ onSelectLead }: LeadSearchByPhoneProps) {
                     <CardContent className="p-4">
                       <div className="flex justify-between items-start">
                         <div>
-                          <p className="font-semibold">{lead.NAME || 'Sem nome'}</p>
+                          <p className="font-semibold">{lead.NAME || "Sem nome"}</p>
                           <p className="text-sm text-muted-foreground">
-                            {lead.TITLE || 'Sem título'}
+                            {lead.TITLE || "Sem título"}
                           </p>
-                          {lead.PHONE && lead.PHONE.length > 0 && (
-                            <p className="text-sm text-muted-foreground">
-                              📞 {lead.PHONE[0].VALUE}
-                            </p>
-                          )}
+                          {Array.isArray((lead as any).PHONE) &&
+                            (lead as any).PHONE.length > 0 && (
+                              <p className="text-sm text-muted-foreground">
+                                📞 {(lead as any).PHONE[0].VALUE}
+                              </p>
+                            )}
                         </div>
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" onClick={() => handleSelectLead(lead)}>
                           Selecionar
                         </Button>
                       </div>
@@ -228,10 +242,9 @@ export function LeadSearchByPhone({ onSelectLead }: LeadSearchByPhoneProps) {
               <UserPlus className="h-5 w-5" />
               Criar Novo Lead
             </CardTitle>
-            <CardDescription>
-              Preencha os dados do novo lead
-            </CardDescription>
+            <CardDescription>Preencha os dados do novo lead</CardDescription>
           </CardHeader>
+
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="nome">Nome *</Label>
@@ -239,10 +252,8 @@ export function LeadSearchByPhone({ onSelectLead }: LeadSearchByPhoneProps) {
                 id="nome"
                 placeholder="Nome do lead"
                 value={newLeadData.nome}
-                onChange={(e) =>
-                  setNewLeadData({ ...newLeadData, nome: e.target.value })
-                }
-                disabled={creating}
+                onChange={(e) => setNewLeadData({ ...newLeadData, nome: e.target.value })}
+                disabled={isCreating}
               />
             </div>
 
@@ -255,7 +266,7 @@ export function LeadSearchByPhone({ onSelectLead }: LeadSearchByPhoneProps) {
                 onChange={(e) =>
                   setNewLeadData({ ...newLeadData, nome_do_modelo: e.target.value })
                 }
-                disabled={creating}
+                disabled={isCreating}
               />
             </div>
 
@@ -266,10 +277,8 @@ export function LeadSearchByPhone({ onSelectLead }: LeadSearchByPhoneProps) {
                 type="number"
                 placeholder="Idade"
                 value={newLeadData.idade}
-                onChange={(e) =>
-                  setNewLeadData({ ...newLeadData, idade: e.target.value })
-                }
-                disabled={creating}
+                onChange={(e) => setNewLeadData({ ...newLeadData, idade: e.target.value })}
+                disabled={isCreating}
               />
             </div>
 
@@ -279,45 +288,33 @@ export function LeadSearchByPhone({ onSelectLead }: LeadSearchByPhoneProps) {
                 <Input
                   placeholder="Telefone 1"
                   value={newLeadData.telefone1}
-                  onChange={(e) =>
-                    setNewLeadData({ ...newLeadData, telefone1: e.target.value })
-                  }
-                  disabled={creating}
+                  onChange={(e) => setNewLeadData({ ...newLeadData, telefone1: e.target.value })}
+                  disabled={isCreating}
                 />
                 <Input
                   placeholder="Telefone 2 (opcional)"
                   value={newLeadData.telefone2}
-                  onChange={(e) =>
-                    setNewLeadData({ ...newLeadData, telefone2: e.target.value })
-                  }
-                  disabled={creating}
+                  onChange={(e) => setNewLeadData({ ...newLeadData, telefone2: e.target.value })}
+                  disabled={isCreating}
                 />
                 <Input
                   placeholder="Telefone 3 (opcional)"
                   value={newLeadData.telefone3}
-                  onChange={(e) =>
-                    setNewLeadData({ ...newLeadData, telefone3: e.target.value })
-                  }
-                  disabled={creating}
+                  onChange={(e) => setNewLeadData({ ...newLeadData, telefone3: e.target.value })}
+                  disabled={isCreating}
                 />
                 <Input
                   placeholder="Telefone 4 (opcional)"
                   value={newLeadData.telefone4}
-                  onChange={(e) =>
-                    setNewLeadData({ ...newLeadData, telefone4: e.target.value })
-                  }
-                  disabled={creating}
+                  onChange={(e) => setNewLeadData({ ...newLeadData, telefone4: e.target.value })}
+                  disabled={isCreating}
                 />
               </div>
             </div>
 
             <div className="flex gap-2">
-              <Button
-                onClick={handleCreateLead}
-                disabled={creating}
-                className="flex-1"
-              >
-                {creating ? (
+              <Button onClick={handleCreateLead} disabled={isCreating} className="flex-1">
+                {isCreating ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Criando...
@@ -332,7 +329,7 @@ export function LeadSearchByPhone({ onSelectLead }: LeadSearchByPhoneProps) {
               <Button
                 variant="outline"
                 onClick={() => setShowCreateForm(false)}
-                disabled={creating}
+                disabled={isCreating}
               >
                 Cancelar
               </Button>

@@ -1,6 +1,10 @@
 /**
- * Bitrix CRM Lead Creation Utility
- * Normalizes phone numbers and creates leads via Bitrix24 REST API
+ * Bitrix CRM Lead Creation Utility (merged)
+ *
+ * - Provides phone normalization helpers (normalizePhone, normalizePhoneNumber)
+ * - Provides payload builders for crm.lead.add
+ * - Exposes both createLead (returns Bitrix response object) and createLeadInBitrix (returns created ID)
+ * - Accepts both "NewLead" (rich multi-phone shape) and "CreateLeadParams" (simple shape) for backwards compatibility
  */
 
 export interface NewLead {
@@ -15,6 +19,22 @@ export interface NewLead {
   idade?: string | number;
   scouter?: string;
   idSupervisor?: string | number;
+  // allow other custom fields
+  [key: string]: unknown;
+}
+
+export interface CreateLeadParams {
+  name: string;
+  phone?: string;
+  assignedById?: string | number;
+  customFields?: Record<string, unknown>;
+  // accept legacy multi-phone to be tolerant
+  telefone?: string;
+  telefone1?: string;
+  telefone2?: string;
+  telefone3?: string;
+  telefone4?: string;
+  [key: string]: unknown;
 }
 
 export interface BitrixPhone {
@@ -29,34 +49,7 @@ export interface BitrixLeadFields {
   PHONE?: BitrixPhone[];
   UF_CRM_AGE?: string | number;
   ASSIGNED_BY_ID?: string | number;
-}
-
-/**
- * Normalizes a phone number according to Bitrix requirements:
- * - Removes all non-digit characters
- * - Adds +55 prefix for Brazilian numbers (10 or 11 digits without country code)
- * - Preserves existing country code if present
- */
-export function normalizePhone(phone: string): string {
-  if (!phone) return '';
-  
-  // Remove all non-digit characters
-  const digitsOnly = phone.replace(/\D/g, '');
-  
-  if (!digitsOnly) return '';
-  
-  // If already has country code (starts with 55 and has more than 11 digits)
-  if (digitsOnly.startsWith('55') && digitsOnly.length > 11) {
-    return `+${digitsOnly}`;
-  }
-  
-  // If it's a Brazilian number without country code (10 or 11 digits)
-  if (digitsOnly.length === 10 || digitsOnly.length === 11) {
-    return `+55${digitsOnly}`;
-  }
-  
-  // For other formats, preserve as is with + prefix
-  return `+${digitsOnly}`;
+  [key: string]: unknown;
 }
 
 export interface BitrixLeadResponse {
@@ -67,94 +60,165 @@ export interface BitrixLeadResponse {
 }
 
 /**
- * Creates a new lead in Bitrix24 CRM
- * @param webhookBaseUrl - Base URL for Bitrix24 webhook (e.g., https://yourcompany.bitrix24.com/rest/1/abc123/)
- * @param newLead - Lead data to create
- * @returns Promise with the Bitrix24 API response
+ * Normalizes a phone number according to Bitrix requirements:
+ * - Removes all non-digit characters
+ * - Adds +55 prefix for Brazilian numbers (10 or 11 digits without country code)
+ * - Preserves existing country code if present (adds + prefix)
+ *
+ * This function name matches older code expecting normalizePhone.
  */
-export async function createLead(
-  webhookBaseUrl: string,
-  newLead: NewLead
-): Promise<BitrixLeadResponse> {
-  // Build phone array from available phone fields
-  const phones: BitrixPhone[] = [];
-  
-  const phoneFields = [
-    newLead.telefone,
-    newLead.telefone1,
-    newLead.telefone2,
-    newLead.telefone3,
-    newLead.telefone4,
-  ];
-  
-  phoneFields.forEach((phone) => {
-    if (phone) {
-      const normalized = normalizePhone(phone);
-      if (normalized) {
-        phones.push({
-          VALUE: normalized,
-          VALUE_TYPE: 'MOBILE',
-        });
-      }
-    }
-  });
-  
-  // Build fields object for Bitrix API
-  const fields: BitrixLeadFields = {
-    NAME: newLead.nome,
-  };
-  
-  // Add title with scouter info if available
-  if (newLead.scouter) {
-    fields.TITLE = `NOVO LEAD SCOUTER-${newLead.scouter}`;
+export function normalizePhone(phone: string): string {
+  if (!phone) return "";
+  const digitsOnly = String(phone).replace(/\D/g, "");
+  if (!digitsOnly) return "";
+  // If it already starts with country code 55 and looks proper length, prefix +
+  if (digitsOnly.startsWith("55") && digitsOnly.length >= 12) {
+    return `+${digitsOnly}`;
   }
-  
-  // Add model name (try both field names)
-  const modelName = newLead.modelName || newLead.nome_do_modelo;
+  // Brazilian local numbers (10 or 11 digits)
+  if ((digitsOnly.length === 10 || digitsOnly.length === 11) && !digitsOnly.startsWith("55")) {
+    return `+55${digitsOnly}`;
+  }
+  // Otherwise preserve with plus prefix
+  return `+${digitsOnly}`;
+}
+
+/**
+ * Alternate normalizer name (matches newer utilities)
+ */
+export function normalizePhoneNumber(phone: string): string {
+  // Delegate to normalizePhone to ensure consistent behavior
+  return normalizePhone(phone);
+}
+
+/**
+ * Collects phones from either NewLead or CreateLeadParams shape.
+ * Returns normalized phone strings (no duplicates).
+ */
+function collectPhones(payload: Record<string, any>): string[] {
+  const candidates = [
+    payload.telefone,
+    payload.telefone1,
+    payload.telefone2,
+    payload.telefone3,
+    payload.telefone4,
+    payload.phone,
+  ];
+  const set = new Set<string>();
+  for (const p of candidates) {
+    if (!p) continue;
+    const n = normalizePhone(String(p));
+    if (n) set.add(n);
+  }
+  return Array.from(set);
+}
+
+/**
+ * Build Bitrix lead fields given either NewLead or CreateLeadParams
+ */
+export function buildLeadFieldsFromNewLead(input: NewLead | CreateLeadParams): BitrixLeadFields {
+  // Support both field name sets
+  const name = (input as any).nome || (input as any).name || undefined;
+  const modelName = (input as any).modelName || (input as any).nome_do_modelo;
+  const scouter = (input as any).scouter;
+  const idade = (input as any).idade;
+  const assigned = (input as any).idSupervisor || (input as any).assignedById;
+
+  const phones = collectPhones(input);
+
+  const fields: BitrixLeadFields = {
+    NAME: name,
+  };
+
+  // Title: include scouter info if available or fallback
+  if (scouter) {
+    fields.TITLE = `NOVO LEAD SCOUTER-${scouter}`;
+  } else {
+    fields.TITLE = name ? `NOVO LEAD - ${name}` : "NOVO LEAD";
+  }
+
   if (modelName) {
     fields.UF_CRM_MODEL_NAME = modelName;
   }
-  
-  // Add phones if any
+
   if (phones.length > 0) {
-    fields.PHONE = phones;
+    fields.PHONE = phones.map((p) => ({ VALUE: p, VALUE_TYPE: "MOBILE" }));
   }
-  
-  // Add age if provided
-  if (newLead.idade) {
-    fields.UF_CRM_AGE = newLead.idade;
+
+  if (idade !== undefined && idade !== null && idade !== "") {
+    fields.UF_CRM_AGE = idade;
   }
-  
-  // Add assigned user (supervisor) if provided
-  if (newLead.idSupervisor) {
-    fields.ASSIGNED_BY_ID = newLead.idSupervisor;
+
+  if (assigned) {
+    fields.ASSIGNED_BY_ID = assigned as string | number;
   }
-  
-  // Make API call to Bitrix24
-  const url = `${webhookBaseUrl}/crm.lead.add.json`;
-  
-  // Bitrix24 expects fields as JSON string in form-urlencoded format
+
+  // Merge any custom UF_CRM_* present in input.customFields or other keys prefixed with UF_CRM_
+  if ((input as any).customFields && typeof (input as any).customFields === "object") {
+    Object.assign(fields, (input as any).customFields);
+  }
+
+  for (const key of Object.keys(input)) {
+    if (key.startsWith("UF_CRM_")) {
+      (fields as any)[key] = (input as any)[key];
+    }
+  }
+
+  return fields;
+}
+
+/**
+ * Low-level helper: sends crm.lead.add request and returns parsed Bitrix response
+ */
+async function sendCrmLeadAdd(webhookBaseUrl: string, fields: BitrixLeadFields): Promise<BitrixLeadResponse> {
+  const url = `${webhookBaseUrl.replace(/\/$/, "")}/crm.lead.add.json`;
+
   const formData = new URLSearchParams();
-  formData.append('fields', JSON.stringify(fields));
-  
-  const response = await fetch(url, {
-    method: 'POST',
+  formData.append("fields", JSON.stringify(fields));
+
+  const resp = await fetch(url, {
+    method: "POST",
     headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
+      "Content-Type": "application/x-www-form-urlencoded",
     },
     body: formData.toString(),
   });
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to create lead in Bitrix: ${errorText}`);
+
+  if (!resp.ok) {
+    const text = await resp.text().catch(() => "");
+    throw new Error(`Failed to create lead in Bitrix: ${resp.status} ${resp.statusText} ${text}`);
   }
-  
-  const data = await response.json();
-  
+
+  const data = await resp.json().catch(() => ({}));
+  return data as BitrixLeadResponse;
+}
+
+/**
+ * Creates a new lead in Bitrix24 CRM (compatibility function)
+ * - This matches older callers expecting createLead(webhookBaseUrl, newLead)
+ * - Returns the full Bitrix response object (BitrixLeadResponse)
+ */
+export async function createLead(webhookBaseUrl: string, newLead: NewLead): Promise<BitrixLeadResponse> {
+  const fields = buildLeadFieldsFromNewLead(newLead);
+  const data = await sendCrmLeadAdd(webhookBaseUrl, fields);
+  // Keep original behavior: throw if no result
   if (!data.result) {
     throw new Error(`Bitrix API error: ${JSON.stringify(data)}`);
   }
-  
   return data;
+}
+
+/**
+ * Creates a new lead in Bitrix24 CRM (newer simpler API)
+ * - This matches callers expecting createLeadInBitrix(webhookBaseUrl, params)
+ * - Returns the created lead ID as number
+ */
+export async function createLeadInBitrix(webhookBaseUrl: string, params: CreateLeadParams): Promise<number> {
+  const fields = buildLeadFieldsFromNewLead(params);
+  const data = await sendCrmLeadAdd(webhookBaseUrl, fields);
+  if (!data.result) {
+    throw new Error(`Bitrix API error: ${JSON.stringify(data)}`);
+  }
+  // In Bitrix responses, result is typically numeric id
+  return Number(data.result);
 }
