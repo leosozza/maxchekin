@@ -12,6 +12,7 @@ import {
   QrCode,
   Users,
   Sparkles,
+  UserSearch,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -37,6 +38,7 @@ const menuItems = [
   { title: 'Screensaver', url: '/admin/screensaver-settings', icon: Sparkles },
   { title: 'Campos Customizados', url: '/admin/custom-fields', icon: Database },
   { title: 'Mapeamento', url: '/admin/field-mapping', icon: Map },
+  { title: 'Buscar Leads', url: '/admin/lead-search', icon: UserSearch },
   { title: 'Check-in', url: '/admin/checkin-settings', icon: QrCode },
   { title: 'Usuários', url: '/admin/users', icon: Users },
   { title: 'Logs', url: '/admin/logs', icon: FileText },
