@@ -867,7 +867,7 @@ export default function CheckInNew() {
         onClick={() => setManualSearchOpen(true)}
         variant="outline"
         size="icon"
-        className="fixed top-4 left-20 z-50 border-primary/30 hover:bg-primary/10 hover:border-primary/50 transition-all"
+        className="fixed top-4 left-16 sm:left-20 z-50 border-primary/30 hover:bg-primary/10 hover:border-primary/50 transition-all"
         title="Buscar Lead"
       >
         <Search className="w-5 h-5 text-primary" />
