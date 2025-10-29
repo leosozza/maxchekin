@@ -862,6 +862,17 @@ export default function CheckInNew() {
         )}
       </Button>
 
+      {/* Botão de Busca (Lupa) - sempre visível no topo */}
+      <Button
+        onClick={() => setManualSearchOpen(true)}
+        variant="outline"
+        size="icon"
+        className="fixed top-4 left-20 z-50 border-primary/30 hover:bg-primary/10 hover:border-primary/50 transition-all"
+        title="Buscar Lead"
+      >
+        <Search className="w-5 h-5 text-primary" />
+      </Button>
+
       {/* Logo */}
       <div className="w-full text-center mb-4 sm:mb-8 flex flex-col items-center">
         <img 
