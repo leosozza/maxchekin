@@ -187,6 +187,7 @@ export async function buildLeadFieldsFromNewLead(
   }
 
   // Load configured default fields from lead_creation_config if supabase client is available
+  // The lead_creation_config table should have columns: field_name (string), field_value (string), is_active (boolean)
   // Note: SOURCE_ID, PARENT_ID_1120, and UF_CRM_1741215746 are never overridden by config
   // to ensure SOURCE_ID remains "UC_SJ3VW5" (Recepção) and the other fields keep their defaults
   if (supabaseClient) {
@@ -205,8 +206,15 @@ export async function buildLeadFieldsFromNewLead(
               config.field_name === "UF_CRM_1741215746") {
             continue;
           }
-          // Note: UF_CRM_1744900570916 and UF_CRM_LEAD_1732627097745 are always
-          // populated from input values above, so we don't override them here
+          // Skip fields that are always populated from input values
+          if (config.field_name === "UF_CRM_1744900570916" || 
+              config.field_name === "UF_CRM_LEAD_1732627097745") {
+            continue;
+          }
+          // Apply other configured field values
+          if (config.field_value) {
+            (fields as any)[config.field_name] = config.field_value;
+          }
         }
       }
     } catch (error) {
@@ -214,6 +222,7 @@ export async function buildLeadFieldsFromNewLead(
       // Continue with default values if loading fails
     }
   }
+
 
   // Merge any custom UF_CRM_* present in input.customFields or other keys prefixed with UF_CRM_
   // Skip overriding SOURCE_ID, PARENT_ID_1120, and UF_CRM_1741215746 as they are already set
