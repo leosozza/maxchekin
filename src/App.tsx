@@ -67,11 +67,11 @@ const App = () => (
             <Route path="lead-search" element={<LeadSearch />} />
             <Route path="logs" element={<Logs />} />
             <Route path="settings" element={<Settings />} />
-            {/* KANBAN dentro do Admin */}
+            {/* Kanban Board */}
             <Route path="kanban" element={<KanbanBoard />} />
           </Route>
 
-          {/* CATCH-ALL */}
+          {/* Catch-all route */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
