@@ -25,7 +25,6 @@ import Users from "./pages/admin/Users";
 import LeadSearch from "./pages/admin/LeadSearch";
 import LeadCreationConfig from "./pages/admin/LeadCreationConfig";
 import { InstallPWA } from "./components/InstallPWA";
-import React from "react";
 import KanbanBoard from "./pages/admin/KanbanBoard";
 
 const queryClient = new QueryClient();
@@ -67,7 +66,7 @@ const App = () => (
             <Route path="lead-search" element={<LeadSearch />} />
             <Route path="logs" element={<Logs />} />
             <Route path="settings" element={<Settings />} />
-            {/* KANBAN dentro do Admin */}
+            {/* Kanban Board */}
             <Route path="kanban" element={<KanbanBoard />} />
           </Route>
 
