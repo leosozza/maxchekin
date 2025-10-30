@@ -14,6 +14,7 @@ import {
   Sparkles,
   UserSearch,
   UserPlus,
+  LayoutGrid,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -41,6 +42,7 @@ const menuItems = [
   { title: 'Buscar Leads', url: '/admin/lead-search', icon: UserSearch },
   { title: 'Check-in', url: '/admin/checkin-settings', icon: QrCode },
   { title: 'Criação de Leads', url: '/admin/lead-creation-config', icon: UserPlus },
+  { title: 'Kanban', url: '/admin/kanban', icon: LayoutGrid },
   { title: 'Usuários', url: '/admin/users', icon: Users },
   { title: 'Logs', url: '/admin/logs', icon: FileText },
   { title: 'Configurações', url: '/admin/settings', icon: Settings },
