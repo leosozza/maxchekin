@@ -1,6 +1,6 @@
 import React from 'react';
-import { Route } from 'react-router-dom';
-import KanbanBoard from './pages/admin/KanbanBoard';
+// KanbanBoard import temporarily removed due to missing @dnd-kit dependencies
+// import KanbanBoard from './pages/admin/KanbanBoard';
 
 // Other imports...
 
@@ -8,7 +8,8 @@ const App = () => {
     return (
         <div>
             {/* Other routes... */}
-            <Route path="kanban" element={<KanbanBoard />} />
+            {/* KanbanBoard route temporarily removed - add back after installing @dnd-kit dependencies */}
+            {/* <Route path="kanban" element={<KanbanBoard />} /> */}
         </div>
     );
 };
