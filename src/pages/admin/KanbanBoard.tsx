@@ -6,14 +6,49 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Plus, Settings, Users as UsersIcon } from 'lucide-react';
 import {
-  DndContext, closestCenter, PointerSensor, useSensor, useSensors,
+  DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent,
 } from '@dnd-kit/core';
 import {
-  SortableContext, verticalListSortingStrategy, arrayMove,
+  SortableContext, verticalListSortingStrategy, arrayMove, useSortable,
 } from '@dnd-kit/sortable';
 
 type Stage = { id: string; name: string; position: number; panel_id: string | null; is_default: boolean };
 type CardItem = { id: string; lead_id: string; model_name: string | null; responsible: string | null; stage_id: string; position: number };
+
+function SortableCard({ item, stageId, onMoveCard }: { item: CardItem; stageId: string; onMoveCard: (card: CardItem, toStageId: string, toIndex: number) => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
+
+  const style = {
+    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={`p-3 rounded bg-black/30 border border-gold/10 cursor-grab ${isDragging ? 'opacity-50' : ''}`}
+    >
+      <div className="text-white font-medium">{item.model_name || 'Sem nome'}</div>
+      <div className="text-white/60 text-xs">Lead #{item.lead_id}</div>
+      <div className="text-white/60 text-xs">Resp: {item.responsible || '—'}</div>
+
+      {/* ações rápidas */}
+      <div className="mt-2 flex gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          className="border-gold/20 text-white"
+          onClick={(e) => { e.stopPropagation(); onMoveCard(item, stageId, item.position + 1); }}
+        >
+          Abaixo
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export default function KanbanBoard() {
   const [stages, setStages] = useState<Stage[]>([]);
@@ -55,15 +90,45 @@ export default function KanbanBoard() {
 
   useEffect(() => { loadData(); }, []);
 
-  // drag dentro da mesma coluna
-  const onReorderWithinStage = async (stageId: string, fromIndex: number, toIndex: number) => {
-    const items = cardsByStage[stageId] || [];
-    const reordered = arrayMove(items, fromIndex, toIndex)
-      .map((it, idx) => ({ ...it, position: idx }));
-    setCardsByStage(prev => ({ ...prev, [stageId]: reordered }));
-    // persist
-    await supabase.from('kanban_cards')
-      .upsert(reordered.map(r => ({ id: r.id, position: r.position })));
+  const onDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    // Find the stage and index for active and over
+    let activeStageId = '';
+    let activeIndex = -1;
+    let overStageId = '';
+    let overIndex = -1;
+
+    for (const [stageId, items] of Object.entries(cardsByStage)) {
+      const idx = items.findIndex(i => i.id === activeId);
+      if (idx !== -1) {
+        activeStageId = stageId;
+        activeIndex = idx;
+      }
+      const idxOver = items.findIndex(i => i.id === overId);
+      if (idxOver !== -1) {
+        overStageId = stageId;
+        overIndex = idxOver;
+      }
+    }
+
+    if (activeStageId === overStageId) {
+      // Reorder within stage
+      const items = cardsByStage[activeStageId];
+      const reordered = arrayMove(items, activeIndex, overIndex);
+      const updated = reordered.map((it, idx) => ({ ...it, position: idx }));
+      setCardsByStage(prev => ({ ...prev, [activeStageId]: updated }));
+      // Persist
+      supabase.from('kanban_cards').upsert(updated.map(r => ({ id: r.id, position: r.position })));
+    } else {
+      // Move to another stage
+      const activeCard = cardsByStage[activeStageId][activeIndex];
+      moveCardToStage(activeCard, overStageId, overIndex);
+    }
   };
 
   // mover entre colunas
@@ -147,7 +212,7 @@ export default function KanbanBoard() {
         <div className="text-white/60">Carregando...</div>
       ) : (
         <div className="flex gap-4 overflow-auto pb-4">
-          <DndContext sensors={sensors} collisionDetection={closestCenter}>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
             {stages.map(stage => {
               const items = cardsByStage[stage.id] || [];
               return (
@@ -167,24 +232,8 @@ export default function KanbanBoard() {
                   <CardContent>
                     <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
                       <div className="space-y-2">
-                        {items.map((item, idx) => (
-                          <div key={item.id} className="p-3 rounded bg-black/30 border border-gold/10">
-                            <div className="text-white font-medium">{item.model_name || 'Sem nome'}</div>
-                            <div className="text-white/60 text-xs">Lead #{item.lead_id}</div>
-                            <div className="text-white/60 text-xs">Resp: {item.responsible || '—'}</div>
-
-                            {/* ações rápidas */}
-                            <div className="mt-2 flex gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="border-gold/20 text-white"
-                                onClick={() => moveCardToStage(item, stage.id, idx+1)}
-                              >
-                                Abaixo
-                              </Button>
-                            </div>
-                          </div>
+                        {items.map((item) => (
+                          <SortableCard key={item.id} item={item} stageId={stage.id} onMoveCard={moveCardToStage} />
                         ))}
                       </div>
                     </SortableContext>
