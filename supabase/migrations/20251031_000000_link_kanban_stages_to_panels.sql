@@ -62,15 +62,19 @@ BEGIN;
 -- ⚠️  OPERATOR: Replace this UUID with your actual fallback panel UUID before running
 DO $$
 DECLARE
-  v_fallback_panel_uuid UUID := 'REPLACE_WITH_FALLBACK_PANEL_UUID'::UUID;
+  v_fallback_panel_uuid_text TEXT := 'REPLACE_WITH_FALLBACK_PANEL_UUID';
+  v_fallback_panel_uuid UUID;
   v_exact_match_count INT := 0;
   v_fallback_match_count INT := 0;
 BEGIN
   
   -- Validation: Check if placeholder was replaced
-  IF v_fallback_panel_uuid::TEXT = 'REPLACE_WITH_FALLBACK_PANEL_UUID' THEN
+  IF v_fallback_panel_uuid_text = 'REPLACE_WITH_FALLBACK_PANEL_UUID' THEN
     RAISE EXCEPTION 'PLACEHOLDER NOT REPLACED: You must replace REPLACE_WITH_FALLBACK_PANEL_UUID with an actual panel UUID before running this migration.';
   END IF;
+  
+  -- Cast to UUID after validation
+  v_fallback_panel_uuid := v_fallback_panel_uuid_text::UUID;
 
   -- Validation: Check if fallback panel exists
   IF NOT EXISTS (SELECT 1 FROM public.panels WHERE id = v_fallback_panel_uuid) THEN
@@ -178,6 +182,19 @@ COMMIT;
 --
 -- BEGIN;
 -- 
+-- -- Define the fallback panel UUID used in the migration
+-- -- ⚠️  OPERATOR: Replace this UUID with the same UUID you used in the main migration
+-- DO $$
+-- DECLARE
+--   v_fallback_panel_uuid_text TEXT := 'REPLACE_WITH_FALLBACK_PANEL_UUID';
+--   v_fallback_panel_uuid UUID;
+-- BEGIN
+--   -- Validate and cast to UUID
+--   IF v_fallback_panel_uuid_text = 'REPLACE_WITH_FALLBACK_PANEL_UUID' THEN
+--     RAISE EXCEPTION 'PLACEHOLDER NOT REPLACED: You must replace REPLACE_WITH_FALLBACK_PANEL_UUID with the same UUID used in the main migration.';
+--   END IF;
+--   v_fallback_panel_uuid := v_fallback_panel_uuid_text::UUID;
+-- 
 -- -- Rollback: Clear panel_id for stages updated by this migration
 -- -- This targets stages that would have been matched by either strategy
 -- UPDATE public.kanban_stages
@@ -193,9 +210,8 @@ COMMIT;
 --     )
 --     OR
 --     -- Stages that were matched via fallback keywords
---     -- Replace 'REPLACE_WITH_FALLBACK_PANEL_UUID' with the actual UUID used above
 --     (
---       panel_id = 'REPLACE_WITH_FALLBACK_PANEL_UUID'::UUID
+--       panel_id = v_fallback_panel_uuid
 --       AND (
 --         lower(trim(name)) LIKE '%check%' OR
 --         lower(trim(name)) LIKE '%check-in%' OR
@@ -205,6 +221,8 @@ COMMIT;
 --       )
 --     )
 --   );
+--
+-- END $$;
 --
 -- SELECT count(*) as rolled_back_stages 
 -- FROM public.kanban_stages 
