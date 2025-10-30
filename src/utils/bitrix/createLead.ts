@@ -152,6 +152,15 @@ export async function buildLeadFieldsFromNewLead(input: NewLead | CreateLeadPara
     fields.TITLE = "Novo Lead Recepção";
   }
 
+  // Check if input already has SOURCE_ID, PARENT_ID_1120, or UF_CRM_1741215746
+  // These will be used to prevent config from overriding user-provided values
+  const inputHasSourceId = (input as any).SOURCE_ID !== undefined || 
+    ((input as any).customFields && (input as any).customFields.SOURCE_ID !== undefined);
+  const inputHasParentId = (input as any).PARENT_ID_1120 !== undefined ||
+    ((input as any).customFields && (input as any).customFields.PARENT_ID_1120 !== undefined);
+  const inputHasUfCrm1741215746 = (input as any).UF_CRM_1741215746 !== undefined ||
+    ((input as any).customFields && (input as any).customFields.UF_CRM_1741215746 !== undefined);
+
   // Set default values for SOURCE_ID, PARENT_ID_1120, and UF_CRM_1741215746
   fields.SOURCE_ID = 'CALL';
   fields.PARENT_ID_1120 = 4;
@@ -192,12 +201,12 @@ export async function buildLeadFieldsFromNewLead(input: NewLead | CreateLeadPara
 
       if (configFields && configFields.length > 0) {
         for (const config of configFields) {
-          // Allow configured values to override defaults for SOURCE_ID, PARENT_ID_1120, and UF_CRM_1741215746
-          if (config.field_name === "SOURCE_ID" && config.field_value) {
+          // Only set configured values if they haven't been set by input already
+          if (config.field_name === "SOURCE_ID" && config.field_value && !inputHasSourceId) {
             fields.SOURCE_ID = config.field_value;
-          } else if (config.field_name === "PARENT_ID_1120" && config.field_value) {
+          } else if (config.field_name === "PARENT_ID_1120" && config.field_value && !inputHasParentId) {
             fields.PARENT_ID_1120 = config.field_value;
-          } else if (config.field_name === "UF_CRM_1741215746" && config.field_value) {
+          } else if (config.field_name === "UF_CRM_1741215746" && config.field_value && !inputHasUfCrm1741215746) {
             fields.UF_CRM_1741215746 = config.field_value;
           }
           // Note: UF_CRM_1744900570916 and UF_CRM_LEAD_1732627097745 are always
