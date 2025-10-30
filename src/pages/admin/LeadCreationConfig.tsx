@@ -180,15 +180,19 @@ export default function LeadCreationConfig() {
             <strong className="text-white/90">Campos Especiais:</strong>
           </p>
           <ul className="list-disc list-inside space-y-1 ml-2">
+            <li><strong>SOURCE_ID:</strong> Campo Fonte - ID da origem do lead (padrão: CALL)</li>
+            <li><strong>PARENT_ID_1120:</strong> Projetos Comerciais - ID do projeto pai (padrão: 4)</li>
+            <li><strong>UF_CRM_1741215746:</strong> Campo customizado relacionado ao projeto (padrão: 4)</li>
             <li><strong>UF_CRM_1744900570916:</strong> Campo para Nome - será preenchido com o nome do lead</li>
             <li><strong>UF_CRM_LEAD_1732627097745:</strong> Campo para Nome do Modelo - será preenchido com o nome do modelo</li>
-            <li><strong>PARENT_ID_1120:</strong> Projetos Comerciais - ID do projeto pai (ex: "SELETIVA SÃO PAULO - PINHEIROS")</li>
-            <li><strong>UF_CRM_1741215746:</strong> Campo customizado relacionado ao projeto</li>
+            <li><strong>UF_CRM_1739563541:</strong> Campo Modelo Nome - será preenchido com o nome do modelo</li>
+            <li><strong>UF_CRM_1740000000:</strong> Campo Idade - será preenchido com a idade do lead</li>
           </ul>
           <p className="pt-2 border-t border-white/10">
-            <strong className="text-blue-300">Nota:</strong> Os campos UF_CRM_1744900570916 e UF_CRM_LEAD_1732627097745 
-            serão automaticamente preenchidos com os nomes fornecidos no formulário de criação de lead. 
-            Os outros campos usarão os valores configurados aqui.
+            <strong className="text-blue-300">Nota:</strong> Os campos UF_CRM_1744900570916, UF_CRM_LEAD_1732627097745, 
+            UF_CRM_1739563541 e UF_CRM_1740000000 serão automaticamente preenchidos com os valores fornecidos no formulário 
+            de criação de lead. Os campos SOURCE_ID, PARENT_ID_1120 e UF_CRM_1741215746 têm valores padrão que podem ser 
+            configurados aqui.
           </p>
         </CardContent>
       </Card>
