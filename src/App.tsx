@@ -1,4 +1,4 @@
---- a/src/App.tsx
+-- a/src/App.tsx
 +++ b/src/App.tsx
 @@ -1,78 +1,74 @@
  import { Toaster } from "@/components/ui/toaster";
