@@ -117,6 +117,13 @@ function collectPhones(payload: Record<string, any>): string[] {
  * Build Bitrix lead fields given either NewLead or CreateLeadParams
  */
 export function buildLeadFieldsFromNewLead(input: NewLead | CreateLeadParams): BitrixLeadFields {
+  // Defensive check: protect against undefined input
+  if (!input) {
+    return {
+      TITLE: "Novo Lead Recepção",
+    };
+  }
+
   // Support both field name sets
   const name = (input as any).nome || (input as any).name || undefined;
   const modelName = (input as any).modelName || (input as any).nome_do_modelo;
@@ -130,11 +137,13 @@ export function buildLeadFieldsFromNewLead(input: NewLead | CreateLeadParams): B
     NAME: name,
   };
 
-  // Title: include scouter info if available or fallback
+  // Title: standardized format for reception leads
   if (scouter) {
     fields.TITLE = `NOVO LEAD SCOUTER-${scouter}`;
+  } else if (name) {
+    fields.TITLE = `Novo Lead Recepção - ${name}`;
   } else {
-    fields.TITLE = name ? `NOVO LEAD - ${name}` : "NOVO LEAD";
+    fields.TITLE = "Novo Lead Recepção";
   }
 
   if (modelName) {
@@ -173,15 +182,12 @@ export function buildLeadFieldsFromNewLead(input: NewLead | CreateLeadParams): B
 async function sendCrmLeadAdd(webhookBaseUrl: string, fields: BitrixLeadFields): Promise<BitrixLeadResponse> {
   const url = `${webhookBaseUrl.replace(/\/$/, "")}/crm.lead.add.json`;
 
-  const formData = new URLSearchParams();
-  formData.append("fields", JSON.stringify(fields));
-
   const resp = await fetch(url, {
     method: "POST",
     headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
+      "Content-Type": "application/json",
     },
-    body: formData.toString(),
+    body: JSON.stringify({ fields }),
   });
 
   if (!resp.ok) {

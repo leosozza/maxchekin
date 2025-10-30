@@ -50,7 +50,7 @@ const normalizePhone: (p: string) => string | null =
 
 /**
  * Finds leads by phone:
- * - Attempts duplicate detection first (duplicate.findbycomm / crm.duplicate.findbycomm)
+ * - Attempts duplicate detection first (crm.duplicate.findbycomm with POST JSON)
  * - If it returns IDs, fetch full lead details (crm.lead.get)
  * - Fallback to crm.lead.list with PHONE filter, then fetch details
  * - Returns an array of BitrixLead (limited to first 10)
@@ -62,60 +62,54 @@ export async function findLeadsByPhone(phone: string): Promise<BitrixLead[]> {
     return [];
   }
 
-  // Try duplicate detection API first (supporting both endpoint names/response shapes)
+  // Try duplicate detection API first with POST JSON (preferential method)
   try {
-    // Some installations expect crm.duplicate.findbycomm.json or duplicate.findbycomm.json
-    const duplicateBaseCandidates = [
-      `${webhookUrl}/crm.duplicate.findbycomm.json`,
-      `${webhookUrl}/duplicate.findbycomm.json`,
-      `${webhookUrl}/crm.duplicate.findbycomm`
-    ];
+    const duplicateUrl = `${webhookUrl.replace(/\/$/, "")}/crm.duplicate.findbycomm.json`;
+    
+    const resp = await fetch(duplicateUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        entity_type: "LEAD",
+        type: "PHONE",
+        values: [normalized],
+      }),
+    });
 
-    for (const base of duplicateBaseCandidates) {
-      try {
-        const params = new URLSearchParams({
-          type: 'PHONE',
-          values: JSON.stringify([normalized]),
-          entity_type: 'LEAD',
-        });
-        const url = base.includes('?') ? `${base}&${params.toString()}` : `${base}?${params.toString()}`;
-        const resp = await fetch(url);
-        if (!resp.ok) continue;
-        const data = await resp.json();
+    if (resp.ok) {
+      const data = await resp.json();
 
-        // Handle different result shapes:
-        // - { result: { LEAD: [ids...] } }
-        // - { result: [ids...] }
-        const leadIds =
-          (data?.result?.LEAD && Array.isArray(data.result.LEAD) && data.result.LEAD) ||
-          (Array.isArray(data?.result) && data.result) ||
-          null;
+      // Handle different result shapes:
+      // - { result: { LEAD: [ids...] } }
+      // - { result: [ids...] }
+      const leadIds =
+        (data?.result?.LEAD && Array.isArray(data.result.LEAD) && data.result.LEAD) ||
+        (Array.isArray(data?.result) && data.result) ||
+        null;
 
-        if (leadIds && leadIds.length > 0) {
-          const idsToFetch = leadIds.slice(0, 10);
-          const leads: BitrixLead[] = [];
+      if (leadIds && leadIds.length > 0) {
+        const idsToFetch = leadIds.slice(0, 10);
+        const leads: BitrixLead[] = [];
 
-          for (const id of idsToFetch) {
-            try {
-              const getUrl = `${webhookUrl}/crm.lead.get.json?id=${encodeURIComponent(id.toString())}`;
-              const getResp = await fetch(getUrl);
-              if (!getResp.ok) continue;
-              const getData = await getResp.json();
-              if (getData?.result) leads.push(getData.result);
-            } catch (err) {
-              console.error(`Failed to fetch lead ${id}:`, err);
-            }
+        for (const id of idsToFetch) {
+          try {
+            const getUrl = `${webhookUrl}/crm.lead.get.json?id=${encodeURIComponent(id.toString())}`;
+            const getResp = await fetch(getUrl);
+            if (!getResp.ok) continue;
+            const getData = await getResp.json();
+            if (getData?.result) leads.push(getData.result);
+          } catch (err) {
+            console.error(`Failed to fetch lead ${id}:`, err);
           }
-
-          if (leads.length > 0) return leads;
         }
-      } catch (err) {
-        // try next candidate
-        console.warn('duplicate detection candidate failed, trying next:', base, err);
+
+        if (leads.length > 0) return leads;
       }
     }
   } catch (err) {
-    console.warn('duplicate detection overall failed, falling back to crm.lead.list:', err);
+    console.warn('crm.duplicate.findbycomm failed, falling back to crm.lead.list:', err);
   }
 
   // Fallback: crm.lead.list with PHONE filter (use POST form data)
