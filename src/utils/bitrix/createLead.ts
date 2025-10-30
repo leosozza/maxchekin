@@ -45,10 +45,15 @@ export interface BitrixPhone {
 export interface BitrixLeadFields {
   TITLE?: string;
   NAME?: string;
-  UF_CRM_MODEL_NAME?: string;
+  UF_CRM_1739563541?: string; // Model name field (was UF_CRM_MODEL_NAME)
   PHONE?: BitrixPhone[];
-  UF_CRM_AGE?: string | number;
+  UF_CRM_1740000000?: string | number; // Age field (was UF_CRM_AGE)
   ASSIGNED_BY_ID?: string | number;
+  SOURCE_ID?: string; // Source field
+  PARENT_ID_1120?: string | number; // Project field
+  UF_CRM_1741215746?: string | number; // Custom field related to project
+  UF_CRM_1744900570916?: string; // Name field
+  UF_CRM_LEAD_1732627097745?: string; // Model name field
   [key: string]: unknown;
 }
 
@@ -147,16 +152,30 @@ export async function buildLeadFieldsFromNewLead(input: NewLead | CreateLeadPara
     fields.TITLE = "Novo Lead Recepção";
   }
 
+  // Set default values for SOURCE_ID, PARENT_ID_1120, and UF_CRM_1741215746
+  fields.SOURCE_ID = 'CALL';
+  fields.PARENT_ID_1120 = 4;
+  fields.UF_CRM_1741215746 = 4;
+
+  // Model name using new field code
   if (modelName) {
-    fields.UF_CRM_MODEL_NAME = modelName;
+    fields.UF_CRM_1739563541 = modelName;
+    // Also populate UF_CRM_LEAD_1732627097745 with model name
+    fields.UF_CRM_LEAD_1732627097745 = modelName;
+  }
+
+  // Always populate UF_CRM_1744900570916 with name if available
+  if (name) {
+    fields.UF_CRM_1744900570916 = name;
   }
 
   if (phones.length > 0) {
     fields.PHONE = phones.map((p) => ({ VALUE: p, VALUE_TYPE: "MOBILE" }));
   }
 
+  // Age using new field code
   if (idade !== undefined && idade !== null && idade !== "") {
-    fields.UF_CRM_AGE = idade;
+    fields.UF_CRM_1740000000 = idade;
   }
 
   if (assigned) {
@@ -173,20 +192,21 @@ export async function buildLeadFieldsFromNewLead(input: NewLead | CreateLeadPara
 
       if (configFields && configFields.length > 0) {
         for (const config of configFields) {
-          // Special handling for name fields - use actual values from input
-          if (config.field_name === "UF_CRM_1744900570916" && name) {
-            fields[config.field_name] = name;
-          } else if (config.field_name === "UF_CRM_LEAD_1732627097745" && modelName) {
-            fields[config.field_name] = modelName;
-          } else if (config.field_value) {
-            // Use configured default value for other fields
-            fields[config.field_name] = config.field_value;
+          // Allow configured values to override defaults for SOURCE_ID, PARENT_ID_1120, and UF_CRM_1741215746
+          if (config.field_name === "SOURCE_ID" && config.field_value) {
+            fields.SOURCE_ID = config.field_value;
+          } else if (config.field_name === "PARENT_ID_1120" && config.field_value) {
+            fields.PARENT_ID_1120 = config.field_value;
+          } else if (config.field_name === "UF_CRM_1741215746" && config.field_value) {
+            fields.UF_CRM_1741215746 = config.field_value;
           }
+          // Note: UF_CRM_1744900570916 and UF_CRM_LEAD_1732627097745 are always
+          // populated from input values above, so we don't override them here
         }
       }
     } catch (error) {
       console.error("Failed to load lead_creation_config:", error);
-      // Continue without the configured fields if loading fails
+      // Continue with default values if loading fails
     }
   }
 

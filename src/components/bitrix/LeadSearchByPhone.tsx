@@ -112,7 +112,7 @@ export default function LeadSearchByPhone({ onSelectLead }: LeadSearchByPhonePro
         ID: String(createdId),
         NAME: newLeadData.nome,
         TITLE: "NOVO LEAD",
-        ...(newLeadData.nome_do_modelo && { UF_CRM_MODEL_NAME: newLeadData.nome_do_modelo }),
+        ...(newLeadData.nome_do_modelo && { UF_CRM_1739563541: newLeadData.nome_do_modelo }),
       };
 
       // keep the existing binding: notify parent that a lead was selected/created
