@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Plus, Settings, Users as UsersIcon } from 'lucide-react';
+import { Plus, Settings, Users as UsersIcon, Phone } from 'lucide-react';
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent,
 } from '@dnd-kit/core';
@@ -15,7 +15,13 @@ import {
 type Stage = { id: string; name: string; position: number; panel_id: string | null; is_default: boolean };
 type CardItem = { id: string; lead_id: string; model_name: string | null; responsible: string | null; stage_id: string; position: number };
 
-function SortableCard({ item, stageId, onMoveCard }: { item: CardItem; stageId: string; onMoveCard: (card: CardItem, toStageId: string, toIndex: number) => void }) {
+function SortableCard({ item, stageId, stages, onMoveCard, onCallNow }: { 
+  item: CardItem; 
+  stageId: string; 
+  stages: Stage[];
+  onMoveCard: (card: CardItem, toStageId: string, toIndex: number) => void;
+  onCallNow: (card: CardItem) => void;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
 
   const style = {
@@ -40,10 +46,12 @@ function SortableCard({ item, stageId, onMoveCard }: { item: CardItem; stageId: 
         <Button
           size="sm"
           variant="outline"
-          className="border-gold/20 text-white"
-          onClick={(e) => { e.stopPropagation(); onMoveCard(item, stageId, item.position + 1); }}
+          className="border-gold/20 text-white hover:bg-gold/10"
+          onClick={(e) => { e.stopPropagation(); onCallNow(item); }}
+          title="Chamar agora no painel"
         >
-          Abaixo
+          <Phone className="w-3 h-3 mr-1" />
+          Chamar
         </Button>
       </div>
     </div>
@@ -194,6 +202,38 @@ export default function KanbanBoard() {
     }
   };
 
+  // Chamar agora - insere em calls sem mover o card
+  const handleCallNow = async (card: CardItem) => {
+    try {
+      const currentStage = stages.find(s => s.id === card.stage_id);
+      if (!currentStage?.panel_id) {
+        // Não há painel vinculado a esta etapa
+        console.warn('Etapa atual não tem painel vinculado');
+        return;
+      }
+
+      // Insere chamada no painel
+      await supabase.from('calls').insert({
+        panel_id: currentStage.panel_id,
+        lead_id: card.lead_id,
+        source: 'kanban_call_now',
+        created_at: new Date().toISOString()
+      });
+
+      // Registra evento de auditoria
+      await supabase.from('kanban_events').insert({
+        lead_id: card.lead_id,
+        from_stage_id: card.stage_id,
+        to_stage_id: card.stage_id, // mesma etapa
+        method: 'kanban',
+      });
+
+      console.log(`Lead ${card.lead_id} chamado no painel`);
+    } catch (error) {
+      console.error('Erro ao chamar lead:', error);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -233,7 +273,14 @@ export default function KanbanBoard() {
                     <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
                       <div className="space-y-2">
                         {items.map((item) => (
-                          <SortableCard key={item.id} item={item} stageId={stage.id} onMoveCard={moveCardToStage} />
+                          <SortableCard 
+                            key={item.id} 
+                            item={item} 
+                            stageId={stage.id} 
+                            stages={stages}
+                            onMoveCard={moveCardToStage}
+                            onCallNow={handleCallNow}
+                          />
                         ))}
                       </div>
                     </SortableContext>
