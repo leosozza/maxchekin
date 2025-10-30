@@ -49,13 +49,12 @@ After creating a lead, log into your Bitrix24 account and verify the following f
 
 ### 3. Test Default Value Configuration
 
-1. Navigate to `/admin/checkin-settings` to configure welcome screen settings
-2. Navigate to `/admin/lead-creation-config` to configure default field values
-3. Update the default values for:
+1. Navigate to `/admin/lead-creation-config` to configure default field values
+2. Update the default values for:
    - SOURCE_ID (e.g., change from "CALL" to another value)
    - PARENT_ID_1120 (e.g., change from 4 to another project ID)
    - UF_CRM_1741215746 (e.g., change from 4 to another value)
-4. Create another test lead and verify the configured values are used in Bitrix24
+3. Create another test lead and verify the configured values are used in Bitrix24
 
 ### 4. Test Welcome Screen Settings
 
@@ -93,7 +92,7 @@ If lead creation fails:
 
 ## Notes
 
-- The age field code `UF_CRM_1740000000` is a placeholder and should be confirmed with your Bitrix24 administrator
+- The age field code `UF_CRM_1740000000` is a placeholder. Please confirm the actual field code with your Bitrix24 administrator and update accordingly in the code if different.
 - Custom fields may vary between Bitrix24 instances, so verify field codes match your setup
 - The welcome screen configuration is stored in the `check_in_config` table
 - Lead creation default values are stored in the `lead_creation_config` table
