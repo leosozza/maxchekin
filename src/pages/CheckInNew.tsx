@@ -6,8 +6,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { z } from "zod";
-import { useInactivityTimer } from "@/hooks/useInactivityTimer";
-import { ScreensaverView } from "@/components/checkin/ScreensaverView";
 import {
   Dialog,
   DialogContent,
@@ -54,7 +52,7 @@ const bitrixResponseSchema = z.object({
 }).passthrough()
 });
 
-type ScreenState = 'scanner' | 'screensaver' | 'welcome' | 'transition';
+type ScreenState = 'scanner' | 'welcome' | 'transition';
 
 export default function CheckInNew() {
   const [screenState, setScreenState] = useState<ScreenState>('scanner');
@@ -89,21 +87,6 @@ export default function CheckInNew() {
   const [newLeadData, setNewLeadData] = useState({
     nome: "",
     telefone: "",
-  });
-
-  // Inactivity timer - após 30s sem interação, ativa screensaver
-  const { resetTimer } = useInactivityTimer({
-    onInactive: () => {
-      if (screenState === 'scanner' && !modelData) {
-        setScreenState('transition');
-        setTimeout(() => {
-          setScreenState('screensaver');
-          stopScanner();
-        }, 800);
-      }
-    },
-    timeout: 30000,
-    enabled: screenState === 'scanner' && !modelData && configLoaded,
   });
 
   // Salvar/Carregar configurações do localStorage para persistir no PWA
@@ -632,8 +615,6 @@ export default function CheckInNew() {
           } else {
             initScanner();
           }
-          
-          resetTimer();
         }, 800);
       }, 5000);
     } catch (error) {
@@ -868,48 +849,8 @@ export default function CheckInNew() {
     }
   };
 
-  const handleScreensaverActivate = () => {
-    setIsTransitioning(true);
-    setScreenState('transition');
-    
-    // Timeout de segurança: forçar conclusão após 2s
-    const safetyTimeout = setTimeout(() => {
-      setIsTransitioning(false);
-    }, 2000);
-    
-    setTimeout(() => {
-      clearTimeout(safetyTimeout);
-      setScreenState('scanner');
-      setScanning(true);
-      setIsTransitioning(false);
-      
-      if (isNativeApp()) {
-        startNativeScan(
-          (code) => processCheckIn(code),
-          (error) => {
-            setCameraError(error);
-            toast({
-              variant: "destructive",
-              title: "Erro na Câmera",
-              description: error,
-            });
-          }
-        );
-      } else {
-        initScanner();
-      }
-      
-      resetTimer();
-    }, 800);
-  };
-
   return (
     <>
-      {/* Screensaver Mode */}
-      {screenState === 'screensaver' && (
-        <ScreensaverView onActivate={handleScreensaverActivate} />
-      )}
-
       {/* Overlay durante transição */}
       {isTransitioning && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center">
@@ -919,8 +860,6 @@ export default function CheckInNew() {
 
       {/* Main Check-in Interface */}
       <div className={`min-h-screen max-h-screen overflow-hidden bg-gradient-to-b from-studio-dark via-background to-studio-dark flex flex-col items-center justify-between p-4 md:p-8 portrait:orientation-portrait transition-all duration-800 ${
-        screenState === 'screensaver' ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
-      } ${
         screenState === 'transition' ? 'animate-scanner-exit' : ''
       } ${
         screenState === 'scanner' && configLoaded && !modelData ? 'animate-scanner-enter' : ''
