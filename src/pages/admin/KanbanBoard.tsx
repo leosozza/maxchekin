@@ -159,16 +159,14 @@ export default function KanbanBoard() {
       [toStageId]: toListIndexed,
     }));
 
-    // persist
-    await supabase.from('kanban_cards').update({
-      stage_id: toStageId, position: toIndex,
-    }).eq('id', card.id);
-
-    if (fromListIndexed.length) {
-      await supabase.from('kanban_cards').upsert(fromListIndexed.map(r => ({ id: r.id, position: r.position })));
-    }
-    if (toListIndexed.length) {
-      await supabase.from('kanban_cards').upsert(toListIndexed.map(r => ({ id: r.id, position: r.position })));
+    // persist - batch all position updates together
+    const allUpdates = [
+      ...fromListIndexed.map(r => ({ id: r.id, stage_id: fromStageId, position: r.position })),
+      ...toListIndexed.map(r => ({ id: r.id, stage_id: toStageId, position: r.position }))
+    ];
+    
+    if (allUpdates.length) {
+      await supabase.from('kanban_cards').upsert(allUpdates);
     }
 
     // auditar
@@ -188,7 +186,7 @@ export default function KanbanBoard() {
         source: 'kanban',
         created_at: new Date().toISOString()
       });
-      // seus painéis já são gerenciados em /admin/panels e possuem realtime habilitado (tabela calls) :contentReference[oaicite:6]{index=6}
+      // Panel integration: panels managed in /admin/panels with realtime enabled (calls table)
     }
   };
 

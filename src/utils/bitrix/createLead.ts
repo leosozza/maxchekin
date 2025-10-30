@@ -257,6 +257,7 @@ export async function buildLeadFieldsFromNewLead(
   // Allow other UF_CRM_* and PARENT_ID_* fields from input (except protected ones)
   for (const key of Object.keys(input)) {
     // Skip SOURCE_ID as it was already handled above with priority logic
+    // (inputSourceId check at start + customFields.SOURCE_ID override)
     if (key === "SOURCE_ID") {
       continue;
     }
