@@ -85,6 +85,8 @@ export default function Dashboard() {
     }
   };
 
+  const applyFilters = () => loadDaily();
+
   useEffect(() => { loadDaily(); }, []); // primeira carga
 
   const openDay = async (dateStr: string) => {
