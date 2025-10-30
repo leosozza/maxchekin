@@ -62,6 +62,7 @@ export default function CheckInNew() {
   const [editableData, setEditableData] = useState<ModelData | null>(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [photoError, setPhotoError] = useState(false);
   const [manualSearchOpen, setManualSearchOpen] = useState(false);
   const [searchId, setSearchId] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -543,6 +544,7 @@ export default function CheckInNew() {
       setPendingCheckInData(modelData);
       setEditableData({ ...modelData }); // Create a copy for editing
       setIsEditMode(false); // Start in view mode
+      setPhotoError(false); // Reset photo error
       setShowConfirmDialog(true);
     } catch (error) {
       console.error(`[CHECK-IN] Erro:`, error);
@@ -640,10 +642,36 @@ export default function CheckInNew() {
     }
   };
 
+  const saveEdits = () => {
+    if (!editableData) return;
+
+    // Validate required fields
+    if (!editableData.name || editableData.name.trim() === "") {
+      toast({
+        title: "Erro de validação",
+        description: "O nome é obrigatório",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Reset photo error state
+    setPhotoError(false);
+    
+    // Exit edit mode after saving
+    setIsEditMode(false);
+    
+    toast({
+      title: "Edições salvas",
+      description: "As alterações foram aplicadas",
+    });
+  };
+
   const cancelCheckIn = () => {
     setPendingCheckInData(null);
     setEditableData(null);
     setIsEditMode(false);
+    setPhotoError(false);
     setShowConfirmDialog(false);
     
     // Restart scanner
@@ -1250,20 +1278,26 @@ export default function CheckInNew() {
                         <Input
                           id="edit-photo"
                           value={editableData.photo || ""}
-                          onChange={(e) => setEditableData({ ...editableData, photo: e.target.value })}
+                          onChange={(e) => {
+                            setEditableData({ ...editableData, photo: e.target.value });
+                            setPhotoError(false); // Reset error when URL changes
+                          }}
                           placeholder="https://exemplo.com/foto.jpg"
                           className="text-foreground"
                         />
-                        {editableData.photo && (
+                        {editableData.photo && !photoError ? (
                           <img
                             src={editableData.photo}
                             alt="Preview"
                             className="w-32 h-32 rounded-full object-cover border-4 border-gold mx-auto mt-2"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = 'none';
-                            }}
+                            onError={() => setPhotoError(true)}
                           />
-                        )}
+                        ) : editableData.photo && photoError ? (
+                          <div className="w-32 h-32 rounded-full bg-muted border-4 border-gold flex items-center justify-center mx-auto mt-2">
+                            <User className="w-16 h-16 text-muted-foreground" />
+                            <p className="absolute text-xs text-destructive mt-24">URL inválida</p>
+                          </div>
+                        ) : null}
                       </div>
                     ) : (
                       <>
@@ -1345,7 +1379,7 @@ export default function CheckInNew() {
             
             {isEditMode ? (
               <Button
-                onClick={() => setIsEditMode(false)}
+                onClick={saveEdits}
                 disabled={isLoading}
                 className="w-full sm:w-auto bg-primary hover:bg-primary/90"
               >
