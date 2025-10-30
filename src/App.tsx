@@ -23,6 +23,7 @@ import CustomFields from "./pages/admin/CustomFields";
 import CheckInSettings from "./pages/admin/CheckInSettings";
 import Users from "./pages/admin/Users";
 import LeadSearch from "./pages/admin/LeadSearch";
+import LeadCreationConfig from "./pages/admin/LeadCreationConfig";
 import { InstallPWA } from "./components/InstallPWA";
 
 const queryClient = new QueryClient();
@@ -59,6 +60,7 @@ const App = () => (
             <Route path="field-mapping" element={<FieldMapping />} />
             <Route path="custom-fields" element={<CustomFields />} />
             <Route path="checkin-settings" element={<CheckInSettings />} />
+            <Route path="lead-creation-config" element={<LeadCreationConfig />} />
             <Route path="users" element={<Users />} />
             <Route path="lead-search" element={<LeadSearch />} />
             <Route path="logs" element={<Logs />} />

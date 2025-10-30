@@ -150,12 +150,12 @@ export default function Panels() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => navigate('/admin/custom-fields')}
+                onClick={() => navigate('/admin/checkin-settings')}
                 className="border-gold/20"
-                title="Configurar Campos"
+                title="Configurar Tela de Boas-Vindas"
               >
                 <Settings className="h-4 w-4 mr-1" />
-                Campos
+                Tela de Boas-Vindas
               </Button>
             </div>
           </CardContent>

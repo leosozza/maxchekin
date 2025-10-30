@@ -115,8 +115,9 @@ function collectPhones(payload: Record<string, any>): string[] {
 
 /**
  * Build Bitrix lead fields given either NewLead or CreateLeadParams
+ * Now includes support for loading default field values from lead_creation_config
  */
-export function buildLeadFieldsFromNewLead(input: NewLead | CreateLeadParams): BitrixLeadFields {
+export async function buildLeadFieldsFromNewLead(input: NewLead | CreateLeadParams, supabaseClient?: any): Promise<BitrixLeadFields> {
   // Defensive check: protect against undefined input
   if (!input) {
     return {
@@ -162,13 +163,40 @@ export function buildLeadFieldsFromNewLead(input: NewLead | CreateLeadParams): B
     fields.ASSIGNED_BY_ID = assigned as string | number;
   }
 
+  // Load configured default fields from lead_creation_config if supabase client is available
+  if (supabaseClient) {
+    try {
+      const { data: configFields } = await supabaseClient
+        .from("lead_creation_config")
+        .select("*")
+        .eq("is_active", true);
+
+      if (configFields && configFields.length > 0) {
+        for (const config of configFields) {
+          // Special handling for name fields - use actual values from input
+          if (config.field_name === "UF_CRM_1744900570916" && name) {
+            fields[config.field_name] = name;
+          } else if (config.field_name === "UF_CRM_LEAD_1732627097745" && modelName) {
+            fields[config.field_name] = modelName;
+          } else if (config.field_value) {
+            // Use configured default value for other fields
+            fields[config.field_name] = config.field_value;
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load lead_creation_config:", error);
+      // Continue without the configured fields if loading fails
+    }
+  }
+
   // Merge any custom UF_CRM_* present in input.customFields or other keys prefixed with UF_CRM_
   if ((input as any).customFields && typeof (input as any).customFields === "object") {
     Object.assign(fields, (input as any).customFields);
   }
 
   for (const key of Object.keys(input)) {
-    if (key.startsWith("UF_CRM_")) {
+    if (key.startsWith("UF_CRM_") || key.startsWith("PARENT_ID_")) {
       (fields as any)[key] = (input as any)[key];
     }
   }
@@ -178,6 +206,7 @@ export function buildLeadFieldsFromNewLead(input: NewLead | CreateLeadParams): B
 
 /**
  * Low-level helper: sends crm.lead.add request and returns parsed Bitrix response
+ * Now supports async buildLeadFieldsFromNewLead
  */
 async function sendCrmLeadAdd(webhookBaseUrl: string, fields: BitrixLeadFields): Promise<BitrixLeadResponse> {
   const url = `${webhookBaseUrl.replace(/\/$/, "")}/crm.lead.add.json`;
@@ -203,9 +232,10 @@ async function sendCrmLeadAdd(webhookBaseUrl: string, fields: BitrixLeadFields):
  * Creates a new lead in Bitrix24 CRM (compatibility function)
  * - This matches older callers expecting createLead(webhookBaseUrl, newLead)
  * - Returns the full Bitrix response object (BitrixLeadResponse)
+ * - Now supports optional supabaseClient parameter for loading default field config
  */
-export async function createLead(webhookBaseUrl: string, newLead: NewLead): Promise<BitrixLeadResponse> {
-  const fields = buildLeadFieldsFromNewLead(newLead);
+export async function createLead(webhookBaseUrl: string, newLead: NewLead, supabaseClient?: any): Promise<BitrixLeadResponse> {
+  const fields = await buildLeadFieldsFromNewLead(newLead, supabaseClient);
   const data = await sendCrmLeadAdd(webhookBaseUrl, fields);
   // Keep original behavior: throw if no result
   if (!data.result) {
@@ -218,9 +248,10 @@ export async function createLead(webhookBaseUrl: string, newLead: NewLead): Prom
  * Creates a new lead in Bitrix24 CRM (newer simpler API)
  * - This matches callers expecting createLeadInBitrix(webhookBaseUrl, params)
  * - Returns the created lead ID as number
+ * - Now supports optional supabaseClient parameter for loading default field config
  */
-export async function createLeadInBitrix(webhookBaseUrl: string, params: CreateLeadParams): Promise<number> {
-  const fields = buildLeadFieldsFromNewLead(params);
+export async function createLeadInBitrix(webhookBaseUrl: string, params: CreateLeadParams, supabaseClient?: any): Promise<number> {
+  const fields = await buildLeadFieldsFromNewLead(params, supabaseClient);
   const data = await sendCrmLeadAdd(webhookBaseUrl, fields);
   if (!data.result) {
     throw new Error(`Bitrix API error: ${JSON.stringify(data)}`);
