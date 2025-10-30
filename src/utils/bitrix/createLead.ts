@@ -196,7 +196,7 @@ export async function buildLeadFieldsFromNewLead(input: NewLead | CreateLeadPara
   }
 
   for (const key of Object.keys(input)) {
-    if (key.startsWith("UF_CRM_") || key.startsWith("PARENT_ID_")) {
+    if (key.startsWith("UF_CRM_") || key.startsWith("PARENT_ID_") || key === "SOURCE_ID") {
       (fields as any)[key] = (input as any)[key];
     }
   }

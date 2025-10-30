@@ -53,19 +53,24 @@ Esta tela permite configurar valores padrão para campos customizados do Bitrix2
 
 #### Campos Configuráveis
 
-1. **PARENT_ID_1120** - Projetos Comerciais
+1. **SOURCE_ID** - Campo Fonte
+   - ID da origem do lead
+   - Valor padrão: "UC_SJ3VW5"
+   - Campo obrigatório do Bitrix24 para identificar a fonte do lead
+
+2. **PARENT_ID_1120** - Projetos Comerciais
    - ID do projeto pai
    - Exemplo: "SELETIVA SÃO PAULO - PINHEIROS"
 
-2. **UF_CRM_1741215746** - Campo Customizado Relacionado
+3. **UF_CRM_1741215746** - Campo Customizado Relacionado
    - Campo customizado do Bitrix
    - Geralmente deve ter o mesmo valor de PARENT_ID_1120
 
-3. **UF_CRM_1744900570916** - Nome
+4. **UF_CRM_1744900570916** - Nome
    - Campo que será preenchido automaticamente com o nome do lead
    - O valor é extraído do formulário de criação
 
-4. **UF_CRM_LEAD_1732627097745** - Nome do Modelo
+5. **UF_CRM_LEAD_1732627097745** - Nome do Modelo
    - Campo que será preenchido automaticamente com o nome do modelo
    - O valor é extraído do formulário de criação
 
@@ -80,6 +85,11 @@ Esta tela permite configurar valores padrão para campos customizados do Bitrix2
 
 ### Comportamento Especial
 
+- **Campo Fonte (SOURCE_ID)**:
+  - Campo obrigatório do Bitrix24
+  - Valor padrão: "UC_SJ3VW5"
+  - Identifica que o lead veio do sistema MaxCheckin
+  
 - **Campos de Nome (UF_CRM_1744900570916 e UF_CRM_LEAD_1732627097745)**:
   - Estes campos são preenchidos automaticamente com os valores do formulário
   - Os valores configurados aqui são ignorados, pois o sistema usa os dados reais do lead
@@ -155,6 +165,7 @@ Esta tela permite configurar valores padrão para campos customizados do Bitrix2
 3. Usuário preenche nome e telefone
 4. Ao criar o lead, o sistema:
    - Preenche o campo NAME com o nome fornecido
+   - Preenche SOURCE_ID com "UC_SJ3VW5" (valor configurado)
    - Preenche UF_CRM_1744900570916 com o nome
    - Preenche UF_CRM_LEAD_1732627097745 com o nome do modelo (se disponível)
    - Preenche PARENT_ID_1120 com o valor configurado
@@ -166,6 +177,7 @@ Esta tela permite configurar valores padrão para campos customizados do Bitrix2
 
 O sistema agora resolve completamente os requisitos:
 
+✅ **SOURCE_ID**: Configurado com valor "UC_SJ3VW5" para identificar a fonte do lead
 ✅ **UF_CRM_1744900570916**: Preenchido automaticamente com o Nome do lead
 ✅ **UF_CRM_LEAD_1732627097745**: Preenchido automaticamente com o Nome do Modelo
 ✅ **PARENT_ID_1120**: Configurável via admin panel com valor padrão (ex: "SELETIVA SÃO PAULO - PINHEIROS")
