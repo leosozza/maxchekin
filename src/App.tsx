@@ -25,7 +25,6 @@ import Users from "./pages/admin/Users";
 import LeadSearch from "./pages/admin/LeadSearch";
 import LeadCreationConfig from "./pages/admin/LeadCreationConfig";
 import { InstallPWA } from "./components/InstallPWA";
-import React from "react";
 import KanbanBoard from "./pages/admin/KanbanBoard";
 
 const queryClient = new QueryClient();
