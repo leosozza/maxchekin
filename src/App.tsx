@@ -21,7 +21,6 @@ import Logs from "./pages/admin/Logs";
 import Settings from "./pages/admin/Settings";
 import CustomFields from "./pages/admin/CustomFields";
 import CheckInSettings from "./pages/admin/CheckInSettings";
-import ScreensaverSettings from "./pages/admin/ScreensaverSettings";
 import Users from "./pages/admin/Users";
 import LeadSearch from "./pages/admin/LeadSearch";
 import { InstallPWA } from "./components/InstallPWA";
@@ -60,7 +59,6 @@ const App = () => (
             <Route path="field-mapping" element={<FieldMapping />} />
             <Route path="custom-fields" element={<CustomFields />} />
             <Route path="checkin-settings" element={<CheckInSettings />} />
-            <Route path="screensaver-settings" element={<ScreensaverSettings />} />
             <Route path="users" element={<Users />} />
             <Route path="lead-search" element={<LeadSearch />} />
             <Route path="logs" element={<Logs />} />

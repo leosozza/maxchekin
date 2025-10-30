@@ -1,19 +1,27 @@
 import { useEffect, useState, useRef } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { supabase } from "@/integrations/supabase/client";
-import { Sparkles, QrCode, Search, X, Delete, User, Menu, Loader2, Phone, UserPlus } from "lucide-react";
+import { Sparkles, QrCode, Search, X, Delete, User, Menu, Loader2, Phone, UserPlus, Edit, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { z } from "zod";
-import { useInactivityTimer } from "@/hooks/useInactivityTimer";
-import { ScreensaverView } from "@/components/checkin/ScreensaverView";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { isNativeApp, startNativeScan, stopNativeScan } from "@/utils/capacitorScanner";
 import { findLeadsByPhone, createLead, BitrixLead } from "@/hooks/useBitrixLead";
@@ -44,12 +52,17 @@ const bitrixResponseSchema = z.object({
 }).passthrough()
 });
 
-type ScreenState = 'scanner' | 'screensaver' | 'welcome' | 'transition';
+type ScreenState = 'scanner' | 'welcome' | 'transition';
 
 export default function CheckInNew() {
   const [screenState, setScreenState] = useState<ScreenState>('scanner');
   const [scanning, setScanning] = useState(false);
   const [modelData, setModelData] = useState<ModelData | null>(null);
+  const [pendingCheckInData, setPendingCheckInData] = useState<ModelData | null>(null);
+  const [editableData, setEditableData] = useState<ModelData | null>(null);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [photoError, setPhotoError] = useState(false);
   const [manualSearchOpen, setManualSearchOpen] = useState(false);
   const [searchId, setSearchId] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -77,21 +90,6 @@ export default function CheckInNew() {
   const [newLeadData, setNewLeadData] = useState({
     nome: "",
     telefone: "",
-  });
-
-  // Inactivity timer - após 30s sem interação, ativa screensaver
-  const { resetTimer } = useInactivityTimer({
-    onInactive: () => {
-      if (screenState === 'scanner' && !modelData) {
-        setScreenState('transition');
-        setTimeout(() => {
-          setScreenState('screensaver');
-          stopScanner();
-        }, 800);
-      }
-    },
-    timeout: 30000,
-    enabled: screenState === 'scanner' && !modelData && configLoaded,
   });
 
   // Salvar/Carregar configurações do localStorage para persistir no PWA
@@ -535,20 +533,49 @@ export default function CheckInNew() {
         throw new Error(`Nome do modelo não encontrado no Lead ${leadId}. Verifique os campos no Bitrix24.`);
       }
       
-      console.log(`[CHECK-IN] Validação OK, salvando no banco...`);
+      console.log(`[CHECK-IN] Validação OK, exibindo confirmação...`);
       
-      setModelData(modelData);
       setScanning(false);
       
       // Stop scanner if active - use the safe stopScanner function
       await stopScanner();
 
-      // Save to database
+      // Show confirmation dialog instead of immediately saving
+      setPendingCheckInData(modelData);
+      setEditableData({ ...modelData }); // Create a copy for editing
+      setIsEditMode(false); // Start in view mode
+      setPhotoError(false); // Reset photo error
+      setShowConfirmDialog(true);
+    } catch (error) {
+      console.error(`[CHECK-IN] Erro:`, error);
+      
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : `Lead ${leadId} não encontrado ou erro desconhecido`;
+      
+      toast({
+        title: "Erro no check-in",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const confirmCheckIn = async () => {
+    if (!editableData) return;
+
+    try {
+      setIsLoading(true);
+      console.log(`[CHECK-IN] Confirmando check-in...`);
+
+      // Use editableData instead of pendingCheckInData (to save edited values)
       const { error: insertError } = await supabase.from("check_ins").insert({
-        lead_id: leadId,
-        model_name: modelData.name,
-        model_photo: modelData.photo,
-        responsible: modelData.responsible,
+        lead_id: editableData.lead_id,
+        model_name: editableData.name,
+        model_photo: editableData.photo,
+        responsible: editableData.responsible,
       });
 
       if (insertError) {
@@ -558,9 +585,15 @@ export default function CheckInNew() {
 
       console.log(`[CHECK-IN] Sucesso!`);
 
+      setModelData(editableData);
+      setPendingCheckInData(null);
+      setEditableData(null);
+      setIsEditMode(false);
+      setShowConfirmDialog(false);
+
       toast({
         title: "Check-in realizado!",
-        description: `Bem-vinda, ${modelData.name}!`,
+        description: `Bem-vinda, ${editableData.name}!`,
       });
 
       // Muda para tela de boas-vindas
@@ -590,24 +623,75 @@ export default function CheckInNew() {
           } else {
             initScanner();
           }
-          
-          resetTimer();
         }, 800);
       }, 5000);
     } catch (error) {
-      console.error(`[CHECK-IN] Erro:`, error);
+      console.error(`[CHECK-IN] Erro ao confirmar:`, error);
       
       const errorMessage = error instanceof Error 
         ? error.message 
-        : `Lead ${leadId} não encontrado ou erro desconhecido`;
+        : "Erro ao salvar check-in";
       
       toast({
-        title: "Erro no check-in",
+        title: "Erro ao confirmar check-in",
         description: errorMessage,
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const saveEdits = () => {
+    if (!editableData) return;
+
+    // Validate required fields
+    if (!editableData.name || editableData.name.trim() === "") {
+      toast({
+        title: "Erro de validação",
+        description: "O nome é obrigatório",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Reset photo error state
+    setPhotoError(false);
+    
+    // Exit edit mode after saving
+    setIsEditMode(false);
+    
+    toast({
+      title: "Edições salvas",
+      description: "As alterações foram aplicadas",
+    });
+  };
+
+  const cancelCheckIn = () => {
+    setPendingCheckInData(null);
+    setEditableData(null);
+    setIsEditMode(false);
+    setPhotoError(false);
+    setShowConfirmDialog(false);
+    
+    // Restart scanner
+    setScreenState('scanner');
+    setScanning(true);
+    
+    if (isNativeApp()) {
+      startNativeScan(
+        (code) => processCheckIn(code),
+        (error) => {
+          setCameraError(error);
+          toast({
+            variant: "destructive",
+            title: "Erro na Câmera",
+            description: error,
+          });
+        }
+      );
+    } else {
+      initScanner();
     }
   };
 
@@ -726,16 +810,36 @@ export default function CheckInNew() {
     try {
       const response = await createLead(newLeadData);
       
-      // Support both shapes: { result: id } or direct id return
-      const createdId =
-        response && typeof response === "object" && "result" in response
-          ? response.result
-          : response;
+      console.log("[CREATE-LEAD] Response from createLead:", response);
+      
+      // Support multiple response shapes from different createLead implementations
+      let createdId: string | number | undefined;
+      
+      if (response && typeof response === "object") {
+        // Shape 1: { result: number }
+        if ("result" in response && response.result) {
+          createdId = response.result;
+        }
+        // Shape 2: { id: number }
+        else if ("id" in response && response.id) {
+          createdId = (response as any).id;
+        }
+        // Shape 3: { ID: string }
+        else if ("ID" in response && response.ID) {
+          createdId = (response as any).ID;
+        }
+      } else if (typeof response === "string" || typeof response === "number") {
+        // Shape 4: direct id return
+        createdId = response;
+      }
 
       // Validate createdId is a valid value
       if (!createdId || (typeof createdId !== "string" && typeof createdId !== "number")) {
-        throw new Error("ID do lead criado é inválido");
+        console.error("[CREATE-LEAD] Invalid response:", response);
+        throw new Error(`ID do lead criado é inválido. Resposta: ${JSON.stringify(response)}`);
       }
+
+      console.log("[CREATE-LEAD] Lead created successfully with ID:", createdId);
 
       toast({
         title: "Lead criado com sucesso",
@@ -781,48 +885,8 @@ export default function CheckInNew() {
     }
   };
 
-  const handleScreensaverActivate = () => {
-    setIsTransitioning(true);
-    setScreenState('transition');
-    
-    // Timeout de segurança: forçar conclusão após 2s
-    const safetyTimeout = setTimeout(() => {
-      setIsTransitioning(false);
-    }, 2000);
-    
-    setTimeout(() => {
-      clearTimeout(safetyTimeout);
-      setScreenState('scanner');
-      setScanning(true);
-      setIsTransitioning(false);
-      
-      if (isNativeApp()) {
-        startNativeScan(
-          (code) => processCheckIn(code),
-          (error) => {
-            setCameraError(error);
-            toast({
-              variant: "destructive",
-              title: "Erro na Câmera",
-              description: error,
-            });
-          }
-        );
-      } else {
-        initScanner();
-      }
-      
-      resetTimer();
-    }, 800);
-  };
-
   return (
     <>
-      {/* Screensaver Mode */}
-      {screenState === 'screensaver' && (
-        <ScreensaverView onActivate={handleScreensaverActivate} />
-      )}
-
       {/* Overlay durante transição */}
       {isTransitioning && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center">
@@ -832,8 +896,6 @@ export default function CheckInNew() {
 
       {/* Main Check-in Interface */}
       <div className={`min-h-screen max-h-screen overflow-hidden bg-gradient-to-b from-studio-dark via-background to-studio-dark flex flex-col items-center justify-between p-4 md:p-8 portrait:orientation-portrait transition-all duration-800 ${
-        screenState === 'screensaver' ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
-      } ${
         screenState === 'transition' ? 'animate-scanner-exit' : ''
       } ${
         screenState === 'scanner' && configLoaded && !modelData ? 'animate-scanner-enter' : ''
@@ -872,28 +934,6 @@ export default function CheckInNew() {
       >
         <Search className="w-5 h-5 text-primary" />
       </Button>
-
-      {/* Logo */}
-      <div className="w-full text-center mb-4 sm:mb-8 flex flex-col items-center">
-        <img 
-          src="/logo-color.png" 
-          alt="MaxCheckin" 
-          className="h-16 sm:h-20 mb-2"
-        />
-        <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-gold bg-clip-text text-transparent">
-          MaxCheckin
-        </h1>
-      </div>
-
-      {/* Manual Search Button */}
-      {scanning && !modelData && screenState === 'scanner' && (
-        <button
-          onClick={() => setManualSearchOpen(true)}
-          className="fixed bottom-4 right-4 sm:bottom-8 sm:right-8 w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gold/20 backdrop-blur-sm border-2 border-gold/40 hover:bg-gold/30 hover:border-gold/60 transition-all shadow-glow z-50 flex items-center justify-center group"
-        >
-          <Search className="w-8 h-8 sm:w-10 sm:h-10 text-gold group-hover:scale-110 transition-transform" />
-        </button>
-      )}
 
       {!configLoaded && screenState === 'scanner' && (
         <div className="flex flex-col items-center space-y-4 sm:space-y-8 animate-fade-in flex-1 justify-center w-full">
@@ -1220,6 +1260,151 @@ export default function CheckInNew() {
           </Tabs>
         </DialogContent>
       </Dialog>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent className="bg-studio-dark border-2 border-gold/30 max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-2xl text-center bg-gradient-gold bg-clip-text text-transparent">
+              {isEditMode ? "Editar Dados" : "Confirmar Check-in"}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center space-y-4">
+              {editableData && (
+                <div className="py-4">
+                  <div className="flex justify-center mb-4">
+                    {isEditMode ? (
+                      <div className="w-full space-y-2">
+                        <Label htmlFor="edit-photo" className="text-foreground">URL da Foto</Label>
+                        <Input
+                          id="edit-photo"
+                          value={editableData.photo || ""}
+                          onChange={(e) => {
+                            setEditableData({ ...editableData, photo: e.target.value });
+                            setPhotoError(false); // Reset error when URL changes
+                          }}
+                          placeholder="https://exemplo.com/foto.jpg"
+                          className="text-foreground"
+                        />
+                        {editableData.photo && !photoError ? (
+                          <img
+                            src={editableData.photo}
+                            alt="Preview"
+                            className="w-32 h-32 rounded-full object-cover border-4 border-gold mx-auto mt-2"
+                            onError={() => setPhotoError(true)}
+                          />
+                        ) : editableData.photo && photoError ? (
+                          <div className="w-32 h-32 rounded-full bg-muted border-4 border-gold flex items-center justify-center mx-auto mt-2">
+                            <User className="w-16 h-16 text-muted-foreground" />
+                            <p className="absolute text-xs text-destructive mt-24">URL inválida</p>
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <>
+                        {editableData.photo ? (
+                          <img
+                            src={editableData.photo}
+                            alt={editableData.name}
+                            className="w-32 h-32 rounded-full object-cover border-4 border-gold"
+                          />
+                        ) : (
+                          <div className="w-32 h-32 rounded-full bg-muted border-4 border-gold flex items-center justify-center">
+                            <User className="w-16 h-16 text-muted-foreground" />
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  
+                  {isEditMode ? (
+                    <div className="space-y-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-name" className="text-foreground">Nome</Label>
+                        <Input
+                          id="edit-name"
+                          value={editableData.name}
+                          onChange={(e) => setEditableData({ ...editableData, name: e.target.value })}
+                          className="text-foreground"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-responsible" className="text-foreground">Responsável</Label>
+                        <Input
+                          id="edit-responsible"
+                          value={editableData.responsible || ""}
+                          onChange={(e) => setEditableData({ ...editableData, responsible: e.target.value })}
+                          className="text-foreground"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-foreground">Lead ID (somente leitura)</Label>
+                        <Input
+                          value={editableData.lead_id}
+                          disabled
+                          className="text-muted-foreground"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-xl font-bold text-foreground">{editableData.name}</p>
+                      <p className="text-sm text-muted-foreground">{editableData.responsible}</p>
+                      <p className="text-sm text-muted-foreground">Lead ID: {editableData.lead_id}</p>
+                    </div>
+                  )}
+                  
+                  {!isEditMode && (
+                    <p className="mt-4 text-foreground">Deseja confirmar o check-in para esta pessoa?</p>
+                  )}
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel onClick={cancelCheckIn} disabled={isLoading} className="w-full sm:w-auto">
+              Cancelar
+            </AlertDialogCancel>
+            
+            {!isEditMode && (
+              <Button
+                onClick={() => setIsEditMode(true)}
+                variant="outline"
+                disabled={isLoading}
+                className="w-full sm:w-auto border-primary/30 hover:bg-primary/10"
+              >
+                <Edit className="mr-2 h-4 w-4" />
+                Editar
+              </Button>
+            )}
+            
+            {isEditMode ? (
+              <Button
+                onClick={saveEdits}
+                disabled={isLoading}
+                className="w-full sm:w-auto bg-primary hover:bg-primary/90"
+              >
+                <Save className="mr-2 h-4 w-4" />
+                Salvar Edições
+              </Button>
+            ) : (
+              <AlertDialogAction 
+                onClick={confirmCheckIn} 
+                disabled={isLoading}
+                className="w-full sm:w-auto bg-primary hover:bg-primary/90"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processando...
+                  </>
+                ) : (
+                  "Confirmar Check-in"
+                )}
+              </AlertDialogAction>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       </div>
     </>
   );
