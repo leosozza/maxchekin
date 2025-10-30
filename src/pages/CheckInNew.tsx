@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { supabase } from "@/integrations/supabase/client";
-import { Sparkles, QrCode, Search, X, Delete, User, Menu, Loader2, Phone, UserPlus } from "lucide-react";
+import { Sparkles, QrCode, Search, X, Delete, User, Menu, Loader2, Phone, UserPlus, Edit, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -59,7 +59,9 @@ export default function CheckInNew() {
   const [scanning, setScanning] = useState(false);
   const [modelData, setModelData] = useState<ModelData | null>(null);
   const [pendingCheckInData, setPendingCheckInData] = useState<ModelData | null>(null);
+  const [editableData, setEditableData] = useState<ModelData | null>(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [manualSearchOpen, setManualSearchOpen] = useState(false);
   const [searchId, setSearchId] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -539,6 +541,8 @@ export default function CheckInNew() {
 
       // Show confirmation dialog instead of immediately saving
       setPendingCheckInData(modelData);
+      setEditableData({ ...modelData }); // Create a copy for editing
+      setIsEditMode(false); // Start in view mode
       setShowConfirmDialog(true);
     } catch (error) {
       console.error(`[CHECK-IN] Erro:`, error);
@@ -558,18 +562,18 @@ export default function CheckInNew() {
   };
 
   const confirmCheckIn = async () => {
-    if (!pendingCheckInData) return;
+    if (!editableData) return;
 
     try {
       setIsLoading(true);
       console.log(`[CHECK-IN] Confirmando check-in...`);
 
-      // Save to database
+      // Use editableData instead of pendingCheckInData (to save edited values)
       const { error: insertError } = await supabase.from("check_ins").insert({
-        lead_id: pendingCheckInData.lead_id,
-        model_name: pendingCheckInData.name,
-        model_photo: pendingCheckInData.photo,
-        responsible: pendingCheckInData.responsible,
+        lead_id: editableData.lead_id,
+        model_name: editableData.name,
+        model_photo: editableData.photo,
+        responsible: editableData.responsible,
       });
 
       if (insertError) {
@@ -579,13 +583,15 @@ export default function CheckInNew() {
 
       console.log(`[CHECK-IN] Sucesso!`);
 
-      setModelData(pendingCheckInData);
+      setModelData(editableData);
       setPendingCheckInData(null);
+      setEditableData(null);
+      setIsEditMode(false);
       setShowConfirmDialog(false);
 
       toast({
         title: "Check-in realizado!",
-        description: `Bem-vinda, ${pendingCheckInData.name}!`,
+        description: `Bem-vinda, ${editableData.name}!`,
       });
 
       // Muda para tela de boas-vindas
@@ -636,6 +642,8 @@ export default function CheckInNew() {
 
   const cancelCheckIn = () => {
     setPendingCheckInData(null);
+    setEditableData(null);
+    setIsEditMode(false);
     setShowConfirmDialog(false);
     
     // Restart scanner
@@ -1227,33 +1235,93 @@ export default function CheckInNew() {
 
       {/* Confirmation Dialog */}
       <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <AlertDialogContent className="bg-studio-dark border-2 border-gold/30">
+        <AlertDialogContent className="bg-studio-dark border-2 border-gold/30 max-w-lg">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-2xl text-center bg-gradient-gold bg-clip-text text-transparent">
-              Confirmar Check-in
+              {isEditMode ? "Editar Dados" : "Confirmar Check-in"}
             </AlertDialogTitle>
             <AlertDialogDescription className="text-center space-y-4">
-              {pendingCheckInData && (
+              {editableData && (
                 <div className="py-4">
                   <div className="flex justify-center mb-4">
-                    {pendingCheckInData.photo ? (
-                      <img
-                        src={pendingCheckInData.photo}
-                        alt={pendingCheckInData.name}
-                        className="w-32 h-32 rounded-full object-cover border-4 border-gold"
-                      />
-                    ) : (
-                      <div className="w-32 h-32 rounded-full bg-muted border-4 border-gold flex items-center justify-center">
-                        <User className="w-16 h-16 text-muted-foreground" />
+                    {isEditMode ? (
+                      <div className="w-full space-y-2">
+                        <Label htmlFor="edit-photo" className="text-foreground">URL da Foto</Label>
+                        <Input
+                          id="edit-photo"
+                          value={editableData.photo || ""}
+                          onChange={(e) => setEditableData({ ...editableData, photo: e.target.value })}
+                          placeholder="https://exemplo.com/foto.jpg"
+                          className="text-foreground"
+                        />
+                        {editableData.photo && (
+                          <img
+                            src={editableData.photo}
+                            alt="Preview"
+                            className="w-32 h-32 rounded-full object-cover border-4 border-gold mx-auto mt-2"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                          />
+                        )}
                       </div>
+                    ) : (
+                      <>
+                        {editableData.photo ? (
+                          <img
+                            src={editableData.photo}
+                            alt={editableData.name}
+                            className="w-32 h-32 rounded-full object-cover border-4 border-gold"
+                          />
+                        ) : (
+                          <div className="w-32 h-32 rounded-full bg-muted border-4 border-gold flex items-center justify-center">
+                            <User className="w-16 h-16 text-muted-foreground" />
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
-                  <div className="space-y-2">
-                    <p className="text-xl font-bold text-foreground">{pendingCheckInData.name}</p>
-                    <p className="text-sm text-muted-foreground">{pendingCheckInData.responsible}</p>
-                    <p className="text-sm text-muted-foreground">Lead ID: {pendingCheckInData.lead_id}</p>
-                  </div>
-                  <p className="mt-4 text-foreground">Deseja confirmar o check-in para esta pessoa?</p>
+                  
+                  {isEditMode ? (
+                    <div className="space-y-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-name" className="text-foreground">Nome</Label>
+                        <Input
+                          id="edit-name"
+                          value={editableData.name}
+                          onChange={(e) => setEditableData({ ...editableData, name: e.target.value })}
+                          className="text-foreground"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-responsible" className="text-foreground">Responsável</Label>
+                        <Input
+                          id="edit-responsible"
+                          value={editableData.responsible || ""}
+                          onChange={(e) => setEditableData({ ...editableData, responsible: e.target.value })}
+                          className="text-foreground"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-foreground">Lead ID (somente leitura)</Label>
+                        <Input
+                          value={editableData.lead_id}
+                          disabled
+                          className="text-muted-foreground"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-xl font-bold text-foreground">{editableData.name}</p>
+                      <p className="text-sm text-muted-foreground">{editableData.responsible}</p>
+                      <p className="text-sm text-muted-foreground">Lead ID: {editableData.lead_id}</p>
+                    </div>
+                  )}
+                  
+                  {!isEditMode && (
+                    <p className="mt-4 text-foreground">Deseja confirmar o check-in para esta pessoa?</p>
+                  )}
                 </div>
               )}
             </AlertDialogDescription>
@@ -1262,20 +1330,44 @@ export default function CheckInNew() {
             <AlertDialogCancel onClick={cancelCheckIn} disabled={isLoading} className="w-full sm:w-auto">
               Cancelar
             </AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={confirmCheckIn} 
-              disabled={isLoading}
-              className="w-full sm:w-auto bg-primary hover:bg-primary/90"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processando...
-                </>
-              ) : (
-                "Confirmar Check-in"
-              )}
-            </AlertDialogAction>
+            
+            {!isEditMode && (
+              <Button
+                onClick={() => setIsEditMode(true)}
+                variant="outline"
+                disabled={isLoading}
+                className="w-full sm:w-auto border-primary/30 hover:bg-primary/10"
+              >
+                <Edit className="mr-2 h-4 w-4" />
+                Editar
+              </Button>
+            )}
+            
+            {isEditMode ? (
+              <Button
+                onClick={() => setIsEditMode(false)}
+                disabled={isLoading}
+                className="w-full sm:w-auto bg-primary hover:bg-primary/90"
+              >
+                <Save className="mr-2 h-4 w-4" />
+                Salvar Edições
+              </Button>
+            ) : (
+              <AlertDialogAction 
+                onClick={confirmCheckIn} 
+                disabled={isLoading}
+                className="w-full sm:w-auto bg-primary hover:bg-primary/90"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processando...
+                  </>
+                ) : (
+                  "Confirmar Check-in"
+                )}
+              </AlertDialogAction>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
