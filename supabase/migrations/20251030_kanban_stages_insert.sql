@@ -3,13 +3,12 @@
 -- and sets Checkin as the default stage
 
 -- Insert stages only if they don't already exist (idempotent)
--- Using DO $$ block to check existence before inserting
 DO $$
 BEGIN
-  -- Insert Checkin stage
+  -- Insert Checkin stage (will be set as default)
   IF NOT EXISTS (SELECT 1 FROM public.kanban_stages WHERE name = 'Checkin') THEN
     INSERT INTO public.kanban_stages (name, position, is_default, panel_id)
-    VALUES ('Checkin', 0, true, NULL);
+    VALUES ('Checkin', 0, false, NULL);
   END IF;
 
   -- Insert Produtor stage
@@ -43,8 +42,9 @@ BEGIN
   END IF;
 
   -- Ensure only Checkin is marked as default
-  -- Update any other stages that might have is_default = true
-  UPDATE public.kanban_stages
-  SET is_default = false
-  WHERE name != 'Checkin' AND is_default = true;
+  -- First set all stages to not default
+  UPDATE public.kanban_stages SET is_default = false;
+  
+  -- Then set Checkin as the default stage
+  UPDATE public.kanban_stages SET is_default = true WHERE name = 'Checkin';
 END $$;
