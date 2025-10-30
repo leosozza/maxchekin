@@ -87,8 +87,6 @@ export default function Dashboard() {
 
   useEffect(() => { loadDaily(); }, []); // primeira carga
 
-  const applyFilters = () => loadDaily();
-
   const openDay = async (dateStr: string) => {
     setSelectedDate(dateStr);
     setOpenList(true);
@@ -117,6 +115,14 @@ export default function Dashboard() {
     );
   };
 
+  const getRowValue = (row: CheckinRow, key: string): string => {
+    if (key === 'checked_in_at') {
+      return new Date(row.checked_in_at).toLocaleString();
+    }
+    const value = row[key as keyof CheckinRow];
+    return value ? String(value) : '';
+  };
+
   const exportPdf = () => {
     const doc = new jsPDF({ orientation: 'portrait', unit: 'pt' });
     const title = `Check-ins - ${selectedDate ?? `${startDate} a ${endDate}`}`;
@@ -125,14 +131,7 @@ export default function Dashboard() {
     const cols = ALL_COLUMNS.filter(c => visibleCols.includes(c.key)).map(c => c.label);
     const body = rows.map(r => ALL_COLUMNS
       .filter(c => visibleCols.includes(c.key))
-      .map(c => {
-        if (c.key === 'checked_in_at') {
-          const d = new Date(r.checked_in_at);
-          return d.toLocaleString();
-        }
-        // @ts-ignore
-        return r[c.key] ?? '';
-      })
+      .map(c => getRowValue(r, c.key))
     );
 
     autoTable(doc, {
@@ -254,11 +253,8 @@ export default function Dashboard() {
                   {rows.map(r => (
                     <tr key={r.id} className="border-t border-gold/10">
                       {ALL_COLUMNS.filter(c => visibleCols.includes(c.key)).map(c => {
-                        let value: any = (r as any)[c.key];
-                        if (c.key === 'checked_in_at') {
-                          value = new Date(r.checked_in_at).toLocaleString();
-                        }
-                        return <td key={c.key} className="py-2 text-white">{value ?? ''}</td>;
+                        const value = getRowValue(r, c.key);
+                        return <td key={c.key} className="py-2 text-white">{value}</td>;
                       })}
                     </tr>
                   ))}
