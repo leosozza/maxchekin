@@ -1,3 +1,4 @@
+import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -66,7 +67,7 @@ const App = () => (
             <Route path="lead-search" element={<LeadSearch />} />
             <Route path="logs" element={<Logs />} />
             <Route path="settings" element={<Settings />} />
-            {/* Kanban Board */}
+            {/* Kanban dentro do Admin */}
             <Route path="kanban" element={<KanbanBoard />} />
           </Route>
 
