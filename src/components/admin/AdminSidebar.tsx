@@ -13,6 +13,7 @@ import {
   Users,
   Sparkles,
   UserSearch,
+  UserPlus,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -39,6 +40,7 @@ const menuItems = [
   { title: 'Mapeamento', url: '/admin/field-mapping', icon: Map },
   { title: 'Buscar Leads', url: '/admin/lead-search', icon: UserSearch },
   { title: 'Check-in', url: '/admin/checkin-settings', icon: QrCode },
+  { title: 'Criação de Leads', url: '/admin/lead-creation-config', icon: UserPlus },
   { title: 'Usuários', url: '/admin/users', icon: Users },
   { title: 'Logs', url: '/admin/logs', icon: FileText },
   { title: 'Configurações', url: '/admin/settings', icon: Settings },

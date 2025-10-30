@@ -196,7 +196,7 @@ export async function createLead(newLead: any): Promise<any> {
 
   // Many helper implementations expect (webhookBaseUrl, payload)
   try {
-    return await fn.call(null, webhookUrl, newLead);
+    return await fn.call(null, webhookUrl, newLead, supabase);
   } catch (err) {
     // If underlying util expects only payload and uses internal webhook config, try calling with only newLead
     try {

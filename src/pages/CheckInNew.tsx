@@ -68,6 +68,9 @@ export default function CheckInNew() {
   const [isLoading, setIsLoading] = useState(false);
   const [webhookUrl, setWebhookUrl] = useState("");
   const [welcomeMessage, setWelcomeMessage] = useState("Seja bem-vinda");
+  const [displayDuration, setDisplayDuration] = useState(5);
+  const [showResponsible, setShowResponsible] = useState(true);
+  const [showLeadId, setShowLeadId] = useState(false);
   const [lastScannedCode, setLastScannedCode] = useState<string>("");
   const [lastScanTime, setLastScanTime] = useState<number>(0);
   const [configLoaded, setConfigLoaded] = useState(false);
@@ -89,6 +92,8 @@ export default function CheckInNew() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newLeadData, setNewLeadData] = useState({
     nome: "",
+    nome_do_modelo: "",
+    idade: "",
     telefone: "",
   });
 
@@ -172,13 +177,16 @@ export default function CheckInNew() {
   const loadCheckInConfig = async () => {
     const { data } = await supabase
       .from("check_in_config")
-      .select("welcome_message")
+      .select("*")
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    if (data?.welcome_message) {
-      setWelcomeMessage(data.welcome_message);
+    if (data) {
+      setWelcomeMessage(data.welcome_message || "Seja bem-vinda");
+      setDisplayDuration(data.display_duration_seconds || 5);
+      setShowResponsible(data.show_responsible !== false);
+      setShowLeadId(data.show_lead_id === true);
     }
   };
 
@@ -599,7 +607,7 @@ export default function CheckInNew() {
       // Muda para tela de boas-vindas
       setScreenState('welcome');
 
-      // Auto-reset after 5 seconds and restart scanner
+      // Auto-reset after configured duration and restart scanner
       setTimeout(() => {
         console.log("[CHECK-IN] Reiniciando scanner...");
         setModelData(null);
@@ -624,7 +632,7 @@ export default function CheckInNew() {
             initScanner();
           }
         }, 800);
-      }, 5000);
+      }, displayDuration * 1000);
     } catch (error) {
       console.error(`[CHECK-IN] Erro ao confirmar:`, error);
       
@@ -763,7 +771,7 @@ export default function CheckInNew() {
 
       if (!leads || leads.length === 0) {
         // Prefill phone in create form and show it
-        setNewLeadData({ nome: "", telefone: phoneNumber });
+        setNewLeadData({ nome: "", nome_do_modelo: "", idade: "", telefone: phoneNumber });
         setShowCreateForm(true);
         toast({
           title: "Nenhum lead encontrado",
@@ -850,7 +858,7 @@ export default function CheckInNew() {
       await processCheckIn(String(createdId), 'manual');
       
       // Reset form and close dialog
-      setNewLeadData({ nome: "", telefone: "" });
+      setNewLeadData({ nome: "", nome_do_modelo: "", idade: "", telefone: "" });
       setShowCreateForm(false);
       setPhoneNumber("");
       setPhoneSearchResults([]);
@@ -1050,9 +1058,19 @@ export default function CheckInNew() {
             <p className="text-4xl sm:text-6xl font-bold text-foreground animate-shimmer">
               {modelData.name}!
             </p>
-            <p className="text-lg sm:text-xl text-muted-foreground mt-2 sm:mt-4">
-              Check-in confirmado ✓
-            </p>
+            <div className="text-lg sm:text-xl text-muted-foreground mt-2 sm:mt-4 space-y-1">
+              <p>Check-in confirmado ✓</p>
+              {showResponsible && modelData.responsible && (
+                <p className="text-base sm:text-lg">
+                  <span className="text-gold">Responsável:</span> {modelData.responsible}
+                </p>
+              )}
+              {showLeadId && (
+                <p className="text-sm sm:text-base text-white/60">
+                  ID: {modelData.lead_id}
+                </p>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -1212,6 +1230,29 @@ export default function CheckInNew() {
                         placeholder="Nome do lead"
                         value={newLeadData.nome}
                         onChange={(e) => setNewLeadData({ ...newLeadData, nome: e.target.value })}
+                        disabled={isLoading}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="nome_do_modelo">Nome do Modelo</Label>
+                      <Input
+                        id="nome_do_modelo"
+                        placeholder="Nome do modelo"
+                        value={newLeadData.nome_do_modelo}
+                        onChange={(e) => setNewLeadData({ ...newLeadData, nome_do_modelo: e.target.value })}
+                        disabled={isLoading}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="idade">Idade</Label>
+                      <Input
+                        id="idade"
+                        type="number"
+                        placeholder="Idade"
+                        value={newLeadData.idade}
+                        onChange={(e) => setNewLeadData({ ...newLeadData, idade: e.target.value })}
                         disabled={isLoading}
                       />
                     </div>
