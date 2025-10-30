@@ -92,6 +92,8 @@ export default function CheckInNew() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newLeadData, setNewLeadData] = useState({
     nome: "",
+    nome_do_modelo: "",
+    idade: "",
     telefone: "",
   });
 
@@ -769,7 +771,7 @@ export default function CheckInNew() {
 
       if (!leads || leads.length === 0) {
         // Prefill phone in create form and show it
-        setNewLeadData({ nome: "", telefone: phoneNumber });
+        setNewLeadData({ nome: "", nome_do_modelo: "", idade: "", telefone: phoneNumber });
         setShowCreateForm(true);
         toast({
           title: "Nenhum lead encontrado",
@@ -856,7 +858,7 @@ export default function CheckInNew() {
       await processCheckIn(String(createdId), 'manual');
       
       // Reset form and close dialog
-      setNewLeadData({ nome: "", telefone: "" });
+      setNewLeadData({ nome: "", nome_do_modelo: "", idade: "", telefone: "" });
       setShowCreateForm(false);
       setPhoneNumber("");
       setPhoneSearchResults([]);
@@ -1228,6 +1230,29 @@ export default function CheckInNew() {
                         placeholder="Nome do lead"
                         value={newLeadData.nome}
                         onChange={(e) => setNewLeadData({ ...newLeadData, nome: e.target.value })}
+                        disabled={isLoading}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="nome_do_modelo">Nome do Modelo</Label>
+                      <Input
+                        id="nome_do_modelo"
+                        placeholder="Nome do modelo"
+                        value={newLeadData.nome_do_modelo}
+                        onChange={(e) => setNewLeadData({ ...newLeadData, nome_do_modelo: e.target.value })}
+                        disabled={isLoading}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="idade">Idade</Label>
+                      <Input
+                        id="idade"
+                        type="number"
+                        placeholder="Idade"
+                        value={newLeadData.idade}
+                        onChange={(e) => setNewLeadData({ ...newLeadData, idade: e.target.value })}
                         disabled={isLoading}
                       />
                     </div>
