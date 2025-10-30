@@ -14,6 +14,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { isNativeApp, startNativeScan, stopNativeScan } from "@/utils/capacitorScanner";
 import { findLeadsByPhone, createLead, BitrixLead } from "@/hooks/useBitrixLead";
@@ -50,6 +60,8 @@ export default function CheckInNew() {
   const [screenState, setScreenState] = useState<ScreenState>('scanner');
   const [scanning, setScanning] = useState(false);
   const [modelData, setModelData] = useState<ModelData | null>(null);
+  const [pendingCheckInData, setPendingCheckInData] = useState<ModelData | null>(null);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [manualSearchOpen, setManualSearchOpen] = useState(false);
   const [searchId, setSearchId] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -535,20 +547,46 @@ export default function CheckInNew() {
         throw new Error(`Nome do modelo não encontrado no Lead ${leadId}. Verifique os campos no Bitrix24.`);
       }
       
-      console.log(`[CHECK-IN] Validação OK, salvando no banco...`);
+      console.log(`[CHECK-IN] Validação OK, exibindo confirmação...`);
       
-      setModelData(modelData);
       setScanning(false);
       
       // Stop scanner if active - use the safe stopScanner function
       await stopScanner();
 
+      // Show confirmation dialog instead of immediately saving
+      setPendingCheckInData(modelData);
+      setShowConfirmDialog(true);
+    } catch (error) {
+      console.error(`[CHECK-IN] Erro:`, error);
+      
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : `Lead ${leadId} não encontrado ou erro desconhecido`;
+      
+      toast({
+        title: "Erro no check-in",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const confirmCheckIn = async () => {
+    if (!pendingCheckInData) return;
+
+    try {
+      setIsLoading(true);
+      console.log(`[CHECK-IN] Confirmando check-in...`);
+
       // Save to database
       const { error: insertError } = await supabase.from("check_ins").insert({
-        lead_id: leadId,
-        model_name: modelData.name,
-        model_photo: modelData.photo,
-        responsible: modelData.responsible,
+        lead_id: pendingCheckInData.lead_id,
+        model_name: pendingCheckInData.name,
+        model_photo: pendingCheckInData.photo,
+        responsible: pendingCheckInData.responsible,
       });
 
       if (insertError) {
@@ -558,9 +596,13 @@ export default function CheckInNew() {
 
       console.log(`[CHECK-IN] Sucesso!`);
 
+      setModelData(pendingCheckInData);
+      setPendingCheckInData(null);
+      setShowConfirmDialog(false);
+
       toast({
         title: "Check-in realizado!",
-        description: `Bem-vinda, ${modelData.name}!`,
+        description: `Bem-vinda, ${pendingCheckInData.name}!`,
       });
 
       // Muda para tela de boas-vindas
@@ -595,19 +637,44 @@ export default function CheckInNew() {
         }, 800);
       }, 5000);
     } catch (error) {
-      console.error(`[CHECK-IN] Erro:`, error);
+      console.error(`[CHECK-IN] Erro ao confirmar:`, error);
       
       const errorMessage = error instanceof Error 
         ? error.message 
-        : `Lead ${leadId} não encontrado ou erro desconhecido`;
+        : "Erro ao salvar check-in";
       
       toast({
-        title: "Erro no check-in",
+        title: "Erro ao confirmar check-in",
         description: errorMessage,
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const cancelCheckIn = () => {
+    setPendingCheckInData(null);
+    setShowConfirmDialog(false);
+    
+    // Restart scanner
+    setScreenState('scanner');
+    setScanning(true);
+    
+    if (isNativeApp()) {
+      startNativeScan(
+        (code) => processCheckIn(code),
+        (error) => {
+          setCameraError(error);
+          toast({
+            variant: "destructive",
+            title: "Erro na Câmera",
+            description: error,
+          });
+        }
+      );
+    } else {
+      initScanner();
     }
   };
 
@@ -726,16 +793,36 @@ export default function CheckInNew() {
     try {
       const response = await createLead(newLeadData);
       
-      // Support both shapes: { result: id } or direct id return
-      const createdId =
-        response && typeof response === "object" && "result" in response
-          ? response.result
-          : response;
+      console.log("[CREATE-LEAD] Response from createLead:", response);
+      
+      // Support multiple response shapes from different createLead implementations
+      let createdId: string | number | undefined;
+      
+      if (response && typeof response === "object") {
+        // Shape 1: { result: number }
+        if ("result" in response && response.result) {
+          createdId = response.result;
+        }
+        // Shape 2: { id: number }
+        else if ("id" in response && response.id) {
+          createdId = (response as any).id;
+        }
+        // Shape 3: { ID: string }
+        else if ("ID" in response && response.ID) {
+          createdId = (response as any).ID;
+        }
+      } else if (typeof response === "string" || typeof response === "number") {
+        // Shape 4: direct id return
+        createdId = response;
+      }
 
       // Validate createdId is a valid value
       if (!createdId || (typeof createdId !== "string" && typeof createdId !== "number")) {
-        throw new Error("ID do lead criado é inválido");
+        console.error("[CREATE-LEAD] Invalid response:", response);
+        throw new Error(`ID do lead criado é inválido. Resposta: ${JSON.stringify(response)}`);
       }
+
+      console.log("[CREATE-LEAD] Lead created successfully with ID:", createdId);
 
       toast({
         title: "Lead criado com sucesso",
@@ -872,28 +959,6 @@ export default function CheckInNew() {
       >
         <Search className="w-5 h-5 text-primary" />
       </Button>
-
-      {/* Logo */}
-      <div className="w-full text-center mb-4 sm:mb-8 flex flex-col items-center">
-        <img 
-          src="/logo-color.png" 
-          alt="MaxCheckin" 
-          className="h-16 sm:h-20 mb-2"
-        />
-        <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-gold bg-clip-text text-transparent">
-          MaxCheckin
-        </h1>
-      </div>
-
-      {/* Manual Search Button */}
-      {scanning && !modelData && screenState === 'scanner' && (
-        <button
-          onClick={() => setManualSearchOpen(true)}
-          className="fixed bottom-4 right-4 sm:bottom-8 sm:right-8 w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gold/20 backdrop-blur-sm border-2 border-gold/40 hover:bg-gold/30 hover:border-gold/60 transition-all shadow-glow z-50 flex items-center justify-center group"
-        >
-          <Search className="w-8 h-8 sm:w-10 sm:h-10 text-gold group-hover:scale-110 transition-transform" />
-        </button>
-      )}
 
       {!configLoaded && screenState === 'scanner' && (
         <div className="flex flex-col items-center space-y-4 sm:space-y-8 animate-fade-in flex-1 justify-center w-full">
@@ -1220,6 +1285,61 @@ export default function CheckInNew() {
           </Tabs>
         </DialogContent>
       </Dialog>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent className="bg-studio-dark border-2 border-gold/30">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-2xl text-center bg-gradient-gold bg-clip-text text-transparent">
+              Confirmar Check-in
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center space-y-4">
+              {pendingCheckInData && (
+                <div className="py-4">
+                  <div className="flex justify-center mb-4">
+                    {pendingCheckInData.photo ? (
+                      <img
+                        src={pendingCheckInData.photo}
+                        alt={pendingCheckInData.name}
+                        className="w-32 h-32 rounded-full object-cover border-4 border-gold"
+                      />
+                    ) : (
+                      <div className="w-32 h-32 rounded-full bg-muted border-4 border-gold flex items-center justify-center">
+                        <User className="w-16 h-16 text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-xl font-bold text-foreground">{pendingCheckInData.name}</p>
+                    <p className="text-sm text-muted-foreground">{pendingCheckInData.responsible}</p>
+                    <p className="text-sm text-muted-foreground">Lead ID: {pendingCheckInData.lead_id}</p>
+                  </div>
+                  <p className="mt-4 text-foreground">Deseja confirmar o check-in para esta pessoa?</p>
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel onClick={cancelCheckIn} disabled={isLoading} className="w-full sm:w-auto">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmCheckIn} 
+              disabled={isLoading}
+              className="w-full sm:w-auto bg-primary hover:bg-primary/90"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processando...
+                </>
+              ) : (
+                "Confirmar Check-in"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       </div>
     </>
   );
