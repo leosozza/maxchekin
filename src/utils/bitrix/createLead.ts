@@ -122,7 +122,10 @@ function collectPhones(payload: Record<string, any>): string[] {
  * Build Bitrix lead fields given either NewLead or CreateLeadParams
  * Now includes support for loading default field values from lead_creation_config
  */
-export async function buildLeadFieldsFromNewLead(input: NewLead | CreateLeadParams, supabaseClient?: any): Promise<BitrixLeadFields> {
+export async function buildLeadFieldsFromNewLead(
+  input: NewLead | CreateLeadParams,
+  supabaseClient?: any,
+): Promise<BitrixLeadFields> {
   // Defensive check: protect against undefined input
   if (!input) {
     return {
@@ -154,15 +157,18 @@ export async function buildLeadFieldsFromNewLead(input: NewLead | CreateLeadPara
 
   // Check if input already has SOURCE_ID, PARENT_ID_1120, or UF_CRM_1741215746
   // These will be used to prevent config from overriding user-provided values
-  const inputHasSourceId = (input as any).SOURCE_ID !== undefined || 
+  const inputHasSourceId =
+    (input as any).SOURCE_ID !== undefined ||
     ((input as any).customFields && (input as any).customFields.SOURCE_ID !== undefined);
-  const inputHasParentId = (input as any).PARENT_ID_1120 !== undefined ||
+  const inputHasParentId =
+    (input as any).PARENT_ID_1120 !== undefined ||
     ((input as any).customFields && (input as any).customFields.PARENT_ID_1120 !== undefined);
-  const inputHasUfCrm1741215746 = (input as any).UF_CRM_1741215746 !== undefined ||
+  const inputHasUfCrm1741215746 =
+    (input as any).UF_CRM_1741215746 !== undefined ||
     ((input as any).customFields && (input as any).customFields.UF_CRM_1741215746 !== undefined);
 
   // Set default values for SOURCE_ID, PARENT_ID_1120, and UF_CRM_1741215746
-  fields.SOURCE_ID = 'CALL';
+  fields.SOURCE_ID = "UC_SJ3VW5";
   fields.PARENT_ID_1120 = 4;
   fields.UF_CRM_1741215746 = 4;
 
@@ -263,7 +269,11 @@ async function sendCrmLeadAdd(webhookBaseUrl: string, fields: BitrixLeadFields):
  * - Returns the full Bitrix response object (BitrixLeadResponse)
  * - Now supports optional supabaseClient parameter for loading default field config
  */
-export async function createLead(webhookBaseUrl: string, newLead: NewLead, supabaseClient?: any): Promise<BitrixLeadResponse> {
+export async function createLead(
+  webhookBaseUrl: string,
+  newLead: NewLead,
+  supabaseClient?: any,
+): Promise<BitrixLeadResponse> {
   const fields = await buildLeadFieldsFromNewLead(newLead, supabaseClient);
   const data = await sendCrmLeadAdd(webhookBaseUrl, fields);
   // Keep original behavior: throw if no result
@@ -279,7 +289,11 @@ export async function createLead(webhookBaseUrl: string, newLead: NewLead, supab
  * - Returns the created lead ID as number
  * - Now supports optional supabaseClient parameter for loading default field config
  */
-export async function createLeadInBitrix(webhookBaseUrl: string, params: CreateLeadParams, supabaseClient?: any): Promise<number> {
+export async function createLeadInBitrix(
+  webhookBaseUrl: string,
+  params: CreateLeadParams,
+  supabaseClient?: any,
+): Promise<number> {
   const fields = await buildLeadFieldsFromNewLead(params, supabaseClient);
   const data = await sendCrmLeadAdd(webhookBaseUrl, fields);
   if (!data.result) {
