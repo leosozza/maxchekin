@@ -16,12 +16,45 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "GET, OPTIONS",
 };
 
+/**
+ * Extract fileId from a Bitrix URL (showUrl or downloadUrl)
+ * Handles both absolute and relative URLs
+ */
+function extractFileIdFromUrl(url: string | undefined, bitrixWebhook: string): string | number | undefined {
+  if (!url) return undefined;
+  
+  try {
+    // Handle relative URLs by combining with webhook base
+    let fullUrl: URL;
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      fullUrl = new URL(url);
+    } else {
+      // Extract base domain from webhook URL
+      const webhookUrl = new URL(bitrixWebhook);
+      const baseUrl = `${webhookUrl.protocol}//${webhookUrl.host}`;
+      fullUrl = new URL(url, baseUrl);
+    }
+    
+    // Try to extract fileId from query parameter
+    const fileId = fullUrl.searchParams.get('fileId') || fullUrl.searchParams.get('id');
+    if (fileId) {
+      // Return as number if it's numeric, otherwise as string
+      const numericId = parseInt(fileId, 10);
+      return isNaN(numericId) ? fileId : numericId;
+    }
+  } catch (error) {
+    console.error("Error parsing URL for fileId:", error);
+  }
+  
+  return undefined;
+}
+
 // Type for potential file ID values from Bitrix
 type BitrixFieldValue =
   | string
   | number
-  | { id?: string | number; ID?: string | number }
-  | Array<{ id?: string | number; ID?: string | number }>;
+  | { id?: string | number; ID?: string | number; showUrl?: string; downloadUrl?: string }
+  | Array<{ id?: string | number; ID?: string | number; showUrl?: string; downloadUrl?: string }>;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -98,9 +131,23 @@ serve(async (req) => {
     let fileId: number | string | undefined;
 
     if (Array.isArray(fieldValue) && fieldValue.length > 0) {
-      fileId = fieldValue[0]?.id ?? fieldValue[0]?.ID;
+      const firstItem = fieldValue[0];
+      // Try to get id/ID first
+      fileId = firstItem?.id ?? firstItem?.ID;
+      // If not found, try to extract from showUrl or downloadUrl
+      if (!fileId) {
+        fileId = extractFileIdFromUrl(firstItem?.showUrl, bitrixWebhook) || 
+                 extractFileIdFromUrl(firstItem?.downloadUrl, bitrixWebhook);
+      }
     } else if (fieldValue && typeof fieldValue === "object") {
-      fileId = (fieldValue as any).id ?? (fieldValue as any).ID;
+      const objValue = fieldValue as { id?: string | number; ID?: string | number; showUrl?: string; downloadUrl?: string };
+      // Try to get id/ID first
+      fileId = objValue.id ?? objValue.ID;
+      // If not found, try to extract from showUrl or downloadUrl
+      if (!fileId) {
+        fileId = extractFileIdFromUrl(objValue.showUrl, bitrixWebhook) || 
+                 extractFileIdFromUrl(objValue.downloadUrl, bitrixWebhook);
+      }
     } else if (typeof fieldValue === "string" || typeof fieldValue === "number") {
       fileId = fieldValue;
     }
