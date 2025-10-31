@@ -85,12 +85,21 @@ serve(async (req) => {
     const fieldValue = lead[fieldName];
     let fileId: number | string | undefined;
 
+    // Define possible structures for file field values
+    interface FileObject {
+      id?: number | string;
+      ID?: number | string;
+    }
+
     if (Array.isArray(fieldValue) && fieldValue.length > 0) {
-      fileId = fieldValue[0]?.id ?? fieldValue[0]?.ID;
-    } else if (typeof fieldValue === "object" && fieldValue) {
-      fileId = (fieldValue as any).id ?? (fieldValue as any).ID;
+      const firstItem = fieldValue[0];
+      if (firstItem && typeof firstItem === "object") {
+        fileId = (firstItem as FileObject).id ?? (firstItem as FileObject).ID;
+      }
+    } else if (typeof fieldValue === "object" && fieldValue && fieldValue !== null) {
+      fileId = (fieldValue as FileObject).id ?? (fieldValue as FileObject).ID;
     } else if (typeof fieldValue === "string" || typeof fieldValue === "number") {
-      fileId = fieldValue as any;
+      fileId = fieldValue;
     }
 
     if (!fileId) {
