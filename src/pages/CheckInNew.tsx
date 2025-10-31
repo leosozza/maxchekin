@@ -675,9 +675,10 @@ export default function CheckInNew() {
           console.log(`[CHECK-IN] Atualizando Bitrix com dados do check-in...`);
           
           // Build consolidated update fields with fresh timestamp at confirmation time
-          const updateFields: any = {
-            [BITRIX_CHECK_IN_TIME_FIELD]: new Date().toISOString(),
-            UF_CRM_1755007072212: new Date().toISOString(), // Timestamp - data/hora de chegada
+          const confirmationTimestamp = new Date().toISOString();
+          const updateFields: Record<string, string> = {
+            [BITRIX_CHECK_IN_TIME_FIELD]: confirmationTimestamp,
+            UF_CRM_1755007072212: confirmationTimestamp, // Timestamp - data/hora de chegada
           };
 
           // Add presence confirmation field if mapped
