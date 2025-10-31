@@ -78,7 +78,7 @@ export default function CheckInNew() {
   const [isInitializing, setIsInitializing] = useState(true);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [pendingBitrixUpdate, setPendingBitrixUpdate] = useState<{ leadId: string; fields: Record<string, any> } | null>(null);
+  const [pendingBitrixUpdate, setPendingBitrixUpdate] = useState<{ leadId: string; presencaFieldName: string | null } | null>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const usbInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -502,21 +502,13 @@ export default function CheckInNew() {
         responsible: modelData.responsible
       });
 
-      // Prepare Bitrix update fields (will be applied after user confirmation)
+      // Prepare Bitrix update fields structure (timestamp will be set at confirmation time)
       const presencaMapping = mappings?.find(
         m => m.maxcheckin_field_name === "presenca_confirmada"
       );
 
-      const updateFields: any = {
-        UF_CRM_CHECK_IN_TIME: new Date().toISOString(),
-      };
-
-      if (presencaMapping?.bitrix_field_name) {
-        updateFields[presencaMapping.bitrix_field_name] = "1";
-      }
-
-      // Store the update fields in modelData for later use
-      modelData._bitrixUpdateFields = updateFields;
+      // Store field mapping info for later use (will generate timestamp at confirmation)
+      modelData._presencaFieldName = presencaMapping?.bitrix_field_name || null;
 
       return modelData as ModelData;
     } catch (error) {
@@ -568,13 +560,11 @@ export default function CheckInNew() {
       
       console.log(`[CHECK-IN] Validação OK, exibindo confirmação...`);
       
-      // Store pending Bitrix update fields
-      if (modelData._bitrixUpdateFields) {
-        setPendingBitrixUpdate({
-          leadId: parsedLeadId,
-          fields: modelData._bitrixUpdateFields
-        });
-      }
+      // Store the presence field name for Bitrix update (will be applied at confirmation)
+      setPendingBitrixUpdate({
+        leadId: parsedLeadId,
+        presencaFieldName: modelData._presencaFieldName || null
+      });
       
       setScanning(false);
       
@@ -674,12 +664,22 @@ export default function CheckInNew() {
       if (pendingBitrixUpdate && webhookUrl) {
         try {
           console.log(`[CHECK-IN] Aplicando atualização do Bitrix (presença confirmada)...`);
+          
+          // Build update fields with fresh timestamp at confirmation time
+          const updateFields: any = {
+            UF_CRM_CHECK_IN_TIME: new Date().toISOString(),
+          };
+
+          if (pendingBitrixUpdate.presencaFieldName) {
+            updateFields[pendingBitrixUpdate.presencaFieldName] = "1";
+          }
+          
           const response = await fetch(`${webhookUrl}/crm.lead.update.json`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               ID: pendingBitrixUpdate.leadId,
-              fields: pendingBitrixUpdate.fields,
+              fields: updateFields,
             }),
           });
 
