@@ -584,19 +584,33 @@ export default function CheckInNew() {
 
       // Check for existing check-in
       console.log(`[CHECK-IN] Verificando check-in existente para lead_id: ${parsedLeadId}`);
-      const { data: existingCheckIn } = await supabase
-        .from('check_ins')
-        .select('id, checked_in_at')
-        .eq('lead_id', parsedLeadId)
-        .maybeSingle();
-      
-      setHasPreviousCheckIn(!!existingCheckIn);
-      setPreviousCheckedAt(existingCheckIn?.checked_in_at ?? null);
-      
-      if (existingCheckIn) {
-        console.log(`[CHECK-IN] Check-in existente encontrado:`, existingCheckIn);
-      } else {
-        console.log(`[CHECK-IN] Nenhum check-in anterior encontrado`);
+      try {
+        const { data: existingCheckIn, error: checkError } = await supabase
+          .from('check_ins')
+          .select('id, checked_in_at')
+          .eq('lead_id', parsedLeadId)
+          .maybeSingle();
+        
+        if (checkError) {
+          console.error(`[CHECK-IN] Erro ao verificar check-in existente:`, checkError);
+          // Continue with flow even if check fails - just won't show warning
+          setHasPreviousCheckIn(false);
+          setPreviousCheckedAt(null);
+        } else {
+          setHasPreviousCheckIn(!!existingCheckIn);
+          setPreviousCheckedAt(existingCheckIn?.checked_in_at ?? null);
+          
+          if (existingCheckIn) {
+            console.log(`[CHECK-IN] Check-in existente encontrado:`, existingCheckIn);
+          } else {
+            console.log(`[CHECK-IN] Nenhum check-in anterior encontrado`);
+          }
+        }
+      } catch (checkErr) {
+        console.error(`[CHECK-IN] Exceção ao verificar check-in:`, checkErr);
+        // Continue with flow even if check fails
+        setHasPreviousCheckIn(false);
+        setPreviousCheckedAt(null);
       }
 
       // Show confirmation dialog instead of immediately saving
@@ -1573,10 +1587,16 @@ export default function CheckInNew() {
                       <p className="text-sm text-amber-200 font-semibold mb-1">⚠️ Check-in já realizado</p>
                       <p className="text-xs text-amber-300/80">
                         Este lead já possui um check-in registrado
-                        {previousCheckedAt && ` em ${new Date(previousCheckedAt).toLocaleString('pt-BR', { 
-                          dateStyle: 'short', 
-                          timeStyle: 'short' 
-                        })}`}.
+                        {previousCheckedAt && (() => {
+                          try {
+                            return ` em ${new Date(previousCheckedAt).toLocaleString('pt-BR', { 
+                              dateStyle: 'short', 
+                              timeStyle: 'short' 
+                            })}`;
+                          } catch {
+                            return '';
+                          }
+                        })()}.
                       </p>
                       <p className="text-xs text-amber-300/80 mt-1">
                         Deseja confirmar novamente?
