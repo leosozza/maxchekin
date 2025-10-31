@@ -28,7 +28,7 @@ import { findLeadsByPhone, createLead, BitrixLead } from "@/hooks/useBitrixLead"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getLeadPhotoUrl } from "@/utils/photo";
+import { getLeadPhotoUrl, DEFAULT_PHOTO_FIELD } from "@/utils/photo";
 
 interface ModelData {
   lead_id: string;
@@ -479,7 +479,7 @@ export default function CheckInNew() {
           if (mapping.maxcheckin_field_name === "model_name") {
             modelData.name = bitrixValue || lead.NAME || lead.TITLE || "Modelo Sem Nome";
           } else if (mapping.maxcheckin_field_name === "model_photo") {
-            const fieldName = mapping.bitrix_field_name || "UF_CRM_LEAD_1733231445171";
+            const fieldName = mapping.bitrix_field_name || DEFAULT_PHOTO_FIELD;
             modelData.photo = getLeadPhotoUrl(validLeadId, fieldName);
           } else if (mapping.maxcheckin_field_name === "responsible") {
             modelData.responsible = bitrixValue || lead.ASSIGNED_BY_NAME || "MaxFama";
@@ -491,7 +491,7 @@ export default function CheckInNew() {
         // Fallback to default fields if no mappings configured
         console.log(`[CHECK-IN] Sem mapeamentos, usando campos padrão`);
         modelData.name = lead.NAME || lead.TITLE || "Modelo Sem Nome";
-        modelData.photo = getLeadPhotoUrl(validLeadId, "UF_CRM_LEAD_1733231445171");
+        modelData.photo = getLeadPhotoUrl(validLeadId, DEFAULT_PHOTO_FIELD);
         modelData.responsible = lead.ASSIGNED_BY_NAME || "MaxFama";
       }
 
