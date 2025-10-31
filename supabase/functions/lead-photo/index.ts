@@ -7,11 +7,17 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// Default Bitrix photo field
+const DEFAULT_PHOTO_FIELD = "UF_CRM_LEAD_1733231445171";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
 };
+
+// Type for potential file ID values from Bitrix
+type BitrixFieldValue = string | number | { id?: string | number; ID?: string | number } | Array<{ id?: string | number; ID?: string | number }>;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -21,7 +27,7 @@ serve(async (req) => {
   try {
     const url = new URL(req.url);
     const leadId = url.searchParams.get("leadId")?.trim();
-    const fieldName = url.searchParams.get("fieldName")?.trim() || "UF_CRM_LEAD_1733231445171";
+    const fieldName = url.searchParams.get("fieldName")?.trim() || DEFAULT_PHOTO_FIELD;
 
     if (!leadId) {
       return new Response(JSON.stringify({ error: "leadId é obrigatório" }), {
@@ -82,15 +88,15 @@ serve(async (req) => {
     }
 
     // 2) Extrair fileId do campo de foto
-    const fieldValue = lead[fieldName];
+    const fieldValue: BitrixFieldValue = lead[fieldName];
     let fileId: number | string | undefined;
 
     if (Array.isArray(fieldValue) && fieldValue.length > 0) {
       fileId = fieldValue[0]?.id ?? fieldValue[0]?.ID;
     } else if (typeof fieldValue === "object" && fieldValue) {
-      fileId = (fieldValue as any).id ?? (fieldValue as any).ID;
+      fileId = fieldValue.id ?? fieldValue.ID;
     } else if (typeof fieldValue === "string" || typeof fieldValue === "number") {
-      fileId = fieldValue as any;
+      fileId = fieldValue;
     }
 
     if (!fileId) {
