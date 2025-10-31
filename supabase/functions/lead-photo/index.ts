@@ -19,6 +19,9 @@ const corsHeaders = {
 /**
  * Extract fileId from a Bitrix URL (showUrl or downloadUrl)
  * Handles both absolute and relative URLs
+ * @param url - The URL to extract the fileId from (can be absolute or relative)
+ * @param bitrixWebhook - The Bitrix webhook base URL used to construct absolute URLs from relative ones
+ * @returns The extracted fileId as a number (if numeric) or string, or undefined if not found
  */
 function extractFileIdFromUrl(url: string | undefined, bitrixWebhook: string): string | number | undefined {
   if (!url) return undefined;
@@ -132,22 +135,16 @@ serve(async (req) => {
 
     if (Array.isArray(fieldValue) && fieldValue.length > 0) {
       const firstItem = fieldValue[0];
-      // Try to get id/ID first
-      fileId = firstItem?.id ?? firstItem?.ID;
-      // If not found, try to extract from showUrl or downloadUrl
-      if (!fileId) {
-        fileId = extractFileIdFromUrl(firstItem?.showUrl, bitrixWebhook) || 
-                 extractFileIdFromUrl(firstItem?.downloadUrl, bitrixWebhook);
-      }
+      // Try to get id/ID first, then extract from URLs if not found
+      fileId = firstItem?.id ?? firstItem?.ID ?? 
+               extractFileIdFromUrl(firstItem?.showUrl, bitrixWebhook) ?? 
+               extractFileIdFromUrl(firstItem?.downloadUrl, bitrixWebhook);
     } else if (fieldValue && typeof fieldValue === "object") {
       const objValue = fieldValue as { id?: string | number; ID?: string | number; showUrl?: string; downloadUrl?: string };
-      // Try to get id/ID first
-      fileId = objValue.id ?? objValue.ID;
-      // If not found, try to extract from showUrl or downloadUrl
-      if (!fileId) {
-        fileId = extractFileIdFromUrl(objValue.showUrl, bitrixWebhook) || 
-                 extractFileIdFromUrl(objValue.downloadUrl, bitrixWebhook);
-      }
+      // Try to get id/ID first, then extract from URLs if not found
+      fileId = objValue.id ?? objValue.ID ?? 
+               extractFileIdFromUrl(objValue.showUrl, bitrixWebhook) ?? 
+               extractFileIdFromUrl(objValue.downloadUrl, bitrixWebhook);
     } else if (typeof fieldValue === "string" || typeof fieldValue === "number") {
       fileId = fieldValue;
     }
