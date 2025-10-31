@@ -155,9 +155,19 @@ export async function buildLeadFieldsFromNewLead(
     fields.TITLE = "Novo Lead Recepção";
   }
 
-  // Set default values for SOURCE_ID, PARENT_ID_1120, and UF_CRM_1741215746
-  // These will never be overridden by config or input to ensure consistency
-  fields.SOURCE_ID = "UC_SJ3VW5";
+  // SOURCE_ID priority: input/code > configuration > default 'CALL'
+  // First, check if SOURCE_ID is provided in input
+  const inputSourceId = (input as any).SOURCE_ID;
+  if (inputSourceId) {
+    // Priority 1: Use SOURCE_ID from input/code
+    fields.SOURCE_ID = inputSourceId;
+  } else {
+    // Priority 2: Try to load from configuration (will be set later in config loop)
+    // Priority 3: Default to 'CALL' (set at the end if not overridden)
+    fields.SOURCE_ID = 'CALL'; // Default value
+  }
+
+  // Set other default values (these are always set and never overridden)
   fields.PARENT_ID_1120 = 4;
   fields.UF_CRM_1741215746 = 4;
 
@@ -188,8 +198,8 @@ export async function buildLeadFieldsFromNewLead(
 
   // Load configured default fields from lead_creation_config if supabase client is available
   // The lead_creation_config table should have columns: field_name (string), field_value (string), is_active (boolean)
-  // Note: SOURCE_ID, PARENT_ID_1120, and UF_CRM_1741215746 are never overridden by config
-  // to ensure SOURCE_ID remains "UC_SJ3VW5" (Recepção) and the other fields keep their defaults
+  // SOURCE_ID can be overridden by config (Priority 2) if not already set by input (Priority 1)
+  // PARENT_ID_1120 and UF_CRM_1741215746 are never overridden by config
   if (supabaseClient) {
     try {
       const { data: configFields } = await supabaseClient
@@ -199,10 +209,13 @@ export async function buildLeadFieldsFromNewLead(
 
       if (configFields && configFields.length > 0) {
         for (const config of configFields) {
-          // Skip overriding SOURCE_ID, PARENT_ID_1120, and UF_CRM_1741215746 as they are already set
-          // and should not be overridden by config
-          if (config.field_name === "SOURCE_ID" || 
-              config.field_name === "PARENT_ID_1120" || 
+          // Allow SOURCE_ID from config if not provided in input (Priority 2)
+          if (config.field_name === "SOURCE_ID" && !inputSourceId && config.field_value) {
+            fields.SOURCE_ID = config.field_value;
+            continue;
+          }
+          // Skip overriding PARENT_ID_1120 and UF_CRM_1741215746 as they are always set
+          if (config.field_name === "PARENT_ID_1120" || 
               config.field_name === "UF_CRM_1741215746") {
             continue;
           }
@@ -225,18 +238,31 @@ export async function buildLeadFieldsFromNewLead(
 
 
   // Merge any custom UF_CRM_* present in input.customFields or other keys prefixed with UF_CRM_
-  // Skip overriding SOURCE_ID, PARENT_ID_1120, and UF_CRM_1741215746 as they are already set
+  // Allow SOURCE_ID from customFields (Priority 1), skip PARENT_ID_1120 and UF_CRM_1741215746
   if ((input as any).customFields && typeof (input as any).customFields === "object") {
     for (const key of Object.keys((input as any).customFields)) {
-      if (key === "SOURCE_ID" || key === "PARENT_ID_1120" || key === "UF_CRM_1741215746") {
+      // Allow SOURCE_ID override from customFields (Priority 1)
+      if (key === "SOURCE_ID") {
+        fields.SOURCE_ID = (input as any).customFields[key];
+        continue;
+      }
+      // Skip PARENT_ID_1120 and UF_CRM_1741215746 as they are always set
+      if (key === "PARENT_ID_1120" || key === "UF_CRM_1741215746") {
         continue;
       }
       (fields as any)[key] = (input as any).customFields[key];
     }
   }
 
+  // Allow other UF_CRM_* and PARENT_ID_* fields from input (except protected ones)
   for (const key of Object.keys(input)) {
-    if (key === "SOURCE_ID" || key === "PARENT_ID_1120" || key === "UF_CRM_1741215746") {
+    // Skip SOURCE_ID as it was already handled above with priority logic
+    // (inputSourceId check at start + customFields.SOURCE_ID override)
+    if (key === "SOURCE_ID") {
+      continue;
+    }
+    // Skip protected fields
+    if (key === "PARENT_ID_1120" || key === "UF_CRM_1741215746") {
       continue;
     }
     if (key.startsWith("UF_CRM_") || key.startsWith("PARENT_ID_")) {

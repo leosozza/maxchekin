@@ -529,12 +529,41 @@ export default function CheckInNew() {
     }
   };
 
+  /**
+   * Parse Bitrix lead URL and extract lead_id
+   * Accepts formats:
+   * - https://maxsystem.bitrix24.com/crm/lead/details/12345/
+   * - https://maxsystem.bitrix24.com/crm/lead/details/12345
+   * - Just the numeric lead_id: 12345
+   */
+  const parseBitrixLeadId = (input: string): string => {
+    // If input is already numeric, return it
+    if (/^\d+$/.test(input.trim())) {
+      return input.trim();
+    }
+
+    // Try to extract from Bitrix URL pattern
+    const urlPattern = /\/crm\/lead\/details\/(\d+)\/?/;
+    const match = input.match(urlPattern);
+    
+    if (match && match[1]) {
+      return match[1];
+    }
+
+    // If no match, return the original (will be validated later)
+    return input.trim();
+  };
+
   const processCheckIn = async (leadId: string, method: 'qr' | 'manual' | 'usb' = 'qr') => {
     try {
       setIsLoading(true);
-      console.log(`[CHECK-IN] Iniciando check-in - Lead: ${leadId}, Método: ${method}`);
+      console.log(`[CHECK-IN] Iniciando check-in - Input: ${leadId}, Método: ${method}`);
       
-      const modelData = await fetchModelDataFromBitrix(leadId, method);
+      // Parse Bitrix URL if needed
+      const parsedLeadId = parseBitrixLeadId(leadId);
+      console.log(`[CHECK-IN] Lead ID extraído: ${parsedLeadId}`);
+      
+      const modelData = await fetchModelDataFromBitrix(parsedLeadId, method);
       
       // Validate mandatory fields
       if (!modelData.name || modelData.name === "Modelo Sem Nome") {
@@ -571,6 +600,50 @@ export default function CheckInNew() {
     }
   };
 
+  /**
+   * Sync check-in data back to Bitrix
+   * Updates specific fields: timestamp and photo
+   */
+  const syncCheckInToBitrix = async (leadId: string, photo: string | undefined) => {
+    if (!webhookUrl) {
+      console.warn('[CHECK-IN-SYNC] Webhook não configurado, pulando sincronização');
+      return;
+    }
+
+    const fields: Record<string, any> = {
+      // UF_CRM_1755007072212: Timestamp - data/hora de chegada
+      UF_CRM_1755007072212: new Date().toISOString(),
+    };
+
+    // UF_CRM_1745431662: Imagem - foto do modelo se houver
+    if (photo) {
+      fields.UF_CRM_1745431662 = photo;
+    }
+
+    try {
+      const response = await fetch(`${webhookUrl}/crm.lead.update.json`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: leadId,
+          fields: fields,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Bitrix API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('[CHECK-IN-SYNC] Campos sincronizados com Bitrix:', data);
+    } catch (error) {
+      console.error('[CHECK-IN-SYNC] Erro ao sincronizar:', error);
+      throw error;
+    }
+  };
+
   const confirmCheckIn = async () => {
     if (!editableData) return;
 
@@ -592,6 +665,20 @@ export default function CheckInNew() {
       }
 
       console.log(`[CHECK-IN] Sucesso!`);
+
+      // Sync fields back to Bitrix after successful check-in
+      try {
+        console.log(`[CHECK-IN] Sincronizando campos com Bitrix...`);
+        await syncCheckInToBitrix(editableData.lead_id, editableData.photo);
+      } catch (syncError) {
+        // Log error but show warning to user
+        console.error(`[CHECK-IN] Erro ao sincronizar com Bitrix:`, syncError);
+        toast({
+          title: "Aviso: Sincronização parcial",
+          description: "Check-in salvo localmente, mas houve erro ao atualizar Bitrix. Os dados serão sincronizados na conclusão do fluxo.",
+          variant: "default",
+        });
+      }
 
       setModelData(editableData);
       setPendingCheckInData(null);
@@ -816,7 +903,11 @@ export default function CheckInNew() {
     setIsLoading(true);
 
     try {
-      const response = await createLead(newLeadData);
+      // Include SOURCE_ID: 'CALL' in the payload for check-in reception flow
+      const response = await createLead({
+        ...newLeadData,
+        SOURCE_ID: 'CALL'
+      });
       
       console.log("[CREATE-LEAD] Response from createLead:", response);
       
