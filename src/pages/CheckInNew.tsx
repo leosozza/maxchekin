@@ -654,20 +654,43 @@ export default function CheckInNew() {
       setIsLoading(true);
       console.log(`[CHECK-IN] Confirmando check-in...`);
 
-      // Use editableData instead of pendingCheckInData (to save edited values)
-      const { error: insertError } = await supabase.from("check_ins").insert({
+      // Prepare check-in row data
+      const checkInRow = {
         lead_id: editableData.lead_id,
         model_name: editableData.name,
         model_photo: editableData.photo,
         responsible: editableData.responsible,
-      });
+        checked_in_at: new Date().toISOString(),
+      };
 
-      if (insertError) {
-        console.error(`[CHECK-IN] Erro ao salvar:`, insertError);
-        throw new Error(`Erro ao salvar check-in: ${insertError.message}`);
+      // Use upsert to handle duplicate lead_id gracefully
+      console.log(`[CHECK-IN] Tentando upsert para lead_id: ${checkInRow.lead_id}`);
+      const { data: upsertData, error: upsertError } = await supabase
+        .from("check_ins")
+        .upsert(checkInRow, { onConflict: 'lead_id' })
+        .select()
+        .maybeSingle();
+
+      // If upsert fails with 23505 (edge case), fallback to update
+      if (upsertError && upsertError.code === '23505') {
+        console.log(`[CHECK-IN] Upsert falhou com 23505, tentando update...`);
+        const { error: updateError } = await supabase
+          .from("check_ins")
+          .update(checkInRow)
+          .eq('lead_id', checkInRow.lead_id)
+          .select()
+          .maybeSingle();
+
+        if (updateError) {
+          console.error(`[CHECK-IN] Erro ao atualizar:`, updateError);
+          throw new Error(`Erro ao salvar check-in: ${updateError.message}`);
+        }
+      } else if (upsertError) {
+        console.error(`[CHECK-IN] Erro ao salvar:`, upsertError);
+        throw new Error(`Erro ao salvar check-in: ${upsertError.message}`);
       }
 
-      console.log(`[CHECK-IN] Sucesso!`);
+      console.log(`[CHECK-IN] Sucesso!`, upsertData);
 
       // Update Bitrix with all check-in data after successful local save
       if (pendingBitrixUpdate && webhookUrl) {
