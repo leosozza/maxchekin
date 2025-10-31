@@ -15,8 +15,8 @@ import {
   SortableContext, verticalListSortingStrategy, arrayMove, useSortable,
 } from '@dnd-kit/sortable';
 
-type Stage = { id: string; name: string; position: number; panel_id: string | null; is_default: boolean };
-type CardItem = { id: string; lead_id: string; model_name: string | null; responsible: string | null; stage_id: string; position: number };
+type Stage = { id: string; name: string; position: number; panel_id: string | null; is_default: boolean; auto_call: boolean };
+type CardItem = { id: string; lead_id: string; model_name: string | null; responsible: string | null; room: string | null; stage_id: string; position: number };
 
 function SortableCard({ item, stageId, stages, onMoveCard, onCallNow, onFinalSync }: { 
   item: CardItem; 
@@ -107,7 +107,7 @@ export default function KanbanBoard() {
 
       const { data: c, error: ec } = await supabase
         .from('kanban_cards')
-        .select('id,lead_id,model_name,responsible,stage_id,position')
+        .select('id,lead_id,model_name,responsible,room,stage_id,position')
         .order('position', { ascending: true });
       if (ec) throw ec;
 
@@ -158,8 +158,10 @@ export default function KanbanBoard() {
       const reordered = arrayMove(items, activeIndex, overIndex);
       const updated = reordered.map((it, idx) => ({ ...it, position: idx }));
       setCardsByStage(prev => ({ ...prev, [activeStageId]: updated }));
-      // Persist
-      supabase.from('kanban_cards').upsert(updated.map(r => ({ id: r.id, position: r.position })));
+      // Persist - update each card's position
+      updated.forEach(async (card) => {
+        await supabase.from('kanban_cards').update({ position: card.position }).eq('id', card.id);
+      });
     } else {
       // Move to another stage
       const activeCard = cardsByStage[activeStageId][activeIndex];
@@ -187,15 +189,17 @@ export default function KanbanBoard() {
       [toStageId]: toListIndexed,
     }));
 
-    // persist - batch all position updates together
-    const allUpdates = [
-      ...fromListIndexed.map(r => ({ id: r.id, stage_id: fromStageId, position: r.position })),
-      ...toListIndexed.map(r => ({ id: r.id, stage_id: toStageId, position: r.position }))
+    // persist - update positions individually
+    const updatePromises = [
+      ...fromListIndexed.map(r => 
+        supabase.from('kanban_cards').update({ position: r.position }).eq('id', r.id)
+      ),
+      ...toListIndexed.map(r => 
+        supabase.from('kanban_cards').update({ stage_id: r.stage_id, position: r.position }).eq('id', r.id)
+      )
     ];
     
-    if (allUpdates.length) {
-      await supabase.from('kanban_cards').upsert(allUpdates);
-    }
+    await Promise.all(updatePromises);
 
     // auditar
     await supabase.from('kanban_events').insert({
@@ -211,8 +215,9 @@ export default function KanbanBoard() {
       await supabase.from('calls').insert({
         panel_id: targetStage.panel_id,
         lead_id: card.lead_id,
-        source: 'kanban',
-        created_at: new Date().toISOString()
+        model_name: card.model_name || '',
+        room: card.room,
+        source: 'kanban'
       });
       // Panel integration: panels managed in /admin/panels with realtime enabled (calls table)
     }
@@ -242,8 +247,9 @@ export default function KanbanBoard() {
       await supabase.from('calls').insert({
         panel_id: currentStage.panel_id,
         lead_id: card.lead_id,
-        source: 'kanban_call_now',
-        created_at: new Date().toISOString()
+        model_name: card.model_name || '',
+        room: card.room,
+        source: 'kanban_call_now'
       });
 
       // Registra evento de auditoria
