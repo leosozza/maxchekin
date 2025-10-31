@@ -89,17 +89,11 @@ export async function getLeadKanbanHistory(leadId: string): Promise<StageTimesta
 
 /**
  * Busca informações da sala por etapa (se disponível)
+ * TODO: Implementar quando adicionar campo 'room' em kanban_cards/kanban_events
  */
 export async function getLeadRoomLog(leadId: string): Promise<Record<string, string>> {
-  // Por enquanto retorna vazio, mas pode ser estendido
-  // se adicionar campo 'room' na tabela kanban_cards ou kanban_events
-  const { data: card } = await supabase
-    .from('kanban_cards')
-    .select('*, stage:kanban_stages(name)')
-    .eq('lead_id', leadId)
-    .single();
-
-  // Placeholder - expandir quando houver campo room
+  // Placeholder - retorna vazio até adicionar funcionalidade de sala
+  // Futura implementação: buscar sala de cada etapa quando disponível
   return {};
 }
 
@@ -196,10 +190,10 @@ export async function syncFinalToBitrix(
 
     console.log('[SYNC-FINAL] Sincronização concluída com sucesso:', data);
 
-    // TODO: Se houver anexos, enviar via disk.file.upload
-    if (syncData.attachments && syncData.attachments.length > 0) {
-      await syncAttachmentsToBitrix(webhookUrl, syncData.lead_id, syncData.attachments);
-    }
+    // TODO: Future enhancement - attachment synchronization
+    // if (syncData.attachments && syncData.attachments.length > 0) {
+    //   await syncAttachmentsToBitrix(webhookUrl, syncData.lead_id, syncData.attachments);
+    // }
 
   } catch (error) {
     console.error('[SYNC-FINAL] Erro ao sincronizar:', error);
@@ -244,7 +238,7 @@ export async function performFinalSync(
   notes?: string
 ): Promise<void> {
   // Buscar webhook URL
-  const { data: config } = await supabase
+  const { data: config, error: configError } = await supabase
     .from('webhook_config')
     .select('bitrix_webhook_url')
     .eq('is_active', true)
@@ -252,9 +246,13 @@ export async function performFinalSync(
     .limit(1)
     .maybeSingle();
 
+  if (configError) {
+    throw new Error(`Erro ao buscar configuração de webhook: ${configError.message}`);
+  }
+
   const webhookUrl = config?.bitrix_webhook_url;
   if (!webhookUrl) {
-    throw new Error('Webhook URL não configurada');
+    throw new Error('Webhook URL não configurada. Configure em Admin → Webhooks.');
   }
 
   // Buscar histórico completo

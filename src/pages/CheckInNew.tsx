@@ -671,8 +671,13 @@ export default function CheckInNew() {
         console.log(`[CHECK-IN] Sincronizando campos com Bitrix...`);
         await syncCheckInToBitrix(editableData.lead_id, editableData.photo);
       } catch (syncError) {
-        // Don't fail check-in if sync fails, just log it
-        console.error(`[CHECK-IN] Erro ao sincronizar com Bitrix (não crítico):`, syncError);
+        // Log error but show warning to user
+        console.error(`[CHECK-IN] Erro ao sincronizar com Bitrix:`, syncError);
+        toast({
+          title: "Aviso: Sincronização parcial",
+          description: "Check-in salvo localmente, mas houve erro ao atualizar Bitrix. Os dados serão sincronizados na conclusão do fluxo.",
+          variant: "default",
+        });
       }
 
       setModelData(editableData);
