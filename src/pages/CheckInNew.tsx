@@ -762,6 +762,8 @@ export default function CheckInNew() {
       setPendingBitrixUpdate(null); // Clear pending update
       setEditableData(null);
       setIsEditMode(false);
+      setHasPreviousCheckIn(false);
+      setPreviousCheckedAt(null);
       setShowConfirmDialog(false);
 
       toast({
