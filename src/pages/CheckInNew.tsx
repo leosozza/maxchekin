@@ -491,7 +491,7 @@ export default function CheckInNew() {
         // Fallback to default fields if no mappings configured
         console.log(`[CHECK-IN] Sem mapeamentos, usando campos padrão`);
         modelData.name = lead.NAME || lead.TITLE || "Modelo Sem Nome";
-        modelData.photo = lead.PHOTO || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400";
+        modelData.photo = getLeadPhotoUrl(validLeadId, "UF_CRM_LEAD_1733231445171");
         modelData.responsible = lead.ASSIGNED_BY_NAME || "MaxFama";
       }
 

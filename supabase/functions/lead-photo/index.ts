@@ -17,7 +17,11 @@ const corsHeaders = {
 };
 
 // Type for potential file ID values from Bitrix
-type BitrixFieldValue = string | number | { id?: string | number; ID?: string | number } | Array<{ id?: string | number; ID?: string | number }>;
+type BitrixFieldValue =
+  | string
+  | number
+  | { id?: string | number; ID?: string | number }
+  | Array<{ id?: string | number; ID?: string | number }>;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -71,7 +75,9 @@ serve(async (req) => {
     }
 
     // 1) Buscar o Lead
-    const leadResp = await fetch(`${bitrixWebhook}/crm.lead.get.json?id=${encodeURIComponent(leadId)}`);
+    const leadResp = await fetch(
+      `${bitrixWebhook}/crm.lead.get.json?id=${encodeURIComponent(leadId)}`
+    );
     if (!leadResp.ok) {
       return new Response(JSON.stringify({ error: `crm.lead.get falhou: ${leadResp.status}` }), {
         status: 502,
@@ -88,22 +94,25 @@ serve(async (req) => {
     }
 
     // 2) Extrair fileId do campo de foto
-    const fieldValue: BitrixFieldValue = lead[fieldName];
+    const fieldValue: BitrixFieldValue = (lead as any)[fieldName];
     let fileId: number | string | undefined;
 
     if (Array.isArray(fieldValue) && fieldValue.length > 0) {
       fileId = fieldValue[0]?.id ?? fieldValue[0]?.ID;
-    } else if (typeof fieldValue === "object" && fieldValue) {
-      fileId = fieldValue.id ?? fieldValue.ID;
+    } else if (fieldValue && typeof fieldValue === "object") {
+      fileId = (fieldValue as any).id ?? (fieldValue as any).ID;
     } else if (typeof fieldValue === "string" || typeof fieldValue === "number") {
       fileId = fieldValue;
     }
 
     if (!fileId) {
-      return new Response(JSON.stringify({ error: "Nenhuma foto encontrada no campo informado" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "Nenhuma foto encontrada no campo informado" }),
+        {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
 
     // 3) Obter URL de download assinada
@@ -130,10 +139,13 @@ serve(async (req) => {
     // 4) Baixar e retransmitir a imagem
     const imgResp = await fetch(downloadUrl);
     if (!imgResp.ok || !imgResp.body) {
-      return new Response(JSON.stringify({ error: `Falha ao baixar a imagem (${imgResp.status})` }), {
-        status: 502,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: `Falha ao baixar a imagem (${imgResp.status})` }),
+        {
+          status: 502,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
 
     const headers = new Headers(corsHeaders);
