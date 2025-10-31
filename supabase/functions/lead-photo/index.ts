@@ -7,11 +7,21 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// Default Bitrix photo field
+const DEFAULT_PHOTO_FIELD = "UF_CRM_LEAD_1733231445171";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
 };
+
+// Type for potential file ID values from Bitrix
+type BitrixFieldValue =
+  | string
+  | number
+  | { id?: string | number; ID?: string | number }
+  | Array<{ id?: string | number; ID?: string | number }>;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -21,7 +31,7 @@ serve(async (req) => {
   try {
     const url = new URL(req.url);
     const leadId = url.searchParams.get("leadId")?.trim();
-    const fieldName = url.searchParams.get("fieldName")?.trim() || "UF_CRM_LEAD_1733231445171";
+    const fieldName = url.searchParams.get("fieldName")?.trim() || DEFAULT_PHOTO_FIELD;
 
     if (!leadId) {
       return new Response(JSON.stringify({ error: "leadId é obrigatório" }), {
@@ -65,7 +75,9 @@ serve(async (req) => {
     }
 
     // 1) Buscar o Lead
-    const leadResp = await fetch(`${bitrixWebhook}/crm.lead.get.json?id=${encodeURIComponent(leadId)}`);
+    const leadResp = await fetch(
+      `${bitrixWebhook}/crm.lead.get.json?id=${encodeURIComponent(leadId)}`
+    );
     if (!leadResp.ok) {
       return new Response(JSON.stringify({ error: `crm.lead.get falhou: ${leadResp.status}` }), {
         status: 502,
@@ -82,31 +94,25 @@ serve(async (req) => {
     }
 
     // 2) Extrair fileId do campo de foto
-    const fieldValue = lead[fieldName];
+    const fieldValue: BitrixFieldValue = (lead as any)[fieldName];
     let fileId: number | string | undefined;
 
-    // Define possible structures for file field values
-    interface FileObject {
-      id?: number | string;
-      ID?: number | string;
-    }
-
     if (Array.isArray(fieldValue) && fieldValue.length > 0) {
-      const firstItem = fieldValue[0];
-      if (firstItem && typeof firstItem === "object") {
-        fileId = (firstItem as FileObject).id ?? (firstItem as FileObject).ID;
-      }
-    } else if (typeof fieldValue === "object" && fieldValue && fieldValue !== null) {
-      fileId = (fieldValue as FileObject).id ?? (fieldValue as FileObject).ID;
+      fileId = fieldValue[0]?.id ?? fieldValue[0]?.ID;
+    } else if (fieldValue && typeof fieldValue === "object") {
+      fileId = (fieldValue as any).id ?? (fieldValue as any).ID;
     } else if (typeof fieldValue === "string" || typeof fieldValue === "number") {
       fileId = fieldValue;
     }
 
     if (!fileId) {
-      return new Response(JSON.stringify({ error: "Nenhuma foto encontrada no campo informado" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "Nenhuma foto encontrada no campo informado" }),
+        {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
 
     // 3) Obter URL de download assinada
@@ -133,10 +139,13 @@ serve(async (req) => {
     // 4) Baixar e retransmitir a imagem
     const imgResp = await fetch(downloadUrl);
     if (!imgResp.ok || !imgResp.body) {
-      return new Response(JSON.stringify({ error: `Falha ao baixar a imagem (${imgResp.status})` }), {
-        status: 502,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: `Falha ao baixar a imagem (${imgResp.status})` }),
+        {
+          status: 502,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
 
     const headers = new Headers(corsHeaders);
