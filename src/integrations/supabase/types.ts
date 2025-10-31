@@ -71,6 +71,7 @@ export type Database = {
           panel_id: string | null
           responsible: string | null
           room: string | null
+          source: string | null
           status: string | null
         }
         Insert: {
@@ -85,6 +86,7 @@ export type Database = {
           panel_id?: string | null
           responsible?: string | null
           room?: string | null
+          source?: string | null
           status?: string | null
         }
         Update: {
@@ -99,6 +101,7 @@ export type Database = {
           panel_id?: string | null
           responsible?: string | null
           room?: string | null
+          source?: string | null
           status?: string | null
         }
         Relationships: [
@@ -114,22 +117,31 @@ export type Database = {
       check_in_config: {
         Row: {
           created_at: string | null
+          display_duration_seconds: number | null
           id: string
+          show_lead_id: boolean | null
           show_photo_placeholder: boolean | null
+          show_responsible: boolean | null
           updated_at: string | null
           welcome_message: string
         }
         Insert: {
           created_at?: string | null
+          display_duration_seconds?: number | null
           id?: string
+          show_lead_id?: boolean | null
           show_photo_placeholder?: boolean | null
+          show_responsible?: boolean | null
           updated_at?: string | null
           welcome_message?: string
         }
         Update: {
           created_at?: string | null
+          display_duration_seconds?: number | null
           id?: string
+          show_lead_id?: boolean | null
           show_photo_placeholder?: boolean | null
+          show_responsible?: boolean | null
           updated_at?: string | null
           welcome_message?: string
         }
@@ -233,6 +245,159 @@ export type Database = {
           transform_function?: string | null
         }
         Relationships: []
+      }
+      kanban_cards: {
+        Row: {
+          created_at: string | null
+          id: string
+          lead_id: string
+          model_name: string | null
+          position: number
+          responsible: string | null
+          room: string | null
+          stage_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          lead_id: string
+          model_name?: string | null
+          position?: number
+          responsible?: string | null
+          room?: string | null
+          stage_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          lead_id?: string
+          model_name?: string | null
+          position?: number
+          responsible?: string | null
+          room?: string | null
+          stage_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kanban_cards_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "kanban_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kanban_events: {
+        Row: {
+          by_user: string | null
+          created_at: string | null
+          from_stage_id: string | null
+          id: string
+          lead_id: string
+          method: string | null
+          to_stage_id: string | null
+        }
+        Insert: {
+          by_user?: string | null
+          created_at?: string | null
+          from_stage_id?: string | null
+          id?: string
+          lead_id: string
+          method?: string | null
+          to_stage_id?: string | null
+        }
+        Update: {
+          by_user?: string | null
+          created_at?: string | null
+          from_stage_id?: string | null
+          id?: string
+          lead_id?: string
+          method?: string | null
+          to_stage_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kanban_events_from_stage_id_fkey"
+            columns: ["from_stage_id"]
+            isOneToOne: false
+            referencedRelation: "kanban_stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kanban_events_to_stage_id_fkey"
+            columns: ["to_stage_id"]
+            isOneToOne: false
+            referencedRelation: "kanban_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kanban_stage_users: {
+        Row: {
+          stage_id: string
+          user_id: string
+        }
+        Insert: {
+          stage_id: string
+          user_id: string
+        }
+        Update: {
+          stage_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kanban_stage_users_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "kanban_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kanban_stages: {
+        Row: {
+          auto_call: boolean | null
+          created_at: string | null
+          id: string
+          is_default: boolean | null
+          name: string
+          panel_id: string | null
+          position: number
+          updated_at: string | null
+        }
+        Insert: {
+          auto_call?: boolean | null
+          created_at?: string | null
+          id?: string
+          is_default?: boolean | null
+          name: string
+          panel_id?: string | null
+          position?: number
+          updated_at?: string | null
+        }
+        Update: {
+          auto_call?: boolean | null
+          created_at?: string | null
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          panel_id?: string | null
+          position?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kanban_stages_panel_id_fkey"
+            columns: ["panel_id"]
+            isOneToOne: false
+            referencedRelation: "panels"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       media: {
         Row: {
