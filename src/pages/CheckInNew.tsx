@@ -38,6 +38,14 @@ interface ModelData {
   [key: string]: unknown;
 }
 
+interface FetchModelDataResult {
+  modelData: ModelData;
+  presencaFieldName: string | null;
+}
+
+// Bitrix field constants
+const BITRIX_CHECK_IN_TIME_FIELD = 'UF_CRM_CHECK_IN_TIME';
+
 // Validation schemas for security
 const leadIdSchema = z.string()
   .trim()
@@ -413,7 +421,7 @@ export default function CheckInNew() {
     }
   };
 
-  const fetchModelDataFromBitrix = async (leadId: string, source: 'qr' | 'usb' | 'manual' = 'qr') => {
+  const fetchModelDataFromBitrix = async (leadId: string, source: 'qr' | 'usb' | 'manual' = 'qr'): Promise<FetchModelDataResult> => {
     try {
       console.log("[CHECK-IN] Webhook atual:", webhookUrl ? "CONFIGURADO" : "VAZIO");
       
@@ -502,15 +510,15 @@ export default function CheckInNew() {
         responsible: modelData.responsible
       });
 
-      // Prepare Bitrix update fields structure (timestamp will be set at confirmation time)
+      // Find presence field mapping for later use at confirmation
       const presencaMapping = mappings?.find(
         m => m.maxcheckin_field_name === "presenca_confirmada"
       );
 
-      // Store field mapping info for later use (will generate timestamp at confirmation)
-      modelData._presencaFieldName = presencaMapping?.bitrix_field_name || null;
-
-      return modelData as ModelData;
+      return {
+        modelData: modelData as ModelData,
+        presencaFieldName: presencaMapping?.bitrix_field_name || null
+      };
     } catch (error) {
       console.error("Error fetching from Bitrix:", error);
       throw error;
@@ -551,7 +559,8 @@ export default function CheckInNew() {
       const parsedLeadId = parseBitrixLeadId(leadId);
       console.log(`[CHECK-IN] Lead ID extraído: ${parsedLeadId}`);
       
-      const modelData = await fetchModelDataFromBitrix(parsedLeadId, method);
+      const result = await fetchModelDataFromBitrix(parsedLeadId, method);
+      const modelData = result.modelData;
       
       // Validate mandatory fields
       if (!modelData.name || modelData.name === "Modelo Sem Nome") {
@@ -563,7 +572,7 @@ export default function CheckInNew() {
       // Store the presence field name for Bitrix update (will be applied at confirmation)
       setPendingBitrixUpdate({
         leadId: parsedLeadId,
-        presencaFieldName: modelData._presencaFieldName || null
+        presencaFieldName: result.presencaFieldName
       });
       
       setScanning(false);
@@ -660,18 +669,25 @@ export default function CheckInNew() {
 
       console.log(`[CHECK-IN] Sucesso!`);
 
-      // Apply pending Bitrix update after successful local check-in
+      // Update Bitrix with all check-in data after successful local save
       if (pendingBitrixUpdate && webhookUrl) {
         try {
-          console.log(`[CHECK-IN] Aplicando atualização do Bitrix (presença confirmada)...`);
+          console.log(`[CHECK-IN] Atualizando Bitrix com dados do check-in...`);
           
-          // Build update fields with fresh timestamp at confirmation time
+          // Build consolidated update fields with fresh timestamp at confirmation time
           const updateFields: any = {
-            UF_CRM_CHECK_IN_TIME: new Date().toISOString(),
+            [BITRIX_CHECK_IN_TIME_FIELD]: new Date().toISOString(),
+            UF_CRM_1755007072212: new Date().toISOString(), // Timestamp - data/hora de chegada
           };
 
+          // Add presence confirmation field if mapped
           if (pendingBitrixUpdate.presencaFieldName) {
             updateFields[pendingBitrixUpdate.presencaFieldName] = "1";
+          }
+
+          // Add photo if available
+          if (editableData.photo) {
+            updateFields.UF_CRM_1745431662 = editableData.photo; // Imagem - foto do modelo
           }
           
           const response = await fetch(`${webhookUrl}/crm.lead.update.json`, {
@@ -687,29 +703,15 @@ export default function CheckInNew() {
             throw new Error(`Bitrix API error: ${response.status}`);
           }
 
-          console.log(`[CHECK-IN] Bitrix atualizado com sucesso (presença confirmada)`);
+          console.log(`[CHECK-IN] Bitrix atualizado com sucesso`);
         } catch (bitrixError) {
           console.error(`[CHECK-IN] Erro ao atualizar Bitrix:`, bitrixError);
           toast({
             title: "Aviso: Atualização parcial",
-            description: "Check-in salvo localmente, mas houve erro ao atualizar presença no Bitrix.",
+            description: "Check-in salvo localmente, mas houve erro ao atualizar Bitrix.",
             variant: "default",
           });
         }
-      }
-
-      // Sync fields back to Bitrix after successful check-in
-      try {
-        console.log(`[CHECK-IN] Sincronizando campos com Bitrix...`);
-        await syncCheckInToBitrix(editableData.lead_id, editableData.photo);
-      } catch (syncError) {
-        // Log error but show warning to user
-        console.error(`[CHECK-IN] Erro ao sincronizar com Bitrix:`, syncError);
-        toast({
-          title: "Aviso: Sincronização parcial",
-          description: "Check-in salvo localmente, mas houve erro ao atualizar Bitrix. Os dados serão sincronizados na conclusão do fluxo.",
-          variant: "default",
-        });
       }
 
       setModelData(editableData);
