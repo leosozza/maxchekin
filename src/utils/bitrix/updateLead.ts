@@ -11,7 +11,6 @@ export interface UpdateLeadData {
   name?: string;
   responsible?: string;
   photo?: string;
-  [key: string]: string | undefined; // Allow additional fields
 }
 
 /**
@@ -20,7 +19,7 @@ export interface UpdateLeadData {
  * @returns Updated lead ID or throws error
  */
 export async function updateLead(leadData: UpdateLeadData): Promise<{ success: boolean; lead_id: string }> {
-  const { lead_id, name, responsible, photo, ...customFields } = leadData;
+  const { lead_id, name, responsible, photo } = leadData;
 
   if (!lead_id) {
     throw new Error('lead_id is required for update');
@@ -67,13 +66,6 @@ export async function updateLead(leadData: UpdateLeadData): Promise<{ success: b
       fields[photoFieldName] = photo;
     }
   }
-
-  // Add any additional custom fields
-  Object.keys(customFields).forEach((key) => {
-    if (customFields[key] !== undefined) {
-      fields[key] = customFields[key];
-    }
-  });
 
   console.log('[UPDATE-LEAD] Fields to update:', fields);
 

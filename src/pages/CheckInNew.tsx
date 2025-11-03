@@ -850,27 +850,32 @@ export default function CheckInNew() {
 
     try {
       // Update lead in Bitrix
-      await updateLead({
+      const result = await updateLead({
         lead_id: editableData.lead_id,
         name: editableData.name,
         responsible: editableData.responsible,
         photo: editableData.photo,
       });
 
-      // Update local state with edited data
-      setModelData(editableData);
-      setPendingCheckInData(editableData);
+      // Only update local state after confirming Bitrix update was successful
+      if (result.success) {
+        // Update local state with edited data
+        setModelData(editableData);
+        setPendingCheckInData(editableData);
 
-      // Reset photo error state
-      setPhotoError(false);
-      
-      // Exit edit mode after saving
-      setIsEditMode(false);
-      
-      toast({
-        title: "Edições salvas",
-        description: "As alterações foram aplicadas no Bitrix",
-      });
+        // Reset photo error state
+        setPhotoError(false);
+        
+        // Exit edit mode after saving
+        setIsEditMode(false);
+        
+        toast({
+          title: "Edições salvas",
+          description: "As alterações foram aplicadas no Bitrix",
+        });
+      } else {
+        throw new Error("Bitrix update returned unsuccessful result");
+      }
     } catch (error) {
       console.error('[CHECKIN] Error saving edits to Bitrix:', error);
       
