@@ -92,20 +92,43 @@ export function StageFieldsSettings({ stageId }: StageFieldsSettingsProps) {
   };
 
   const linkExistingField = async (fieldId: string) => {
-    await supabase.from('kanban_stage_fields').insert({
-      stage_id: stageId,
-      field_id: fieldId,
-      sort_order: stageFields.length
-    });
+    try {
+      const { error } = await supabase.from('kanban_stage_fields').insert({
+        stage_id: stageId,
+        field_id: fieldId,
+        sort_order: stageFields.length
+      });
 
-    toast({ title: "Campo adicionado!" });
-    loadFields();
+      if (error) throw error;
+
+      toast({ title: "Campo adicionado!" });
+      loadFields();
+    } catch (error) {
+      console.error('Erro ao vincular campo:', error);
+      toast({ 
+        title: "Erro ao adicionar campo",
+        description: "Não foi possível vincular o campo à etapa.",
+        variant: "destructive" 
+      });
+    }
   };
 
   const unlinkField = async (linkId: string) => {
-    await supabase.from('kanban_stage_fields').delete().eq('id', linkId);
-    toast({ title: "Campo removido!" });
-    loadFields();
+    try {
+      const { error } = await supabase.from('kanban_stage_fields').delete().eq('id', linkId);
+      
+      if (error) throw error;
+      
+      toast({ title: "Campo removido!" });
+      loadFields();
+    } catch (error) {
+      console.error('Erro ao desvincular campo:', error);
+      toast({ 
+        title: "Erro ao remover campo",
+        description: "Não foi possível remover o campo da etapa.",
+        variant: "destructive" 
+      });
+    }
   };
 
   const addOption = () => {

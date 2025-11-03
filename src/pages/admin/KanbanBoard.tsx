@@ -261,12 +261,14 @@ export default function KanbanBoard() {
 
       await moveCardToStage(updatedCard, toStageId, toIndex, 'kanban', values);
       setPendingCardMove(null);
-      setCustomFieldsModalOpen(false);
       
       toast({
         title: "Card movido!",
         description: "Os campos personalizados foram salvos com sucesso.",
       });
+      
+      // Only close modal after successful operation
+      setCustomFieldsModalOpen(false);
     } catch (error) {
       console.error('Erro ao mover card com campos customizados:', error);
       toast({
