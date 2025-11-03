@@ -368,6 +368,9 @@ export type Database = {
           panel_id: string | null
           position: number
           updated_at: string | null
+          webhook_on_enter: boolean | null
+          webhook_on_exit: boolean | null
+          webhook_url: string | null
         }
         Insert: {
           auto_call?: boolean | null
@@ -378,6 +381,9 @@ export type Database = {
           panel_id?: string | null
           position?: number
           updated_at?: string | null
+          webhook_on_enter?: boolean | null
+          webhook_on_exit?: boolean | null
+          webhook_url?: string | null
         }
         Update: {
           auto_call?: boolean | null
@@ -388,6 +394,9 @@ export type Database = {
           panel_id?: string | null
           position?: number
           updated_at?: string | null
+          webhook_on_enter?: boolean | null
+          webhook_on_exit?: boolean | null
+          webhook_url?: string | null
         }
         Relationships: [
           {

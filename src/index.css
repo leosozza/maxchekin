@@ -98,46 +98,46 @@ All colors MUST be HSL.
     --neon-glow: 340 80% 60%;
   }
 
-  /* Light Theme */
+  /* Light Theme - Minimalista com alto contraste */
   :root[data-theme="light"] {
-    --background: 220 20% 98%;
-    --foreground: 220 50% 15%;
+    --background: 0 0% 100%;
+    --foreground: 220 80% 10%;
 
-    --primary: 320 90% 55%;
+    --primary: 220 90% 25%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 195 95% 45%;
+    --secondary: 220 20% 40%;
     --secondary-foreground: 0 0% 100%;
 
-    --accent: 340 95% 60%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 220 30% 90%;
+    --accent-foreground: 220 80% 10%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 220 50% 15%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 50% 15%;
-    --muted: 220 15% 92%;
-    --muted-foreground: 220 20% 45%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 220 15% 85%;
-    --input: 220 15% 85%;
-    --ring: 320 90% 55%;
+    --card: 0 0% 98%;
+    --card-foreground: 220 80% 10%;
+    --popover: 0 0% 98%;
+    --popover-foreground: 220 80% 10%;
+    --muted: 220 20% 95%;
+    --muted-foreground: 220 40% 35%;
+    --destructive: 0 84% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 30% 80%;
+    --input: 220 30% 85%;
+    --ring: 220 90% 25%;
 
     --radius: 0.75rem;
 
-    --gradient-gold: linear-gradient(135deg, hsl(320 90% 55%), hsl(340 95% 60%));
-    --gradient-studio: radial-gradient(circle at center, hsl(220 30% 95%), hsl(220 20% 98%));
-    --gradient-neon: linear-gradient(135deg, hsl(195 95% 45%), hsl(210 95% 55%));
+    --gradient-gold: linear-gradient(135deg, hsl(220 90% 25%), hsl(220 80% 30%));
+    --gradient-studio: radial-gradient(circle at center, hsl(0 0% 98%), hsl(0 0% 100%));
+    --gradient-neon: linear-gradient(135deg, hsl(220 70% 35%), hsl(220 60% 40%));
 
-    --shadow-gold: 0 10px 40px -10px hsl(320 90% 55% / 0.3);
-    --shadow-neon: 0 0 50px hsl(320 90% 65% / 0.3);
-    --shadow-elevation: 0 10px 40px -10px hsl(220 20% 80% / 0.4);
+    --shadow-gold: 0 4px 12px hsl(220 20% 20% / 0.1);
+    --shadow-neon: 0 0 20px hsl(220 30% 40% / 0.15);
+    --shadow-elevation: 0 8px 24px hsl(220 20% 20% / 0.12);
 
-    --studio-dark: 220 15% 95%;
+    --studio-dark: 220 20% 95%;
     --studio-light: 0 0% 100%;
-    --gold-shimmer: 320 90% 65%;
-    --neon-glow: 340 95% 60%;
+    --gold-shimmer: 220 80% 30%;
+    --neon-glow: 220 70% 35%;
   }
 
   :root {

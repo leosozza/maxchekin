@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Plus, Settings, Users as UsersIcon, Phone, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { performFinalSync } from '@/utils/bitrix/finalSync';
+import { StageWebhookSettings } from '@/components/admin/StageWebhookSettings';
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent,
 } from '@dnd-kit/core';
@@ -15,7 +16,17 @@ import {
   SortableContext, verticalListSortingStrategy, arrayMove, useSortable,
 } from '@dnd-kit/sortable';
 
-type Stage = { id: string; name: string; position: number; panel_id: string | null; is_default: boolean; auto_call: boolean };
+type Stage = { 
+  id: string; 
+  name: string; 
+  position: number; 
+  panel_id: string | null; 
+  is_default: boolean; 
+  auto_call: boolean;
+  webhook_url: string | null;
+  webhook_on_enter: boolean;
+  webhook_on_exit: boolean;
+};
 type CardItem = { id: string; lead_id: string; model_name: string | null; responsible: string | null; room: string | null; stage_id: string; position: number };
 
 function SortableCard({ item, stageId, stages, onMoveCard, onCallNow, onFinalSync }: { 
@@ -88,6 +99,7 @@ export default function KanbanBoard() {
   const [openCreateStage, setOpenCreateStage] = useState(false);
   const [newStageName, setNewStageName] = useState('');
   const [stageUsersOpen, setStageUsersOpen] = useState<{open: boolean; stage?: Stage}>({open:false});
+  const [stageSettingsOpen, setStageSettingsOpen] = useState<{open: boolean; stage?: Stage}>({open:false});
   
   // modal de sync final
   const [finalSyncOpen, setFinalSyncOpen] = useState(false);
@@ -172,6 +184,30 @@ export default function KanbanBoard() {
   // mover entre colunas
   const moveCardToStage = async (card: CardItem, toStageId: string, toIndex: number, byMethod: 'kanban' | 'checkin' = 'kanban') => {
     const fromStageId = card.stage_id;
+    const fromStage = stages.find(s => s.id === fromStageId);
+    const toStage = stages.find(s => s.id === toStageId);
+
+    // Chamar webhook de saída da etapa anterior
+    if (fromStage?.webhook_url && fromStage.webhook_on_exit) {
+      try {
+        await supabase.functions.invoke('kanban-webhook', {
+          body: {
+            webhook_url: fromStage.webhook_url,
+            lead_id: card.lead_id,
+            stage_name: fromStage.name,
+            event_type: 'exit',
+            card_data: {
+              model_name: card.model_name,
+              responsible: card.responsible,
+              room: card.room,
+            }
+          }
+        });
+        console.log(`Webhook de saída chamado para etapa ${fromStage.name}`);
+      } catch (error) {
+        console.error('Erro ao chamar webhook de saída:', error);
+      }
+    }
 
     // atualiza UI
     const fromList = (cardsByStage[fromStageId] || []).filter(x => x.id !== card.id);
@@ -209,17 +245,41 @@ export default function KanbanBoard() {
       method: byMethod,
     });
 
+    // Chamar webhook de entrada na nova etapa
+    if (toStage?.webhook_url && toStage.webhook_on_enter) {
+      try {
+        await supabase.functions.invoke('kanban-webhook', {
+          body: {
+            webhook_url: toStage.webhook_url,
+            lead_id: card.lead_id,
+            stage_name: toStage.name,
+            event_type: 'enter',
+            card_data: {
+              model_name: card.model_name,
+              responsible: card.responsible,
+              room: card.room,
+            }
+          }
+        });
+        console.log(`Webhook de entrada chamado para etapa ${toStage.name}`);
+      } catch (error) {
+        console.error('Erro ao chamar webhook de entrada:', error);
+      }
+    }
+
     // chamar painel (se a coluna tiver panel_id vinculado)
-    const targetStage = stages.find(s => s.id === toStageId);
-    if (targetStage?.panel_id) {
+    if (toStage?.panel_id) {
       await supabase.from('calls').insert({
-        panel_id: targetStage.panel_id,
+        panel_id: toStage.panel_id,
         lead_id: card.lead_id,
         model_name: card.model_name || '',
         room: card.room,
         source: 'kanban'
       });
-      // Panel integration: panels managed in /admin/panels with realtime enabled (calls table)
+      toast({
+        title: "Lead chamado no painel!",
+        description: `${card.model_name} foi chamado no painel ${toStage.name}`,
+      });
     }
   };
 
@@ -352,7 +412,8 @@ export default function KanbanBoard() {
                         onClick={() => setStageUsersOpen({open:true, stage})}>
                         <UsersIcon className="w-4 h-4" />
                       </Button>
-                      <Button variant="outline" size="sm" className="border-gold/20 text-white">
+                      <Button variant="outline" size="sm" className="border-gold/20 text-white"
+                        onClick={() => setStageSettingsOpen({open:true, stage})}>
                         <Settings className="w-4 h-4" />
                       </Button>
                     </div>
@@ -392,13 +453,39 @@ export default function KanbanBoard() {
         </DialogContent>
       </Dialog>
 
-      {/* Configurar Usuários da Etapa (check-in por usuário/etapa) */}
+      {/* Configurar Usuários da Etapa */}
       <Dialog open={stageUsersOpen.open} onOpenChange={(o)=>setStageUsersOpen({open:o, stage: stageUsersOpen.stage})}>
         <DialogContent className="bg-studio-dark border-gold/20">
           <DialogHeader><DialogTitle className="text-gold">Usuários da etapa {stageUsersOpen.stage?.name}</DialogTitle></DialogHeader>
-          {/* aqui você pode listar usuários do sistema e marcar os que operam essa etapa,
-              salvando em public.kanban_stage_users */}
           <div className="text-white/60">Em construção: vincular usuários a esta etapa.</div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Configurações da Etapa (Webhook) */}
+      <Dialog open={stageSettingsOpen.open} onOpenChange={(o)=>setStageSettingsOpen({open:o, stage: stageSettingsOpen.stage})}>
+        <DialogContent className="bg-studio-dark border-gold/20 max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-gold">Configurações: {stageSettingsOpen.stage?.name}</DialogTitle>
+          </DialogHeader>
+          {stageSettingsOpen.stage && (
+            <StageWebhookSettings 
+              stage={stageSettingsOpen.stage} 
+              onSave={async (updates) => {
+                const { error } = await supabase
+                  .from('kanban_stages')
+                  .update(updates)
+                  .eq('id', stageSettingsOpen.stage!.id);
+                
+                if (!error) {
+                  toast({ title: "Configurações salvas!" });
+                  loadData();
+                  setStageSettingsOpen({open: false});
+                } else {
+                  toast({ title: "Erro ao salvar", variant: "destructive" });
+                }
+              }}
+            />
+          )}
         </DialogContent>
       </Dialog>
 
