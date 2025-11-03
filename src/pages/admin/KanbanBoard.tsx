@@ -168,6 +168,13 @@ export default function KanbanBoard() {
         grouped[key].push(item);
       });
       setCardsByStage(grouped);
+    } catch (error) {
+      console.error('Error loading kanban data:', error);
+      toast({
+        title: "Erro ao carregar dados",
+        description: "Não foi possível carregar as etapas e cards.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -204,64 +211,86 @@ export default function KanbanBoard() {
 
     if (!activeCard) return;
 
-    // Check if dropping on a stage container
-    if (overId.startsWith('stage-')) {
-      const targetStageId = overId.replace('stage-', '');
-      if (targetStageId === activeStageId) {
-        // Same stage, no action needed
+    try {
+      // Check if dropping on a stage container
+      if (overId.startsWith('stage-')) {
+        const targetStageId = overId.replace('stage-', '');
+        if (targetStageId === activeStageId) {
+          // Same stage, no action needed
+          return;
+        }
+        // Move to end of target stage
+        const targetItems = cardsByStage[targetStageId] || [];
+        await checkAndMoveCard(activeCard, targetStageId, targetItems.length);
         return;
       }
-      // Move to end of target stage
-      const targetItems = cardsByStage[targetStageId] || [];
-      await checkAndMoveCard(activeCard, targetStageId, targetItems.length);
-      return;
-    }
 
-    // Find the over card's stage and index
-    let overStageId = '';
-    let overIndex = -1;
+      // Find the over card's stage and index
+      let overStageId = '';
+      let overIndex = -1;
 
-    for (const [stageId, items] of Object.entries(cardsByStage)) {
-      const idxOver = items.findIndex(i => i.id === overId);
-      if (idxOver !== -1) {
-        overStageId = stageId;
-        overIndex = idxOver;
-        break;
+      for (const [stageId, items] of Object.entries(cardsByStage)) {
+        const idxOver = items.findIndex(i => i.id === overId);
+        if (idxOver !== -1) {
+          overStageId = stageId;
+          overIndex = idxOver;
+          break;
+        }
       }
-    }
 
-    if (activeStageId === overStageId) {
-      // Reorder within stage
-      const items = cardsByStage[activeStageId];
-      const reordered = arrayMove(items, activeIndex, overIndex);
-      const updated = reordered.map((it, idx) => ({ ...it, position: idx }));
-      setCardsByStage(prev => ({ ...prev, [activeStageId]: updated }));
-      // Persist - update each card's position
-      for (const card of updated) {
-        await supabase.from('kanban_cards').update({ position: card.position }).eq('id', card.id);
+      if (activeStageId === overStageId) {
+        // Reorder within stage
+        const items = cardsByStage[activeStageId];
+        const reordered = arrayMove(items, activeIndex, overIndex);
+        const updated = reordered.map((it, idx) => ({ ...it, position: idx }));
+        setCardsByStage(prev => ({ ...prev, [activeStageId]: updated }));
+        // Persist - update each card's position
+        for (const card of updated) {
+          await supabase.from('kanban_cards').update({ position: card.position }).eq('id', card.id);
+        }
+      } else if (overStageId) {
+        // Move to another stage at specific index
+        await checkAndMoveCard(activeCard, overStageId, overIndex);
       }
-    } else if (overStageId) {
-      // Move to another stage at specific index
-      await checkAndMoveCard(activeCard, overStageId, overIndex);
+    } catch (error) {
+      console.error('Error during drag operation:', error);
+      toast({
+        title: "Erro ao mover card",
+        description: "Não foi possível mover o card. Tente novamente.",
+        variant: "destructive",
+      });
+      // Reload data to ensure UI is in sync
+      await loadData();
     }
   };
 
   // Verificar se a etapa de destino tem campos customizados
   const checkAndMoveCard = async (card: CardItem, toStageId: string, toIndex: number) => {
-    const { data: stageFields } = await supabase
-      .from('kanban_stage_fields')
-      .select('*, custom_fields(*)')
-      .eq('stage_id', toStageId)
-      .order('sort_order');
+    try {
+      const { data: stageFields, error } = await supabase
+        .from('kanban_stage_fields')
+        .select('*, custom_fields(*)')
+        .eq('stage_id', toStageId)
+        .order('sort_order');
 
-    if (stageFields && stageFields.length > 0) {
-      // Tem campos customizados - abrir modal
-      setCustomFieldsForStage(stageFields.map(sf => sf.custom_fields));
-      setPendingCardMove({ card, toStageId, toIndex });
-      setCustomFieldsModalOpen(true);
-    } else {
-      // Sem campos customizados - mover direto
-      await moveCardToStage(card, toStageId, toIndex);
+      if (error) throw error;
+
+      if (stageFields && stageFields.length > 0) {
+        // Tem campos customizados - abrir modal
+        setCustomFieldsForStage(stageFields.map(sf => sf.custom_fields));
+        setPendingCardMove({ card, toStageId, toIndex });
+        setCustomFieldsModalOpen(true);
+      } else {
+        // Sem campos customizados - mover direto
+        await moveCardToStage(card, toStageId, toIndex);
+      }
+    } catch (error) {
+      console.error('Error checking stage fields:', error);
+      toast({
+        title: "Erro ao verificar campos",
+        description: "Não foi possível verificar os campos da etapa.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -269,16 +298,31 @@ export default function KanbanBoard() {
   const handleCustomFieldsSubmit = async (values: Record<string, any>) => {
     if (!pendingCardMove) return;
 
-    const { card, toStageId, toIndex } = pendingCardMove;
-    
-    // Atualizar valores customizados do card
-    const updatedCard = {
-      ...card,
-      custom_field_values: { ...card.custom_field_values, ...values }
-    };
+    try {
+      const { card, toStageId, toIndex } = pendingCardMove;
+      
+      // Atualizar valores customizados do card
+      const updatedCard = {
+        ...card,
+        custom_field_values: { ...card.custom_field_values, ...values }
+      };
 
-    await moveCardToStage(updatedCard, toStageId, toIndex, 'kanban', values);
-    setPendingCardMove(null);
+      await moveCardToStage(updatedCard, toStageId, toIndex, 'kanban', values);
+      setPendingCardMove(null);
+      setCustomFieldsModalOpen(false);
+      
+      toast({
+        title: "Card movido com sucesso!",
+        description: "Os campos personalizados foram salvos.",
+      });
+    } catch (error) {
+      console.error('Error submitting custom fields:', error);
+      toast({
+        title: "Erro ao mover card",
+        description: "Não foi possível salvar os campos personalizados.",
+        variant: "destructive",
+      });
+    }
   };
 
   // mover entre colunas
@@ -396,12 +440,41 @@ export default function KanbanBoard() {
   };
 
   const handleCreateStage = async () => {
-    const position = stages.length;
-    const { data, error } = await supabase.from('kanban_stages').insert({ name: newStageName, position }).select('*').single();
-    if (!error && data) {
-      setStages(prev => [...prev, data as any]);
-      setOpenCreateStage(false);
-      setNewStageName('');
+    if (!newStageName.trim()) {
+      toast({
+        title: "Nome inválido",
+        description: "Digite um nome para a etapa.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const position = stages.length;
+      const { data, error } = await supabase
+        .from('kanban_stages')
+        .insert({ name: newStageName, position })
+        .select('*')
+        .single();
+      
+      if (error) throw error;
+      
+      if (data) {
+        setStages(prev => [...prev, data as any]);
+        setOpenCreateStage(false);
+        setNewStageName('');
+        toast({
+          title: "Etapa criada!",
+          description: `A etapa "${newStageName}" foi criada com sucesso.`,
+        });
+      }
+    } catch (error) {
+      console.error('Error creating stage:', error);
+      toast({
+        title: "Erro ao criar etapa",
+        description: "Não foi possível criar a etapa. Tente novamente.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -410,8 +483,11 @@ export default function KanbanBoard() {
     try {
       const currentStage = stages.find(s => s.id === card.stage_id);
       if (!currentStage?.panel_id) {
-        // Não há painel vinculado a esta etapa
-        console.warn('Etapa atual não tem painel vinculado');
+        toast({
+          title: "Painel não configurado",
+          description: "Esta etapa não tem um painel vinculado.",
+          variant: "destructive",
+        });
         return;
       }
 
@@ -432,9 +508,17 @@ export default function KanbanBoard() {
         method: 'kanban',
       });
 
-      console.log(`Lead ${card.lead_id} chamado no painel`);
+      toast({
+        title: "Lead chamado no painel!",
+        description: `${card.model_name || 'Lead'} foi chamado no painel ${currentStage.name}`,
+      });
     } catch (error) {
       console.error('Erro ao chamar lead:', error);
+      toast({
+        title: "Erro ao chamar lead",
+        description: "Não foi possível chamar o lead no painel.",
+        variant: "destructive",
+      });
     }
   };
 
