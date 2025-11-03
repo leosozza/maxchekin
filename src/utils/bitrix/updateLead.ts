@@ -11,7 +11,7 @@ export interface UpdateLeadData {
   name?: string;
   responsible?: string;
   photo?: string;
-  [key: string]: any; // Allow additional fields
+  [key: string]: string | undefined; // Allow additional fields
 }
 
 /**
@@ -48,7 +48,7 @@ export async function updateLead(leadData: UpdateLeadData): Promise<{ success: b
   }
 
   // Build fields object for Bitrix
-  const fields: Record<string, any> = {};
+  const fields: Record<string, string | number | boolean> = {};
 
   // Map standard fields
   if (name !== undefined) {
