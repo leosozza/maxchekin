@@ -519,8 +519,9 @@ export default function CheckInNew() {
             const responsibleValue = ensureString(bitrixValue) || ensureString(lead.ASSIGNED_BY_NAME) || "MaxFama";
             modelData.responsible = responsibleValue;
           } else {
-            // For other fields, convert to string if they might be used in string operations
-            modelData[mapping.maxcheckin_field_name] = bitrixValue || null;
+            // For other fields, ensure they are strings to prevent array-related errors
+            // Bitrix can return any field as an array, so we convert all to strings for safety
+            modelData[mapping.maxcheckin_field_name] = bitrixValue ? ensureString(bitrixValue) : null;
           }
         });
       } else {
