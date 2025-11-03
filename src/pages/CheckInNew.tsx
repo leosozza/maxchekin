@@ -1000,7 +1000,7 @@ export default function CheckInNew() {
     setIsLoading(true);
 
     try {
-      // Include SOURCE_ID: 'CALL' in the payload for check-in reception flow
+      // Include SOURCE_ID: 'UC_SJ3VW5' in the payload for check-in reception flow
       const response = await createLead({
         ...newLeadData,
         SOURCE_ID: 'UC_SJ3VW5'

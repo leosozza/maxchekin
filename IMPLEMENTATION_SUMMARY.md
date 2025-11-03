@@ -130,7 +130,7 @@ await syncCheckInToBitrix(leadId, lead.photo);
 ```
 
 **Bitrix Fields Updated**:
-- `SOURCE_ID`: 'CALL' (if new lead)
+- `SOURCE_ID`: 'UC_SJ3VW5' (if new lead)
 - `UF_CRM_1755007072212`: Check-in timestamp
 - `UF_CRM_1745431662`: Model photo
 - `PARENT_ID_1120`: 4 (project)

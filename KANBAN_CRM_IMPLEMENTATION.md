@@ -144,7 +144,7 @@ await createLead({
   SOURCE_ID: 'CUSTOM_SOURCE'  // This takes precedence
 });
 
-// Priority 3: No SOURCE_ID provided, uses default 'CALL'
+// Priority 3: No SOURCE_ID provided, uses default 'UC_SJ3VW5'
 await createLead({ 
   nome: "Maria Santos"
 });
@@ -165,7 +165,7 @@ await createLead({
 ```typescript
 const response = await createLead({
   ...newLeadData,
-  SOURCE_ID: 'CALL'  // Added for check-in reception flow
+  SOURCE_ID: 'UC_SJ3VW5'  // Added for check-in reception flow
 });
 ```
 
