@@ -3,18 +3,31 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CustomField } from '@/hooks/useCustomFields';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
+interface CustomField {
+  id: string;
+  field_key: string;
+  field_label: string;
+  field_type: 'text' | 'number' | 'date' | 'image' | 'boolean' | 'list';
+  field_options?: string[];
+}
 
 interface CustomFieldModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  fields: CustomField[];
-  onSubmit: (values: Record<string, string | number | boolean>) => void;
+  fields: unknown[];
+  onSubmit: (values: Record<string, unknown>) => void;
 }
 
 export function CustomFieldModal({ open, onOpenChange, fields, onSubmit }: CustomFieldModalProps) {
-  const [fieldValues, setFieldValues] = useState<Record<string, string | number | boolean>>({});
+  const [fieldValues, setFieldValues] = useState<Record<string, unknown>>({});
 
   const handleSubmit = () => {
     onSubmit(fieldValues);
@@ -27,40 +40,43 @@ export function CustomFieldModal({ open, onOpenChange, fields, onSubmit }: Custo
       case 'text':
         return (
           <Input
-            value={String(fieldValues[field.field_key] || '')}
-            onChange={(e) => setFieldValues(prev => ({ ...prev, [field.field_key]: e.target.value }))}
+            value={(fieldValues[field.field_key] as string) || ''}
+            onChange={(e) =>
+              setFieldValues((prev) => ({ ...prev, [field.field_key]: e.target.value }))
+            }
             placeholder={`Digite ${field.field_label}`}
-            className="bg-background border-input text-foreground"
+            className="bg-input border-border text-foreground"
           />
         );
-      
+
       case 'number':
         return (
           <Input
             type="number"
-            value={fieldValues[field.field_key] !== undefined ? String(fieldValues[field.field_key]) : ''}
-            onChange={(e) => {
-              const value = e.target.value === '' ? 0 : Number(e.target.value);
-              setFieldValues(prev => ({ ...prev, [field.field_key]: value }));
-            }}
+            value={(fieldValues[field.field_key] as string) || ''}
+            onChange={(e) =>
+              setFieldValues((prev) => ({ ...prev, [field.field_key]: e.target.value }))
+            }
             placeholder={`Digite ${field.field_label}`}
-            className="bg-background border-input text-foreground"
+            className="bg-input border-border text-foreground"
           />
         );
-      
+
       case 'list': {
         const options = field.field_options || [];
         return (
           <Select
-            value={fieldValues[field.field_key] !== undefined ? String(fieldValues[field.field_key]) : ''}
-            onValueChange={(value) => setFieldValues(prev => ({ ...prev, [field.field_key]: value }))}
+            value={(fieldValues[field.field_key] as string) || ''}
+            onValueChange={(value) =>
+              setFieldValues((prev) => ({ ...prev, [field.field_key]: value }))
+            }
           >
-            <SelectTrigger className="bg-background border-input text-foreground">
+            <SelectTrigger className="bg-input border-border text-foreground">
               <SelectValue placeholder={`Selecione ${field.field_label}`} />
             </SelectTrigger>
-            <SelectContent className="bg-card border-border">
+            <SelectContent className="bg-popover border-border">
               {options.map((option: string) => (
-                <SelectItem key={option} value={option} className="text-foreground">
+                <SelectItem key={option} value={option} className="text-popover-foreground">
                   {option}
                 </SelectItem>
               ))}
@@ -68,7 +84,7 @@ export function CustomFieldModal({ open, onOpenChange, fields, onSubmit }: Custo
           </Select>
         );
       }
-      
+
       default:
         return null;
     }
@@ -80,27 +96,28 @@ export function CustomFieldModal({ open, onOpenChange, fields, onSubmit }: Custo
         <DialogHeader>
           <DialogTitle className="text-primary">Preencher Campos</DialogTitle>
         </DialogHeader>
-        
+
         <div className="space-y-4">
-          {fields.map((field) => (
-            <div key={field.id}>
-              <Label className="text-foreground text-sm">{field.field_label}</Label>
-              {renderField(field)}
-            </div>
-          ))}
+          {fields.map((field) => {
+            const typedField = field as CustomField;
+            return (
+              <div key={typedField.id}>
+                <Label className="text-muted-foreground text-sm">{typedField.field_label}</Label>
+                {renderField(typedField)}
+              </div>
+            );
+          })}
         </div>
 
         <div className="flex gap-2 justify-end mt-4">
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
+            className="border-border text-foreground"
           >
             Cancelar
           </Button>
-          <Button
-            onClick={handleSubmit}
-            className="bg-primary text-primary-foreground hover:bg-primary/90"
-          >
+          <Button onClick={handleSubmit} className="bg-primary text-primary-foreground">
             Confirmar
           </Button>
         </div>

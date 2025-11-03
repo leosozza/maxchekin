@@ -12,9 +12,17 @@ interface StageFieldsSettingsProps {
   stageId: string;
 }
 
+interface StageFieldLink {
+  id: string;
+  field_id: string;
+  custom_fields: CustomField;
+}
+
 export function StageFieldsSettings({ stageId }: StageFieldsSettingsProps) {
   const [availableFields, setAvailableFields] = useState<CustomField[]>([]);
-  const [stageFields, setStageFields] = useState<any[]>([]);
+  const [stageFields, setStageFields] = useState<StageFieldLink[]>([]);
+  // Note: We only support text, number, and list types for Kanban custom fields
+  // Other field types (date, image, boolean) are not supported in this context
   const [newField, setNewField] = useState({
     field_label: '',
     field_type: 'text' as 'text' | 'number' | 'list',
@@ -44,7 +52,7 @@ export function StageFieldsSettings({ stageId }: StageFieldsSettingsProps) {
       .eq('stage_id', stageId)
       .order('sort_order');
     
-    if (linkedFields) setStageFields(linkedFields);
+    if (linkedFields) setStageFields(linkedFields as StageFieldLink[]);
   };
 
   const createNewField = async () => {
@@ -68,7 +76,7 @@ export function StageFieldsSettings({ stageId }: StageFieldsSettingsProps) {
       .select()
       .single();
 
-    if (error) {
+    if (error || !field) {
       toast({ title: "Erro ao criar campo", variant: "destructive" });
       return;
     }
@@ -76,7 +84,7 @@ export function StageFieldsSettings({ stageId }: StageFieldsSettingsProps) {
     // Vincular à etapa
     await supabase.from('kanban_stage_fields').insert({
       stage_id: stageId,
-      field_id: field.id,
+      field_id: (field as any).id,
       sort_order: stageFields.length
     });
 
@@ -155,7 +163,10 @@ export function StageFieldsSettings({ stageId }: StageFieldsSettingsProps) {
         <h3 className="text-foreground font-medium mb-3">Campos desta Etapa</h3>
         <div className="space-y-2">
           {stageFields.map((link) => (
-            <div key={link.id} className="flex items-center justify-between p-3 bg-muted rounded border">
+            <div
+              key={link.id}
+              className="flex items-center justify-between p-3 bg-muted/50 rounded border border-border"
+            >
               <div>
                 <p className="text-foreground">{link.custom_fields.field_label}</p>
                 <p className="text-muted-foreground text-xs">Tipo: {link.custom_fields.field_type}</p>
@@ -164,7 +175,7 @@ export function StageFieldsSettings({ stageId }: StageFieldsSettingsProps) {
                 size="sm"
                 variant="outline"
                 onClick={() => unlinkField(link.id)}
-                className="border-red-500/20 text-red-600 hover:bg-red-500/10"
+                className="border-red-500/20 text-red-600 dark:text-red-400 hover:bg-red-500/10"
               >
                 <Trash2 className="w-4 h-4" />
               </Button>
@@ -180,10 +191,10 @@ export function StageFieldsSettings({ stageId }: StageFieldsSettingsProps) {
       <div>
         <h3 className="text-foreground font-medium mb-3">Adicionar Campo Existente</h3>
         <Select onValueChange={linkExistingField}>
-          <SelectTrigger className="bg-input border text-foreground">
+          <SelectTrigger className="bg-background border-input text-foreground">
             <SelectValue placeholder="Selecione um campo" />
           </SelectTrigger>
-          <SelectContent className="bg-popover border">
+          <SelectContent className="bg-card border-border">
             {availableFields
               .filter(f => !stageFields.some(sf => sf.field_id === f.id))
               .map((field) => (
@@ -205,7 +216,7 @@ export function StageFieldsSettings({ stageId }: StageFieldsSettingsProps) {
               value={newField.field_label}
               onChange={(e) => setNewField(prev => ({ ...prev, field_label: e.target.value }))}
               placeholder="Ex: Produtor"
-              className="bg-input border text-foreground"
+              className="bg-background border-input text-foreground"
             />
           </div>
 
@@ -213,12 +224,14 @@ export function StageFieldsSettings({ stageId }: StageFieldsSettingsProps) {
             <Label className="text-foreground">Tipo</Label>
             <Select
               value={newField.field_type}
-              onValueChange={(value: any) => setNewField(prev => ({ ...prev, field_type: value }))}
+              onValueChange={(value: 'text' | 'number' | 'list') =>
+                setNewField(prev => ({ ...prev, field_type: value }))
+              }
             >
-              <SelectTrigger className="bg-input border text-foreground">
+              <SelectTrigger className="bg-background border-input text-foreground">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-popover border">
+              <SelectContent className="bg-card border-border">
                 <SelectItem value="text" className="text-foreground">Texto</SelectItem>
                 <SelectItem value="number" className="text-foreground">Número</SelectItem>
                 <SelectItem value="list" className="text-foreground">Lista de Opções</SelectItem>
@@ -234,22 +247,26 @@ export function StageFieldsSettings({ stageId }: StageFieldsSettingsProps) {
                   value={newField.optionInput}
                   onChange={(e) => setNewField(prev => ({ ...prev, optionInput: e.target.value }))}
                   placeholder="Digite uma opção"
-                  className="bg-input border text-foreground"
+                  className="bg-background border-input text-foreground"
                   onKeyPress={(e) => e.key === 'Enter' && addOption()}
                 />
-                <Button onClick={addOption} size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90">
+                <Button
+                  onClick={addOption}
+                  size="sm"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90"
+                >
                   <Plus className="w-4 h-4" />
                 </Button>
               </div>
               <div className="space-y-1">
                 {newField.field_options.map((option, index) => (
-                  <div key={index} className="flex items-center justify-between p-2 bg-muted rounded">
+                  <div key={index} className="flex items-center justify-between p-2 bg-muted/50 rounded">
                     <span className="text-foreground text-sm">{option}</span>
                     <Button
                       size="sm"
                       variant="ghost"
                       onClick={() => removeOption(index)}
-                      className="h-6 w-6 p-0 text-muted-foreground hover:text-red-600"
+                      className="h-6 w-6 p-0 text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
                     >
                       <Trash2 className="w-3 h-3" />
                     </Button>
@@ -259,7 +276,10 @@ export function StageFieldsSettings({ stageId }: StageFieldsSettingsProps) {
             </div>
           )}
 
-          <Button onClick={createNewField} className="bg-primary text-primary-foreground hover:bg-primary/90 w-full">
+          <Button
+            onClick={createNewField}
+            className="bg-primary text-primary-foreground hover:bg-primary/90 w-full"
+          >
             <Plus className="w-4 h-4 mr-2" />
             Criar Campo
           </Button>
