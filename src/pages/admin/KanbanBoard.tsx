@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import type React from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,6 +32,7 @@ type Stage = {
   webhook_on_enter: boolean;
   webhook_on_exit: boolean;
 };
+
 type CardItem = { 
   id: string; 
   lead_id: string; 
@@ -44,10 +46,8 @@ type CardItem = {
 
 // Droppable stage container to support dropping cards on empty stages
 function DroppableStage({ stageId, children }: { stageId: string; children: React.ReactNode }) {
-  const { setNodeRef, isOver } = useDroppable({
-    id: `stage-${stageId}`,
-  });
-
+  const { setNodeRef, isOver } = useDroppable({ id: `stage-${stageId}` });
+  
   return (
     <div 
       ref={setNodeRef} 
@@ -58,9 +58,16 @@ function DroppableStage({ stageId, children }: { stageId: string; children: Reac
   );
 }
 
-function SortableCard({ item, stageId, stages, onMoveCard, onCallNow, onFinalSync }: { 
-  item: CardItem; 
-  stageId: string; 
+function SortableCard({
+  item,
+  stageId,
+  stages,
+  onMoveCard,
+  onCallNow,
+  onFinalSync
+}: {
+  item: CardItem;
+  stageId: string;
   stages: Stage[];
   onMoveCard: (card: CardItem, toStageId: string, toIndex: number) => void;
   onCallNow: (card: CardItem) => void;
@@ -79,7 +86,7 @@ function SortableCard({ item, stageId, stages, onMoveCard, onCallNow, onFinalSyn
       style={style}
       {...attributes}
       {...listeners}
-      className={`p-3 rounded bg-muted/50 border border-border cursor-grab hover:border-primary/50 transition-colors ${isDragging ? 'opacity-50' : ''}`}
+      className={`p-3 rounded bg-card/50 border border-border cursor-grab hover:bg-card hover:border-primary/50 transition-colors ${isDragging ? 'opacity-50' : ''}`}
     >
       <div className="text-foreground font-medium">{item.model_name || 'Sem nome'}</div>
       <div className="text-muted-foreground text-xs">Lead #{item.lead_id}</div>
@@ -177,10 +184,10 @@ export default function KanbanBoard() {
       });
       setCardsByStage(grouped);
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
+      console.error('Error loading kanban data:', error);
       toast({
-        title: "Erro ao carregar",
-        description: "Não foi possível carregar os dados do Kanban",
+        title: "Erro ao carregar dados",
+        description: "Não foi possível carregar as etapas e cards.",
         variant: "destructive",
       });
     } finally {
@@ -202,28 +209,43 @@ export default function KanbanBoard() {
     const activeId = active.id as string;
     const overId = over.id as string;
 
-    // Check if dropping onto a stage container (for empty stages)
-    const isStageDropTarget = overId.startsWith('stage-');
-    const targetStageId = isStageDropTarget ? overId.replace('stage-', '') : '';
-
-    // Find the stage and index for active and over
+    // Find active card's stage and index
     let activeStageId = '';
     let activeIndex = -1;
-    let overStageId = targetStageId;
-    let overIndex = -1;
+    let activeCard: CardItem | null = null;
 
-    // Find active card's stage and index
     for (const [stageId, items] of Object.entries(cardsByStage)) {
       const idx = items.findIndex(i => i.id === activeId);
       if (idx !== -1) {
         activeStageId = stageId;
         activeIndex = idx;
+        activeCard = items[idx];
         break;
       }
     }
 
-    // If not dropping on a stage container, find the over card's stage
-    if (!isStageDropTarget) {
+    if (!activeCard) return;
+
+    try {
+      // Dropping on a stage container (empty or end)
+      if (overId.startsWith('stage-')) {
+        const targetStageId = overId.replace('stage-', '');
+        if (targetStageId === activeStageId) {
+          // Same stage container; move to end if desired
+          const targetItems = cardsByStage[targetStageId] || [];
+          if (activeIndex === targetItems.length - 1) return;
+          await checkAndMoveCard(activeCard, targetStageId, targetItems.length);
+          return;
+        }
+        const targetItems = cardsByStage[targetStageId] || [];
+        await checkAndMoveCard(activeCard, targetStageId, targetItems.length);
+        return;
+      }
+
+      // Find the over card's stage and index
+      let overStageId = '';
+      let overIndex = -1;
+
       for (const [stageId, items] of Object.entries(cardsByStage)) {
         const idxOver = items.findIndex(i => i.id === overId);
         if (idxOver !== -1) {
@@ -232,43 +254,31 @@ export default function KanbanBoard() {
           break;
         }
       }
-    } else {
-      // Dropping onto empty stage or at the end of a stage
-      overIndex = cardsByStage[overStageId]?.length || 0;
-    }
 
-    if (!activeStageId) return; // Active card not found
+      if (!overStageId) return;
 
-    if (activeStageId === overStageId && !isStageDropTarget) {
-      // Reorder within stage
-      const items = cardsByStage[activeStageId];
-      const reordered = arrayMove(items, activeIndex, overIndex);
-      const updated = reordered.map((it, idx) => ({ ...it, position: idx }));
-      setCardsByStage(prev => ({ ...prev, [activeStageId]: updated }));
-      
-      // Persist - update each card's position
-      try {
+      if (activeStageId === overStageId) {
+        // Reorder within stage
+        const items = cardsByStage[activeStageId];
+        const reordered = arrayMove(items, activeIndex, overIndex);
+        const updated = reordered.map((it, idx) => ({ ...it, position: idx }));
+        setCardsByStage(prev => ({ ...prev, [activeStageId]: updated }));
+        // Persist positions
         for (const card of updated) {
           await supabase.from('kanban_cards').update({ position: card.position }).eq('id', card.id);
         }
-        toast({
-          title: "Card reordenado",
-          description: "Posição atualizada com sucesso",
-        });
-      } catch (error) {
-        console.error('Erro ao atualizar posições:', error);
-        toast({
-          title: "Erro ao reordenar",
-          description: "Não foi possível atualizar as posições",
-          variant: "destructive",
-        });
-        // Revert UI changes
-        loadData();
+      } else {
+        // Move to another stage at specific index
+        await checkAndMoveCard(activeCard, overStageId, overIndex);
       }
-    } else if (overStageId) {
-      // Move to another stage - check for custom fields
-      const activeCard = cardsByStage[activeStageId][activeIndex];
-      await checkAndMoveCard(activeCard, overStageId, overIndex);
+    } catch (error) {
+      console.error('Error during drag operation:', error);
+      toast({
+        title: "Erro ao mover card",
+        description: "Não foi possível mover o card. Tente novamente.",
+        variant: "destructive",
+      });
+      await loadData();
     }
   };
 
@@ -282,18 +292,11 @@ export default function KanbanBoard() {
         .order('sort_order');
 
       if (error) {
-        console.error('Erro ao buscar campos da etapa:', error);
-        toast({
-          title: "Erro ao mover card",
-          description: "Não foi possível verificar campos customizados",
-          variant: "destructive",
-        });
-        return;
+        throw error;
       }
 
       if (stageFields && stageFields.length > 0) {
-        // Tem campos customizados - abrir modal
-        // Use type guard to filter out null/undefined fields
+        // Filtrar apenas campos válidos
         const validFields = stageFields
           .map(sf => sf.custom_fields)
           .filter((field): field is CustomField => field !== null && field !== undefined);
@@ -305,10 +308,10 @@ export default function KanbanBoard() {
         await moveCardToStage(card, toStageId, toIndex);
       }
     } catch (error) {
-      console.error('Erro ao verificar campos:', error);
+      console.error('Erro ao verificar campos da etapa:', error);
       toast({
-        title: "Erro",
-        description: "Ocorreu um erro ao processar a movimentação",
+        title: "Erro ao verificar campos",
+        description: "Não foi possível verificar os campos da etapa.",
         variant: "destructive",
       });
     }
@@ -318,16 +321,31 @@ export default function KanbanBoard() {
   const handleCustomFieldsSubmit = async (values: Record<string, string | number | boolean>) => {
     if (!pendingCardMove) return;
 
-    const { card, toStageId, toIndex } = pendingCardMove;
-    
-    // Atualizar valores customizados do card
-    const updatedCard = {
-      ...card,
-      custom_field_values: { ...card.custom_field_values, ...values }
-    };
+    try {
+      const { card, toStageId, toIndex } = pendingCardMove;
+      
+      // Atualizar valores customizados do card
+      const updatedCard = {
+        ...card,
+        custom_field_values: { ...card.custom_field_values, ...values }
+      };
 
-    await moveCardToStage(updatedCard, toStageId, toIndex, 'kanban', values);
-    setPendingCardMove(null);
+      await moveCardToStage(updatedCard, toStageId, toIndex, 'kanban', values);
+      setPendingCardMove(null);
+      setCustomFieldsModalOpen(false);
+      
+      toast({
+        title: "Card movido com sucesso!",
+        description: "Os campos personalizados foram salvos.",
+      });
+    } catch (error) {
+      console.error('Error submitting custom fields:', error);
+      toast({
+        title: "Erro ao mover card",
+        description: "Não foi possível salvar os campos personalizados.",
+        variant: "destructive",
+      });
+    }
   };
 
   // mover entre colunas
@@ -472,20 +490,39 @@ export default function KanbanBoard() {
   };
 
   const handleCreateStage = async () => {
-    const position = stages.length;
-    const { data, error } = await supabase.from('kanban_stages').insert({ name: newStageName, position }).select('*').single();
-    if (!error && data) {
-      setStages(prev => [...prev, data as Stage]);
-      setOpenCreateStage(false);
-      setNewStageName('');
+    if (!newStageName.trim()) {
       toast({
-        title: "Etapa criada!",
-        description: `A etapa "${newStageName}" foi criada com sucesso`,
+        title: "Nome inválido",
+        description: "Digite um nome para a etapa.",
+        variant: "destructive",
       });
-    } else if (error) {
+      return;
+    }
+
+    try {
+      const position = stages.length;
+      const { data, error } = await supabase
+        .from('kanban_stages')
+        .insert({ name: newStageName, position })
+        .select('*')
+        .single();
+      
+      if (error) throw error;
+      
+      if (data) {
+        setStages(prev => [...prev, data as any]);
+        setOpenCreateStage(false);
+        setNewStageName('');
+        toast({
+          title: "Etapa criada!",
+          description: `A etapa "${newStageName}" foi criada com sucesso.`,
+        });
+      }
+    } catch (error) {
+      console.error('Error creating stage:', error);
       toast({
         title: "Erro ao criar etapa",
-        description: error.message,
+        description: "Não foi possível criar a etapa. Tente novamente.",
         variant: "destructive",
       });
     }
@@ -496,8 +533,11 @@ export default function KanbanBoard() {
     try {
       const currentStage = stages.find(s => s.id === card.stage_id);
       if (!currentStage?.panel_id) {
-        // Não há painel vinculado a esta etapa
-        console.warn('Etapa atual não tem painel vinculado');
+        toast({
+          title: "Painel não configurado",
+          description: "Esta etapa não tem um painel vinculado.",
+          variant: "destructive",
+        });
         return;
       }
 
@@ -518,9 +558,17 @@ export default function KanbanBoard() {
         method: 'kanban',
       });
 
-      console.log(`Lead ${card.lead_id} chamado no painel`);
+      toast({
+        title: "Lead chamado no painel!",
+        description: `${card.model_name || 'Lead'} foi chamado no painel ${currentStage.name}`,
+      });
     } catch (error) {
       console.error('Erro ao chamar lead:', error);
+      toast({
+        title: "Erro ao chamar lead",
+        description: "Não foi possível chamar o lead no painel.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -602,7 +650,7 @@ export default function KanbanBoard() {
             {stages.map(stage => {
               const items = cardsByStage[stage.id] || [];
               return (
-                <Card key={stage.id} className="min-w-[320px] border-border bg-card">
+                <Card key={stage.id} className="min-w-[320px] border-border bg-card/60 backdrop-blur-sm">
                   <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle className="text-primary">{stage.name}</CardTitle>
                     <div className="flex gap-2">
@@ -620,11 +668,6 @@ export default function KanbanBoard() {
                     <DroppableStage stageId={stage.id}>
                       <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
                         <div className="space-y-2">
-                          {items.length === 0 && (
-                            <div className="text-muted-foreground text-sm text-center py-8">
-                              Arraste cards aqui
-                            </div>
-                          )}
                           {items.map((item) => (
                             <SortableCard 
                               key={item.id} 
@@ -636,6 +679,11 @@ export default function KanbanBoard() {
                               onFinalSync={handleFinalSyncRequest}
                             />
                           ))}
+                          {items.length === 0 && (
+                            <div className="text-center text-muted-foreground text-sm py-8">
+                              Arraste cards para cá
+                            </div>
+                          )}
                         </div>
                       </SortableContext>
                     </DroppableStage>
@@ -652,7 +700,12 @@ export default function KanbanBoard() {
         <DialogContent className="bg-card border-border">
           <DialogHeader><DialogTitle className="text-primary">Nova Etapa</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <Input value={newStageName} onChange={e => setNewStageName(e.target.value)} placeholder="Nome da etapa" className="bg-background border-input text-foreground"/>
+            <Input
+              value={newStageName}
+              onChange={e => setNewStageName(e.target.value)}
+              placeholder="Nome da etapa"
+              className="bg-background border-input text-foreground"
+            />
             <Button onClick={handleCreateStage} className="bg-primary text-primary-foreground hover:bg-primary/90">Criar</Button>
           </div>
         </DialogContent>
