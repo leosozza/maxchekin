@@ -13,7 +13,7 @@ import { StageWebhookSettings } from '@/components/admin/StageWebhookSettings';
 import { StageFieldsSettings } from '@/components/admin/StageFieldsSettings';
 import { CustomFieldModal } from '@/components/admin/CustomFieldModal';
 import {
-  DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent, DragStartEvent, DragOverEvent, useDroppable,
+  DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent, DragStartEvent, useDroppable,
 } from '@dnd-kit/core';
 import {
   SortableContext, verticalListSortingStrategy, arrayMove, useSortable,

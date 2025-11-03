@@ -44,7 +44,7 @@ export function CustomFieldModal({ open, onOpenChange, fields, onSubmit }: Custo
         );
       
       case 'list': {
-        const options = (field as any).field_options || [];
+        const options = field.field_options || [];
         return (
           <Select
             value={fieldValues[field.field_key] || ''}
