@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import type React from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,7 @@ import { StageWebhookSettings } from '@/components/admin/StageWebhookSettings';
 import { StageFieldsSettings } from '@/components/admin/StageFieldsSettings';
 import { CustomFieldModal } from '@/components/admin/CustomFieldModal';
 import {
-  DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent, DragStartEvent,
+  DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent, DragStartEvent, useDroppable,
 } from '@dnd-kit/core';
 import {
   SortableContext, verticalListSortingStrategy, arrayMove, useSortable,
@@ -40,6 +41,19 @@ type CardItem = {
   custom_field_values: Record<string, any>;
 };
 
+function DroppableStage({ stageId, children }: { stageId: string; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `stage-${stageId}` });
+  
+  return (
+    <div 
+      ref={setNodeRef} 
+      className={`min-h-[100px] transition-colors ${isOver ? 'bg-primary/5' : ''}`}
+    >
+      {children}
+    </div>
+  );
+}
+
 function SortableCard({ item, stageId, stages, onMoveCard, onCallNow, onFinalSync }: { 
   item: CardItem; 
   stageId: string; 
@@ -61,11 +75,11 @@ function SortableCard({ item, stageId, stages, onMoveCard, onCallNow, onFinalSyn
       style={style}
       {...attributes}
       {...listeners}
-      className={`p-3 rounded bg-black/30 border border-gold/10 cursor-grab ${isDragging ? 'opacity-50' : ''}`}
+      className={`p-3 rounded bg-card/50 border border-border cursor-grab hover:bg-card transition-colors ${isDragging ? 'opacity-50' : ''}`}
     >
-      <div className="text-white font-medium">{item.model_name || 'Sem nome'}</div>
-      <div className="text-white/60 text-xs">Lead #{item.lead_id}</div>
-      <div className="text-white/60 text-xs">Resp: {item.responsible || '—'}</div>
+      <div className="text-foreground font-medium">{item.model_name || 'Sem nome'}</div>
+      <div className="text-muted-foreground text-xs">Lead #{item.lead_id}</div>
+      <div className="text-muted-foreground text-xs">Resp: {item.responsible || '—'}</div>
 
       {/* ações rápidas */}
       <div className="mt-2 flex flex-col gap-2">
@@ -73,7 +87,7 @@ function SortableCard({ item, stageId, stages, onMoveCard, onCallNow, onFinalSyn
           <Button
             size="sm"
             variant="outline"
-            className="border-gold/20 text-white hover:bg-gold/10 flex-1"
+            className="flex-1"
             onClick={(e) => { e.stopPropagation(); onCallNow(item); }}
             title="Chamar agora no painel"
           >
@@ -154,6 +168,13 @@ export default function KanbanBoard() {
         grouped[key].push(item);
       });
       setCardsByStage(grouped);
+    } catch (error) {
+      console.error('Error loading kanban data:', error);
+      toast({
+        title: "Erro ao carregar dados",
+        description: "Não foi possível carregar as etapas e cards.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -173,58 +194,103 @@ export default function KanbanBoard() {
     const activeId = active.id as string;
     const overId = over.id as string;
 
-    // Find the stage and index for active and over
+    // Find the stage and index for active card
     let activeStageId = '';
     let activeIndex = -1;
-    let overStageId = '';
-    let overIndex = -1;
+    let activeCard: CardItem | null = null;
 
     for (const [stageId, items] of Object.entries(cardsByStage)) {
       const idx = items.findIndex(i => i.id === activeId);
       if (idx !== -1) {
         activeStageId = stageId;
         activeIndex = idx;
-      }
-      const idxOver = items.findIndex(i => i.id === overId);
-      if (idxOver !== -1) {
-        overStageId = stageId;
-        overIndex = idxOver;
+        activeCard = items[idx];
+        break;
       }
     }
 
-    if (activeStageId === overStageId) {
-      // Reorder within stage
-      const items = cardsByStage[activeStageId];
-      const reordered = arrayMove(items, activeIndex, overIndex);
-      const updated = reordered.map((it, idx) => ({ ...it, position: idx }));
-      setCardsByStage(prev => ({ ...prev, [activeStageId]: updated }));
-      // Persist - update each card's position
-      for (const card of updated) {
-        await supabase.from('kanban_cards').update({ position: card.position }).eq('id', card.id);
+    if (!activeCard) return;
+
+    try {
+      // Check if dropping on a stage container
+      if (overId.startsWith('stage-')) {
+        const targetStageId = overId.replace('stage-', '');
+        if (targetStageId === activeStageId) {
+          // Same stage, no action needed
+          return;
+        }
+        // Move to end of target stage
+        const targetItems = cardsByStage[targetStageId] || [];
+        await checkAndMoveCard(activeCard, targetStageId, targetItems.length);
+        return;
       }
-    } else {
-      // Move to another stage - check for custom fields
-      const activeCard = cardsByStage[activeStageId][activeIndex];
-      await checkAndMoveCard(activeCard, overStageId, overIndex);
+
+      // Find the over card's stage and index
+      let overStageId = '';
+      let overIndex = -1;
+
+      for (const [stageId, items] of Object.entries(cardsByStage)) {
+        const idxOver = items.findIndex(i => i.id === overId);
+        if (idxOver !== -1) {
+          overStageId = stageId;
+          overIndex = idxOver;
+          break;
+        }
+      }
+
+      if (activeStageId === overStageId) {
+        // Reorder within stage
+        const items = cardsByStage[activeStageId];
+        const reordered = arrayMove(items, activeIndex, overIndex);
+        const updated = reordered.map((it, idx) => ({ ...it, position: idx }));
+        setCardsByStage(prev => ({ ...prev, [activeStageId]: updated }));
+        // Persist - update each card's position
+        for (const card of updated) {
+          await supabase.from('kanban_cards').update({ position: card.position }).eq('id', card.id);
+        }
+      } else if (overStageId) {
+        // Move to another stage at specific index
+        await checkAndMoveCard(activeCard, overStageId, overIndex);
+      }
+    } catch (error) {
+      console.error('Error during drag operation:', error);
+      toast({
+        title: "Erro ao mover card",
+        description: "Não foi possível mover o card. Tente novamente.",
+        variant: "destructive",
+      });
+      // Reload data to ensure UI is in sync
+      await loadData();
     }
   };
 
   // Verificar se a etapa de destino tem campos customizados
   const checkAndMoveCard = async (card: CardItem, toStageId: string, toIndex: number) => {
-    const { data: stageFields } = await supabase
-      .from('kanban_stage_fields')
-      .select('*, custom_fields(*)')
-      .eq('stage_id', toStageId)
-      .order('sort_order');
+    try {
+      const { data: stageFields, error } = await supabase
+        .from('kanban_stage_fields')
+        .select('*, custom_fields(*)')
+        .eq('stage_id', toStageId)
+        .order('sort_order');
 
-    if (stageFields && stageFields.length > 0) {
-      // Tem campos customizados - abrir modal
-      setCustomFieldsForStage(stageFields.map(sf => sf.custom_fields));
-      setPendingCardMove({ card, toStageId, toIndex });
-      setCustomFieldsModalOpen(true);
-    } else {
-      // Sem campos customizados - mover direto
-      await moveCardToStage(card, toStageId, toIndex);
+      if (error) throw error;
+
+      if (stageFields && stageFields.length > 0) {
+        // Tem campos customizados - abrir modal
+        setCustomFieldsForStage(stageFields.map(sf => sf.custom_fields));
+        setPendingCardMove({ card, toStageId, toIndex });
+        setCustomFieldsModalOpen(true);
+      } else {
+        // Sem campos customizados - mover direto
+        await moveCardToStage(card, toStageId, toIndex);
+      }
+    } catch (error) {
+      console.error('Error checking stage fields:', error);
+      toast({
+        title: "Erro ao verificar campos",
+        description: "Não foi possível verificar os campos da etapa.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -232,16 +298,31 @@ export default function KanbanBoard() {
   const handleCustomFieldsSubmit = async (values: Record<string, any>) => {
     if (!pendingCardMove) return;
 
-    const { card, toStageId, toIndex } = pendingCardMove;
-    
-    // Atualizar valores customizados do card
-    const updatedCard = {
-      ...card,
-      custom_field_values: { ...card.custom_field_values, ...values }
-    };
+    try {
+      const { card, toStageId, toIndex } = pendingCardMove;
+      
+      // Atualizar valores customizados do card
+      const updatedCard = {
+        ...card,
+        custom_field_values: { ...card.custom_field_values, ...values }
+      };
 
-    await moveCardToStage(updatedCard, toStageId, toIndex, 'kanban', values);
-    setPendingCardMove(null);
+      await moveCardToStage(updatedCard, toStageId, toIndex, 'kanban', values);
+      setPendingCardMove(null);
+      setCustomFieldsModalOpen(false);
+      
+      toast({
+        title: "Card movido com sucesso!",
+        description: "Os campos personalizados foram salvos.",
+      });
+    } catch (error) {
+      console.error('Error submitting custom fields:', error);
+      toast({
+        title: "Erro ao mover card",
+        description: "Não foi possível salvar os campos personalizados.",
+        variant: "destructive",
+      });
+    }
   };
 
   // mover entre colunas
@@ -359,12 +440,41 @@ export default function KanbanBoard() {
   };
 
   const handleCreateStage = async () => {
-    const position = stages.length;
-    const { data, error } = await supabase.from('kanban_stages').insert({ name: newStageName, position }).select('*').single();
-    if (!error && data) {
-      setStages(prev => [...prev, data as any]);
-      setOpenCreateStage(false);
-      setNewStageName('');
+    if (!newStageName.trim()) {
+      toast({
+        title: "Nome inválido",
+        description: "Digite um nome para a etapa.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const position = stages.length;
+      const { data, error } = await supabase
+        .from('kanban_stages')
+        .insert({ name: newStageName, position })
+        .select('*')
+        .single();
+      
+      if (error) throw error;
+      
+      if (data) {
+        setStages(prev => [...prev, data as any]);
+        setOpenCreateStage(false);
+        setNewStageName('');
+        toast({
+          title: "Etapa criada!",
+          description: `A etapa "${newStageName}" foi criada com sucesso.`,
+        });
+      }
+    } catch (error) {
+      console.error('Error creating stage:', error);
+      toast({
+        title: "Erro ao criar etapa",
+        description: "Não foi possível criar a etapa. Tente novamente.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -373,8 +483,11 @@ export default function KanbanBoard() {
     try {
       const currentStage = stages.find(s => s.id === card.stage_id);
       if (!currentStage?.panel_id) {
-        // Não há painel vinculado a esta etapa
-        console.warn('Etapa atual não tem painel vinculado');
+        toast({
+          title: "Painel não configurado",
+          description: "Esta etapa não tem um painel vinculado.",
+          variant: "destructive",
+        });
         return;
       }
 
@@ -395,9 +508,17 @@ export default function KanbanBoard() {
         method: 'kanban',
       });
 
-      console.log(`Lead ${card.lead_id} chamado no painel`);
+      toast({
+        title: "Lead chamado no painel!",
+        description: `${card.model_name || 'Lead'} foi chamado no painel ${currentStage.name}`,
+      });
     } catch (error) {
       console.error('Erro ao chamar lead:', error);
+      toast({
+        title: "Erro ao chamar lead",
+        description: "Não foi possível chamar o lead no painel.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -461,54 +582,61 @@ export default function KanbanBoard() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gold">Kanban (Etapas)</h1>
-          <p className="text-white/60">Arraste leads entre etapas. Cada etapa pode acionar um painel.</p>
+          <h1 className="text-3xl font-bold text-primary">Kanban (Etapas)</h1>
+          <p className="text-muted-foreground">Arraste leads entre etapas. Cada etapa pode acionar um painel.</p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => setOpenCreateStage(true)} className="bg-gold text-black">
+          <Button onClick={() => setOpenCreateStage(true)} className="bg-primary text-primary-foreground hover:bg-primary/90">
             <Plus className="w-4 h-4 mr-1" /> Nova Etapa
           </Button>
         </div>
       </div>
 
       {loading ? (
-        <div className="text-white/60">Carregando...</div>
+        <div className="text-muted-foreground">Carregando...</div>
       ) : (
         <div className="flex gap-4 overflow-auto pb-4">
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={onDragStart} onDragEnd={onDragEnd}>
             {stages.map(stage => {
               const items = cardsByStage[stage.id] || [];
               return (
-                <Card key={stage.id} className="min-w-[320px] border-gold/20 bg-black/40 backdrop-blur-sm">
+                <Card key={stage.id} className="min-w-[320px] border-border bg-card/60 backdrop-blur-sm">
                   <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle className="text-gold">{stage.name}</CardTitle>
+                    <CardTitle className="text-primary">{stage.name}</CardTitle>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="border-gold/20 text-white"
+                      <Button variant="outline" size="sm"
                         onClick={() => setStageUsersOpen({open:true, stage})}>
                         <UsersIcon className="w-4 h-4" />
                       </Button>
-                      <Button variant="outline" size="sm" className="border-gold/20 text-white"
+                      <Button variant="outline" size="sm"
                         onClick={() => setStageSettingsOpen({open:true, stage})}>
                         <Settings className="w-4 h-4" />
                       </Button>
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
-                      <div className="space-y-2">
-                        {items.map((item) => (
-                          <SortableCard 
-                            key={item.id} 
-                            item={item} 
-                            stageId={stage.id} 
-                            stages={stages}
-                            onMoveCard={moveCardToStage}
-                            onCallNow={handleCallNow}
-                            onFinalSync={handleFinalSyncRequest}
-                          />
-                        ))}
-                      </div>
-                    </SortableContext>
+                    <DroppableStage stageId={stage.id}>
+                      <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
+                        <div className="space-y-2">
+                          {items.map((item) => (
+                            <SortableCard 
+                              key={item.id} 
+                              item={item} 
+                              stageId={stage.id} 
+                              stages={stages}
+                              onMoveCard={moveCardToStage}
+                              onCallNow={handleCallNow}
+                              onFinalSync={handleFinalSyncRequest}
+                            />
+                          ))}
+                          {items.length === 0 && (
+                            <div className="text-center text-muted-foreground text-sm py-8">
+                              Arraste cards para cá
+                            </div>
+                          )}
+                        </div>
+                      </SortableContext>
+                    </DroppableStage>
                   </CardContent>
                 </Card>
               );
@@ -519,19 +647,19 @@ export default function KanbanBoard() {
 
       {/* Criar Etapa */}
       <Dialog open={openCreateStage} onOpenChange={setOpenCreateStage}>
-        <DialogContent className="bg-studio-dark border-gold/20">
-          <DialogHeader><DialogTitle className="text-gold">Nova Etapa</DialogTitle></DialogHeader>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader><DialogTitle className="text-primary">Nova Etapa</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <Input value={newStageName} onChange={e => setNewStageName(e.target.value)} placeholder="Nome da etapa" className="bg-black/20 border-gold/20 text-white"/>
-            <Button onClick={handleCreateStage} className="bg-gold text-black">Criar</Button>
+            <Input value={newStageName} onChange={e => setNewStageName(e.target.value)} placeholder="Nome da etapa" />
+            <Button onClick={handleCreateStage} className="bg-primary text-primary-foreground hover:bg-primary/90">Criar</Button>
           </div>
         </DialogContent>
       </Dialog>
 
       {/* Configurar Campos da Etapa */}
       <Dialog open={stageUsersOpen.open} onOpenChange={(o)=>setStageUsersOpen({open:o, stage: stageUsersOpen.stage})}>
-        <DialogContent className="bg-studio-dark border-gold/20 max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader><DialogTitle className="text-gold">Campos Personalizados: {stageUsersOpen.stage?.name}</DialogTitle></DialogHeader>
+        <DialogContent className="bg-card border-border max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader><DialogTitle className="text-primary">Campos Personalizados: {stageUsersOpen.stage?.name}</DialogTitle></DialogHeader>
           {stageUsersOpen.stage && (
             <StageFieldsSettings stageId={stageUsersOpen.stage.id} />
           )}
@@ -540,9 +668,9 @@ export default function KanbanBoard() {
 
       {/* Configurações da Etapa (Webhook) */}
       <Dialog open={stageSettingsOpen.open} onOpenChange={(o)=>setStageSettingsOpen({open:o, stage: stageSettingsOpen.stage})}>
-        <DialogContent className="bg-studio-dark border-gold/20 max-w-2xl">
+        <DialogContent className="bg-card border-border max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="text-gold">Configurações: {stageSettingsOpen.stage?.name}</DialogTitle>
+            <DialogTitle className="text-primary">Configurações: {stageSettingsOpen.stage?.name}</DialogTitle>
           </DialogHeader>
           {stageSettingsOpen.stage && (
             <StageWebhookSettings 
@@ -568,41 +696,40 @@ export default function KanbanBoard() {
 
       {/* Modal de Sincronização Final */}
       <Dialog open={finalSyncOpen} onOpenChange={setFinalSyncOpen}>
-        <DialogContent className="bg-studio-dark border-gold/20 max-w-lg">
+        <DialogContent className="bg-card border-border max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-gold">Concluir Fluxo e Sincronizar com Bitrix</DialogTitle>
+            <DialogTitle className="text-primary">Concluir Fluxo e Sincronizar com Bitrix</DialogTitle>
           </DialogHeader>
           
           <div className="space-y-4">
-            <div className="p-4 bg-black/20 rounded border border-gold/10">
-              <p className="text-white text-sm mb-2">
+            <div className="p-4 bg-muted rounded border border-border">
+              <p className="text-foreground text-sm mb-2">
                 <strong>Lead:</strong> {finalSyncCard?.model_name || 'Sem nome'}
               </p>
-              <p className="text-white/60 text-xs">
+              <p className="text-muted-foreground text-xs">
                 ID: {finalSyncCard?.lead_id}
               </p>
             </div>
 
             <div>
-              <label className="text-white/70 text-sm block mb-2">Status Final no Bitrix</label>
+              <label className="text-foreground text-sm block mb-2">Status Final no Bitrix</label>
               <Input
                 value={finalSyncStatus}
                 onChange={(e) => setFinalSyncStatus(e.target.value)}
                 placeholder="Ex: COMPLETED, MATERIAL_DELIVERED"
-                className="bg-black/20 border-gold/20 text-white"
               />
-              <p className="text-white/40 text-xs mt-1">
+              <p className="text-muted-foreground text-xs mt-1">
                 ID do status no Bitrix (ex: COMPLETED, CONVERTED, etc.)
               </p>
             </div>
 
             <div>
-              <label className="text-white/70 text-sm block mb-2">Observações (opcional)</label>
+              <label className="text-foreground text-sm block mb-2">Observações (opcional)</label>
               <Textarea
                 value={finalSyncNotes}
                 onChange={(e) => setFinalSyncNotes(e.target.value)}
                 placeholder="Adicione observações sobre o atendimento..."
-                className="bg-black/20 border-gold/20 text-white min-h-[100px]"
+                className="min-h-[100px]"
               />
             </div>
 
@@ -624,7 +751,6 @@ export default function KanbanBoard() {
                 variant="outline"
                 onClick={() => setFinalSyncOpen(false)}
                 disabled={syncingFinal}
-                className="border-gold/20 text-white"
               >
                 Cancelar
               </Button>
