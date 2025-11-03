@@ -112,7 +112,7 @@ function SortableCard({
           <Button
             size="sm"
             variant="default"
-            className="bg-green-600 hover:bg-green-700 text-white w-full"
+            className="bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 text-white w-full"
             onClick={(e) => { e.stopPropagation(); onFinalSync(item); }}
             title="Concluir e sincronizar com Bitrix"
           >
@@ -816,7 +816,7 @@ export default function KanbanBoard() {
               <Button
                 onClick={executeFinalSync}
                 disabled={syncingFinal}
-                className="bg-green-600 hover:bg-green-700 text-white"
+                className="bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 text-white"
               >
                 {syncingFinal ? 'Sincronizando...' : 'Confirmar e Sincronizar'}
               </Button>
