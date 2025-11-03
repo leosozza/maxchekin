@@ -190,9 +190,10 @@ export function KanbanBoard({
     }
   }
 
+  // Load data once on component mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const onDragStart = (event: DragStartEvent) => {
