@@ -126,25 +126,30 @@ function SortableCard({
 }
 
 export default function KanbanBoard() {
+  const { toast } = useToast();
+
   const [stages, setStages] = useState<Stage[]>([]);
   const [cardsByStage, setCardsByStage] = useState<Record<string, CardItem[]>>({});
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
 
-  // modais
+  // Dialog states
   const [openCreateStage, setOpenCreateStage] = useState(false);
   const [newStageName, setNewStageName] = useState('');
-  const [stageUsersOpen, setStageUsersOpen] = useState<{open: boolean; stage?: Stage}>({open:false});
-  const [stageSettingsOpen, setStageSettingsOpen] = useState<{open: boolean; stage?: Stage}>({open:false});
+  const [stageUsersOpen, setStageUsersOpen] = useState<{ open: boolean; stage?: Stage }>({
+    open: false,
+  });
+  const [stageSettingsOpen, setStageSettingsOpen] = useState<{ open: boolean; stage?: Stage }>({
+    open: false,
+  });
   
-  // modal de sync final
+  // Final sync modal state
   const [finalSyncOpen, setFinalSyncOpen] = useState(false);
   const [finalSyncCard, setFinalSyncCard] = useState<CardItem | null>(null);
   const [finalSyncNotes, setFinalSyncNotes] = useState('');
   const [finalSyncStatus, setFinalSyncStatus] = useState('COMPLETED');
   const [syncingFinal, setSyncingFinal] = useState(false);
 
-  // modal de campos customizados
+  // Modal de campos customizados
   const [customFieldsModalOpen, setCustomFieldsModalOpen] = useState(false);
   const [customFieldsForStage, setCustomFieldsForStage] = useState<CustomField[]>([]);
   const [pendingCardMove, setPendingCardMove] = useState<{card: CardItem; toStageId: string; toIndex: number} | null>(null);
@@ -174,7 +179,6 @@ export default function KanbanBoard() {
       setStages((s || []) as Stage[]);
       const grouped: Record<string, CardItem[]> = {};
       (c || []).forEach((item) => {
-        // Type guard to ensure item has required CardItem properties
         if (item && typeof item === 'object' && 'id' in item && 'stage_id' in item) {
           const cardItem = item as CardItem;
           const key = cardItem.stage_id;
@@ -231,7 +235,6 @@ export default function KanbanBoard() {
       if (overId.startsWith('stage-')) {
         const targetStageId = overId.replace('stage-', '');
         if (targetStageId === activeStageId) {
-          // Same stage container; move to end if desired
           const targetItems = cardsByStage[targetStageId] || [];
           if (activeIndex === targetItems.length - 1) return;
           await checkAndMoveCard(activeCard, targetStageId, targetItems.length);

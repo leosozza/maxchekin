@@ -50,14 +50,14 @@ export function StageWebhookSettings({ stage, onSave }: StageWebhookSettingsProp
       </div>
 
       <div className="space-y-2">
-        <Label className="text-white/70">URL do Webhook</Label>
+        <Label className="text-muted-foreground">URL do Webhook</Label>
         <Input
           value={webhookUrl}
           onChange={(e) => setWebhookUrl(e.target.value)}
           placeholder="https://seu-bitrix.com.br/webhook/..."
-          className="bg-black/20 border-gold/20 text-white"
+          className="bg-input border-border text-foreground"
         />
-        <p className="text-white/40 text-xs">
+        <p className="text-muted-foreground text-xs">
           URL completa do webhook do Bitrix que será chamado
         </p>
       </div>
@@ -69,7 +69,7 @@ export function StageWebhookSettings({ stage, onSave }: StageWebhookSettingsProp
             checked={onEnter}
             onCheckedChange={(checked) => setOnEnter(checked === true)}
           />
-          <Label htmlFor="on-enter" className="text-white/70 cursor-pointer">
+          <Label htmlFor="on-enter" className="text-muted-foreground cursor-pointer">
             Chamar webhook quando lead ENTRAR nesta etapa
           </Label>
         </div>
@@ -80,21 +80,21 @@ export function StageWebhookSettings({ stage, onSave }: StageWebhookSettingsProp
             checked={onExit}
             onCheckedChange={(checked) => setOnExit(checked === true)}
           />
-          <Label htmlFor="on-exit" className="text-white/70 cursor-pointer">
+          <Label htmlFor="on-exit" className="text-muted-foreground cursor-pointer">
             Chamar webhook quando lead SAIR desta etapa
           </Label>
         </div>
       </div>
 
       <div className="space-y-2">
-        <Label className="text-white/70">ID do Painel (opcional)</Label>
+        <Label className="text-muted-foreground">ID do Painel (opcional)</Label>
         <Input
           value={panelId}
           onChange={(e) => setPanelId(e.target.value)}
           placeholder="UUID do painel de chamada"
-          className="bg-black/20 border-gold/20 text-white"
+          className="bg-input border-border text-foreground"
         />
-        <p className="text-white/40 text-xs">
+        <p className="text-muted-foreground text-xs">
           Se definido, ao mover um lead para esta etapa, ele será chamado automaticamente neste painel
         </p>
       </div>
@@ -116,7 +116,7 @@ export function StageWebhookSettings({ stage, onSave }: StageWebhookSettingsProp
         </pre>
       </div>
 
-      <Button onClick={handleSave} className="bg-gold text-black w-full">
+      <Button onClick={handleSave} className="bg-primary text-primary-foreground w-full">
         Salvar Configurações
       </Button>
     </div>
