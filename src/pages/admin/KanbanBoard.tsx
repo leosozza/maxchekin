@@ -12,12 +12,14 @@ import { performFinalSync } from '@/utils/bitrix/finalSync';
 import { StageWebhookSettings } from '@/components/admin/StageWebhookSettings';
 import { StageFieldsSettings } from '@/components/admin/StageFieldsSettings';
 import { CustomFieldModal } from '@/components/admin/CustomFieldModal';
+import { CustomField } from '@/hooks/useCustomFields';
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent, DragStartEvent, useDroppable,
 } from '@dnd-kit/core';
 import {
   SortableContext, verticalListSortingStrategy, arrayMove, useSortable,
 } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 type Stage = { 
   id: string; 
@@ -30,6 +32,7 @@ type Stage = {
   webhook_on_enter: boolean;
   webhook_on_exit: boolean;
 };
+
 type CardItem = { 
   id: string; 
   lead_id: string; 
@@ -38,25 +41,33 @@ type CardItem = {
   room: string | null; 
   stage_id: string; 
   position: number;
-  custom_field_values: Record<string, any>;
+  custom_field_values: Record<string, string | number | boolean>;
 };
 
+// Droppable stage container to support dropping cards on empty stages
 function DroppableStage({ stageId, children }: { stageId: string; children: React.ReactNode }) {
   const { setNodeRef, isOver } = useDroppable({ id: `stage-${stageId}` });
   
   return (
     <div 
       ref={setNodeRef} 
-      className={`min-h-[100px] transition-colors ${isOver ? 'bg-primary/5' : ''}`}
+      className={`min-h-[100px] transition-colors ${isOver ? 'bg-primary/5 border-2 border-primary/30 rounded' : ''}`}
     >
       {children}
     </div>
   );
 }
 
-function SortableCard({ item, stageId, stages, onMoveCard, onCallNow, onFinalSync }: { 
-  item: CardItem; 
-  stageId: string; 
+function SortableCard({
+  item,
+  stageId,
+  stages,
+  onMoveCard,
+  onCallNow,
+  onFinalSync
+}: {
+  item: CardItem;
+  stageId: string;
   stages: Stage[];
   onMoveCard: (card: CardItem, toStageId: string, toIndex: number) => void;
   onCallNow: (card: CardItem) => void;
@@ -65,7 +76,7 @@ function SortableCard({ item, stageId, stages, onMoveCard, onCallNow, onFinalSyn
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
 
   const style = {
-    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+    transform: CSS.Transform.toString(transform),
     transition,
   };
 
@@ -75,7 +86,7 @@ function SortableCard({ item, stageId, stages, onMoveCard, onCallNow, onFinalSyn
       style={style}
       {...attributes}
       {...listeners}
-      className={`p-3 rounded bg-card/50 border border-border cursor-grab hover:bg-card transition-colors ${isDragging ? 'opacity-50' : ''}`}
+      className={`p-3 rounded bg-card/50 border border-border cursor-grab hover:bg-card hover:border-primary/50 transition-colors ${isDragging ? 'opacity-50' : ''}`}
     >
       <div className="text-foreground font-medium">{item.model_name || 'Sem nome'}</div>
       <div className="text-muted-foreground text-xs">Lead #{item.lead_id}</div>
@@ -135,7 +146,7 @@ export default function KanbanBoard() {
 
   // modal de campos customizados
   const [customFieldsModalOpen, setCustomFieldsModalOpen] = useState(false);
-  const [customFieldsForStage, setCustomFieldsForStage] = useState<any[]>([]);
+  const [customFieldsForStage, setCustomFieldsForStage] = useState<CustomField[]>([]);
   const [pendingCardMove, setPendingCardMove] = useState<{card: CardItem; toStageId: string; toIndex: number} | null>(null);
 
   // drag state
@@ -162,10 +173,14 @@ export default function KanbanBoard() {
 
       setStages((s || []) as Stage[]);
       const grouped: Record<string, CardItem[]> = {};
-      (c || []).forEach((item: any) => {
-        const key = item.stage_id;
-        grouped[key] = grouped[key] || [];
-        grouped[key].push(item);
+      (c || []).forEach((item) => {
+        // Type guard to ensure item has required CardItem properties
+        if (item && typeof item === 'object' && 'id' in item && 'stage_id' in item) {
+          const cardItem = item as CardItem;
+          const key = cardItem.stage_id;
+          grouped[key] = grouped[key] || [];
+          grouped[key].push(cardItem);
+        }
       });
       setCardsByStage(grouped);
     } catch (error) {
@@ -194,7 +209,7 @@ export default function KanbanBoard() {
     const activeId = active.id as string;
     const overId = over.id as string;
 
-    // Find the stage and index for active card
+    // Find active card's stage and index
     let activeStageId = '';
     let activeIndex = -1;
     let activeCard: CardItem | null = null;
@@ -212,14 +227,16 @@ export default function KanbanBoard() {
     if (!activeCard) return;
 
     try {
-      // Check if dropping on a stage container
+      // Dropping on a stage container (empty or end)
       if (overId.startsWith('stage-')) {
         const targetStageId = overId.replace('stage-', '');
         if (targetStageId === activeStageId) {
-          // Same stage, no action needed
+          // Same stage container; move to end if desired
+          const targetItems = cardsByStage[targetStageId] || [];
+          if (activeIndex === targetItems.length - 1) return;
+          await checkAndMoveCard(activeCard, targetStageId, targetItems.length);
           return;
         }
-        // Move to end of target stage
         const targetItems = cardsByStage[targetStageId] || [];
         await checkAndMoveCard(activeCard, targetStageId, targetItems.length);
         return;
@@ -238,17 +255,19 @@ export default function KanbanBoard() {
         }
       }
 
+      if (!overStageId) return;
+
       if (activeStageId === overStageId) {
         // Reorder within stage
         const items = cardsByStage[activeStageId];
         const reordered = arrayMove(items, activeIndex, overIndex);
         const updated = reordered.map((it, idx) => ({ ...it, position: idx }));
         setCardsByStage(prev => ({ ...prev, [activeStageId]: updated }));
-        // Persist - update each card's position
+        // Persist positions
         for (const card of updated) {
           await supabase.from('kanban_cards').update({ position: card.position }).eq('id', card.id);
         }
-      } else if (overStageId) {
+      } else {
         // Move to another stage at specific index
         await checkAndMoveCard(activeCard, overStageId, overIndex);
       }
@@ -259,7 +278,6 @@ export default function KanbanBoard() {
         description: "Não foi possível mover o card. Tente novamente.",
         variant: "destructive",
       });
-      // Reload data to ensure UI is in sync
       await loadData();
     }
   };
@@ -273,11 +291,16 @@ export default function KanbanBoard() {
         .eq('stage_id', toStageId)
         .order('sort_order');
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
       if (stageFields && stageFields.length > 0) {
-        // Tem campos customizados - abrir modal
-        setCustomFieldsForStage(stageFields.map(sf => sf.custom_fields));
+        // Filtrar apenas campos válidos
+        const validFields = stageFields
+          .map(sf => sf.custom_fields)
+          .filter((field): field is CustomField => field !== null && field !== undefined);
+        setCustomFieldsForStage(validFields);
         setPendingCardMove({ card, toStageId, toIndex });
         setCustomFieldsModalOpen(true);
       } else {
@@ -285,7 +308,7 @@ export default function KanbanBoard() {
         await moveCardToStage(card, toStageId, toIndex);
       }
     } catch (error) {
-      console.error('Error checking stage fields:', error);
+      console.error('Erro ao verificar campos da etapa:', error);
       toast({
         title: "Erro ao verificar campos",
         description: "Não foi possível verificar os campos da etapa.",
@@ -295,7 +318,7 @@ export default function KanbanBoard() {
   };
 
   // Callback do modal de campos customizados
-  const handleCustomFieldsSubmit = async (values: Record<string, any>) => {
+  const handleCustomFieldsSubmit = async (values: Record<string, string | number | boolean>) => {
     if (!pendingCardMove) return;
 
     try {
@@ -326,7 +349,13 @@ export default function KanbanBoard() {
   };
 
   // mover entre colunas
-  const moveCardToStage = async (card: CardItem, toStageId: string, toIndex: number, byMethod: 'kanban' | 'checkin' = 'kanban', customFieldValues?: Record<string, any>) => {
+  const moveCardToStage = async (
+    card: CardItem, 
+    toStageId: string, 
+    toIndex: number, 
+    byMethod: 'kanban' | 'checkin' = 'kanban', 
+    customFieldValues?: Record<string, string | number | boolean>
+  ) => {
     const fromStageId = card.stage_id;
     const fromStage = stages.find(s => s.id === fromStageId);
     const toStage = stages.find(s => s.id === toStageId);
@@ -370,16 +399,37 @@ export default function KanbanBoard() {
     }));
 
     // persist - update positions individually
-    for (const r of fromListIndexed) {
-      await supabase.from('kanban_cards').update({ position: r.position }).eq('id', r.id);
-    }
-    
-    for (const r of toListIndexed) {
-      const updateData: any = { stage_id: r.stage_id, position: r.position };
-      if (customFieldValues && r.id === card.id) {
-        updateData.custom_field_values = { ...r.custom_field_values, ...customFieldValues };
+    try {
+      for (const r of fromListIndexed) {
+        const { error } = await supabase.from('kanban_cards').update({ position: r.position }).eq('id', r.id);
+        if (error) throw error;
       }
-      await supabase.from('kanban_cards').update(updateData).eq('id', r.id);
+      
+      // Define proper update type for card updates
+      interface CardUpdateData {
+        stage_id: string;
+        position: number;
+        custom_field_values?: Record<string, string | number | boolean>;
+      }
+      
+      for (const r of toListIndexed) {
+        const updateData: CardUpdateData = { stage_id: r.stage_id, position: r.position };
+        if (customFieldValues && r.id === card.id) {
+          updateData.custom_field_values = { ...r.custom_field_values, ...customFieldValues };
+        }
+        const { error } = await supabase.from('kanban_cards').update(updateData).eq('id', r.id);
+        if (error) throw error;
+      }
+    } catch (error) {
+      console.error('Erro ao persistir movimentação:', error);
+      toast({
+        title: "Erro ao mover card",
+        description: "As alterações podem não ter sido salvas corretamente",
+        variant: "destructive",
+      });
+      // Recarregar dados para garantir sincronização
+      loadData();
+      return;
     }
 
     // auditar
@@ -414,7 +464,7 @@ export default function KanbanBoard() {
 
     // chamar painel (se a coluna tiver panel_id vinculado)
     if (toStage?.panel_id) {
-      const customData: any = {};
+      const customData: Record<string, string | number | boolean> = {};
       
       // Incluir valores de campos customizados no custom_data
       if (customFieldValues) {
@@ -650,7 +700,12 @@ export default function KanbanBoard() {
         <DialogContent className="bg-card border-border">
           <DialogHeader><DialogTitle className="text-primary">Nova Etapa</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <Input value={newStageName} onChange={e => setNewStageName(e.target.value)} placeholder="Nome da etapa" />
+            <Input
+              value={newStageName}
+              onChange={e => setNewStageName(e.target.value)}
+              placeholder="Nome da etapa"
+              className="bg-background border-input text-foreground"
+            />
             <Button onClick={handleCreateStage} className="bg-primary text-primary-foreground hover:bg-primary/90">Criar</Button>
           </div>
         </DialogContent>
@@ -702,7 +757,7 @@ export default function KanbanBoard() {
           </DialogHeader>
           
           <div className="space-y-4">
-            <div className="p-4 bg-muted rounded border border-border">
+            <div className="p-4 bg-muted/50 rounded border border-border">
               <p className="text-foreground text-sm mb-2">
                 <strong>Lead:</strong> {finalSyncCard?.model_name || 'Sem nome'}
               </p>
@@ -717,6 +772,7 @@ export default function KanbanBoard() {
                 value={finalSyncStatus}
                 onChange={(e) => setFinalSyncStatus(e.target.value)}
                 placeholder="Ex: COMPLETED, MATERIAL_DELIVERED"
+                className="bg-background border-input text-foreground"
               />
               <p className="text-muted-foreground text-xs mt-1">
                 ID do status no Bitrix (ex: COMPLETED, CONVERTED, etc.)
@@ -729,15 +785,15 @@ export default function KanbanBoard() {
                 value={finalSyncNotes}
                 onChange={(e) => setFinalSyncNotes(e.target.value)}
                 placeholder="Adicione observações sobre o atendimento..."
-                className="min-h-[100px]"
+                className="bg-background border-input text-foreground min-h-[100px]"
               />
             </div>
 
-            <div className="p-3 bg-blue-900/20 border border-blue-500/30 rounded">
-              <p className="text-blue-300 text-xs">
+            <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded">
+              <p className="text-blue-600 dark:text-blue-400 text-xs">
                 <strong>O que será sincronizado:</strong>
               </p>
-              <ul className="text-blue-200 text-xs mt-2 space-y-1 list-disc list-inside">
+              <ul className="text-blue-600 dark:text-blue-300 text-xs mt-2 space-y-1 list-disc list-inside">
                 <li>Status final do lead</li>
                 <li>Timestamps de todas as etapas</li>
                 <li>Duração em cada etapa</li>

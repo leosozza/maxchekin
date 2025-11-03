@@ -10,11 +10,11 @@ interface CustomFieldModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   fields: CustomField[];
-  onSubmit: (values: Record<string, any>) => void;
+  onSubmit: (values: Record<string, string | number | boolean>) => void;
 }
 
 export function CustomFieldModal({ open, onOpenChange, fields, onSubmit }: CustomFieldModalProps) {
-  const [fieldValues, setFieldValues] = useState<Record<string, any>>({});
+  const [fieldValues, setFieldValues] = useState<Record<string, string | number | boolean>>({});
 
   const handleSubmit = () => {
     onSubmit(fieldValues);
@@ -27,9 +27,10 @@ export function CustomFieldModal({ open, onOpenChange, fields, onSubmit }: Custo
       case 'text':
         return (
           <Input
-            value={fieldValues[field.field_key] || ''}
+            value={String(fieldValues[field.field_key] || '')}
             onChange={(e) => setFieldValues(prev => ({ ...prev, [field.field_key]: e.target.value }))}
             placeholder={`Digite ${field.field_label}`}
+            className="bg-background border-input text-foreground"
           />
         );
       
@@ -37,9 +38,13 @@ export function CustomFieldModal({ open, onOpenChange, fields, onSubmit }: Custo
         return (
           <Input
             type="number"
-            value={fieldValues[field.field_key] || ''}
-            onChange={(e) => setFieldValues(prev => ({ ...prev, [field.field_key]: e.target.value }))}
+            value={fieldValues[field.field_key] !== undefined ? String(fieldValues[field.field_key]) : ''}
+            onChange={(e) => {
+              const value = e.target.value === '' ? 0 : Number(e.target.value);
+              setFieldValues(prev => ({ ...prev, [field.field_key]: value }));
+            }}
             placeholder={`Digite ${field.field_label}`}
+            className="bg-background border-input text-foreground"
           />
         );
       
@@ -47,15 +52,15 @@ export function CustomFieldModal({ open, onOpenChange, fields, onSubmit }: Custo
         const options = field.field_options || [];
         return (
           <Select
-            value={fieldValues[field.field_key] || ''}
+            value={fieldValues[field.field_key] !== undefined ? String(fieldValues[field.field_key]) : ''}
             onValueChange={(value) => setFieldValues(prev => ({ ...prev, [field.field_key]: value }))}
           >
-            <SelectTrigger>
+            <SelectTrigger className="bg-background border-input text-foreground">
               <SelectValue placeholder={`Selecione ${field.field_label}`} />
             </SelectTrigger>
-            <SelectContent className="bg-popover border-border">
+            <SelectContent className="bg-card border-border">
               {options.map((option: string) => (
-                <SelectItem key={option} value={option}>
+                <SelectItem key={option} value={option} className="text-foreground">
                   {option}
                 </SelectItem>
               ))}
