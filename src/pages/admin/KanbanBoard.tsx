@@ -9,8 +9,10 @@ import { Plus, Settings, Users as UsersIcon, Phone, CheckCircle } from 'lucide-r
 import { useToast } from '@/hooks/use-toast';
 import { performFinalSync } from '@/utils/bitrix/finalSync';
 import { StageWebhookSettings } from '@/components/admin/StageWebhookSettings';
+import { StageFieldsSettings } from '@/components/admin/StageFieldsSettings';
+import { CustomFieldModal } from '@/components/admin/CustomFieldModal';
 import {
-  DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent,
+  DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent, DragStartEvent,
 } from '@dnd-kit/core';
 import {
   SortableContext, verticalListSortingStrategy, arrayMove, useSortable,
@@ -27,7 +29,16 @@ type Stage = {
   webhook_on_enter: boolean;
   webhook_on_exit: boolean;
 };
-type CardItem = { id: string; lead_id: string; model_name: string | null; responsible: string | null; room: string | null; stage_id: string; position: number };
+type CardItem = { 
+  id: string; 
+  lead_id: string; 
+  model_name: string | null; 
+  responsible: string | null; 
+  room: string | null; 
+  stage_id: string; 
+  position: number;
+  custom_field_values: Record<string, any>;
+};
 
 function SortableCard({ item, stageId, stages, onMoveCard, onCallNow, onFinalSync }: { 
   item: CardItem; 
@@ -108,7 +119,19 @@ export default function KanbanBoard() {
   const [finalSyncStatus, setFinalSyncStatus] = useState('COMPLETED');
   const [syncingFinal, setSyncingFinal] = useState(false);
 
-  const sensors = useSensors(useSensor(PointerSensor));
+  // modal de campos customizados
+  const [customFieldsModalOpen, setCustomFieldsModalOpen] = useState(false);
+  const [customFieldsForStage, setCustomFieldsForStage] = useState<any[]>([]);
+  const [pendingCardMove, setPendingCardMove] = useState<{card: CardItem; toStageId: string; toIndex: number} | null>(null);
+
+  // drag state
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  const sensors = useSensors(useSensor(PointerSensor, {
+    activationConstraint: {
+      distance: 8,
+    },
+  }));
 
   async function loadData() {
     setLoading(true);
@@ -119,7 +142,7 @@ export default function KanbanBoard() {
 
       const { data: c, error: ec } = await supabase
         .from('kanban_cards')
-        .select('id,lead_id,model_name,responsible,room,stage_id,position')
+        .select('id,lead_id,model_name,responsible,room,stage_id,position,custom_field_values')
         .order('position', { ascending: true });
       if (ec) throw ec;
 
@@ -138,7 +161,12 @@ export default function KanbanBoard() {
 
   useEffect(() => { loadData(); }, []);
 
-  const onDragEnd = (event: DragEndEvent) => {
+  const onDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
+  const onDragEnd = async (event: DragEndEvent) => {
+    setActiveId(null);
     const { active, over } = event;
     if (!over) return;
 
@@ -171,18 +199,53 @@ export default function KanbanBoard() {
       const updated = reordered.map((it, idx) => ({ ...it, position: idx }));
       setCardsByStage(prev => ({ ...prev, [activeStageId]: updated }));
       // Persist - update each card's position
-      updated.forEach(async (card) => {
+      for (const card of updated) {
         await supabase.from('kanban_cards').update({ position: card.position }).eq('id', card.id);
-      });
+      }
     } else {
-      // Move to another stage
+      // Move to another stage - check for custom fields
       const activeCard = cardsByStage[activeStageId][activeIndex];
-      moveCardToStage(activeCard, overStageId, overIndex);
+      await checkAndMoveCard(activeCard, overStageId, overIndex);
     }
   };
 
+  // Verificar se a etapa de destino tem campos customizados
+  const checkAndMoveCard = async (card: CardItem, toStageId: string, toIndex: number) => {
+    const { data: stageFields } = await supabase
+      .from('kanban_stage_fields')
+      .select('*, custom_fields(*)')
+      .eq('stage_id', toStageId)
+      .order('sort_order');
+
+    if (stageFields && stageFields.length > 0) {
+      // Tem campos customizados - abrir modal
+      setCustomFieldsForStage(stageFields.map(sf => sf.custom_fields));
+      setPendingCardMove({ card, toStageId, toIndex });
+      setCustomFieldsModalOpen(true);
+    } else {
+      // Sem campos customizados - mover direto
+      await moveCardToStage(card, toStageId, toIndex);
+    }
+  };
+
+  // Callback do modal de campos customizados
+  const handleCustomFieldsSubmit = async (values: Record<string, any>) => {
+    if (!pendingCardMove) return;
+
+    const { card, toStageId, toIndex } = pendingCardMove;
+    
+    // Atualizar valores customizados do card
+    const updatedCard = {
+      ...card,
+      custom_field_values: { ...card.custom_field_values, ...values }
+    };
+
+    await moveCardToStage(updatedCard, toStageId, toIndex, 'kanban', values);
+    setPendingCardMove(null);
+  };
+
   // mover entre colunas
-  const moveCardToStage = async (card: CardItem, toStageId: string, toIndex: number, byMethod: 'kanban' | 'checkin' = 'kanban') => {
+  const moveCardToStage = async (card: CardItem, toStageId: string, toIndex: number, byMethod: 'kanban' | 'checkin' = 'kanban', customFieldValues?: Record<string, any>) => {
     const fromStageId = card.stage_id;
     const fromStage = stages.find(s => s.id === fromStageId);
     const toStage = stages.find(s => s.id === toStageId);
@@ -226,16 +289,17 @@ export default function KanbanBoard() {
     }));
 
     // persist - update positions individually
-    const updatePromises = [
-      ...fromListIndexed.map(r => 
-        supabase.from('kanban_cards').update({ position: r.position }).eq('id', r.id)
-      ),
-      ...toListIndexed.map(r => 
-        supabase.from('kanban_cards').update({ stage_id: r.stage_id, position: r.position }).eq('id', r.id)
-      )
-    ];
+    for (const r of fromListIndexed) {
+      await supabase.from('kanban_cards').update({ position: r.position }).eq('id', r.id);
+    }
     
-    await Promise.all(updatePromises);
+    for (const r of toListIndexed) {
+      const updateData: any = { stage_id: r.stage_id, position: r.position };
+      if (customFieldValues && r.id === card.id) {
+        updateData.custom_field_values = { ...r.custom_field_values, ...customFieldValues };
+      }
+      await supabase.from('kanban_cards').update(updateData).eq('id', r.id);
+    }
 
     // auditar
     await supabase.from('kanban_events').insert({
@@ -269,13 +333,24 @@ export default function KanbanBoard() {
 
     // chamar painel (se a coluna tiver panel_id vinculado)
     if (toStage?.panel_id) {
+      const customData: any = {};
+      
+      // Incluir valores de campos customizados no custom_data
+      if (customFieldValues) {
+        Object.entries(customFieldValues).forEach(([key, value]) => {
+          customData[key] = value;
+        });
+      }
+
       await supabase.from('calls').insert({
         panel_id: toStage.panel_id,
         lead_id: card.lead_id,
         model_name: card.model_name || '',
         room: card.room,
-        source: 'kanban'
+        source: 'kanban',
+        custom_data: customData
       });
+      
       toast({
         title: "Lead chamado no painel!",
         description: `${card.model_name} foi chamado no painel ${toStage.name}`,
@@ -400,7 +475,7 @@ export default function KanbanBoard() {
         <div className="text-white/60">Carregando...</div>
       ) : (
         <div className="flex gap-4 overflow-auto pb-4">
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={onDragStart} onDragEnd={onDragEnd}>
             {stages.map(stage => {
               const items = cardsByStage[stage.id] || [];
               return (
@@ -453,11 +528,13 @@ export default function KanbanBoard() {
         </DialogContent>
       </Dialog>
 
-      {/* Configurar Usuários da Etapa */}
+      {/* Configurar Campos da Etapa */}
       <Dialog open={stageUsersOpen.open} onOpenChange={(o)=>setStageUsersOpen({open:o, stage: stageUsersOpen.stage})}>
-        <DialogContent className="bg-studio-dark border-gold/20">
-          <DialogHeader><DialogTitle className="text-gold">Usuários da etapa {stageUsersOpen.stage?.name}</DialogTitle></DialogHeader>
-          <div className="text-white/60">Em construção: vincular usuários a esta etapa.</div>
+        <DialogContent className="bg-studio-dark border-gold/20 max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader><DialogTitle className="text-gold">Campos Personalizados: {stageUsersOpen.stage?.name}</DialogTitle></DialogHeader>
+          {stageUsersOpen.stage && (
+            <StageFieldsSettings stageId={stageUsersOpen.stage.id} />
+          )}
         </DialogContent>
       </Dialog>
 
@@ -562,6 +639,14 @@ export default function KanbanBoard() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Modal de Campos Customizados */}
+      <CustomFieldModal
+        open={customFieldsModalOpen}
+        onOpenChange={setCustomFieldsModalOpen}
+        fields={customFieldsForStage}
+        onSubmit={handleCustomFieldsSubmit}
+      />
     </div>
   );
 }

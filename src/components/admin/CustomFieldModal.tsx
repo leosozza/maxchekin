@@ -1,0 +1,107 @@
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CustomField } from '@/hooks/useCustomFields';
+
+interface CustomFieldModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  fields: CustomField[];
+  onSubmit: (values: Record<string, any>) => void;
+}
+
+export function CustomFieldModal({ open, onOpenChange, fields, onSubmit }: CustomFieldModalProps) {
+  const [fieldValues, setFieldValues] = useState<Record<string, any>>({});
+
+  const handleSubmit = () => {
+    onSubmit(fieldValues);
+    setFieldValues({});
+    onOpenChange(false);
+  };
+
+  const renderField = (field: CustomField) => {
+    switch (field.field_type) {
+      case 'text':
+        return (
+          <Input
+            value={fieldValues[field.field_key] || ''}
+            onChange={(e) => setFieldValues(prev => ({ ...prev, [field.field_key]: e.target.value }))}
+            placeholder={`Digite ${field.field_label}`}
+            className="bg-black/20 border-gold/20 text-white"
+          />
+        );
+      
+      case 'number':
+        return (
+          <Input
+            type="number"
+            value={fieldValues[field.field_key] || ''}
+            onChange={(e) => setFieldValues(prev => ({ ...prev, [field.field_key]: e.target.value }))}
+            placeholder={`Digite ${field.field_label}`}
+            className="bg-black/20 border-gold/20 text-white"
+          />
+        );
+      
+      case 'list':
+        const options = (field as any).field_options || [];
+        return (
+          <Select
+            value={fieldValues[field.field_key] || ''}
+            onValueChange={(value) => setFieldValues(prev => ({ ...prev, [field.field_key]: value }))}
+          >
+            <SelectTrigger className="bg-black/20 border-gold/20 text-white">
+              <SelectValue placeholder={`Selecione ${field.field_label}`} />
+            </SelectTrigger>
+            <SelectContent className="bg-studio-dark border-gold/20">
+              {options.map((option: string) => (
+                <SelectItem key={option} value={option} className="text-white">
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        );
+      
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="bg-studio-dark border-gold/20 max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="text-gold">Preencher Campos</DialogTitle>
+        </DialogHeader>
+        
+        <div className="space-y-4">
+          {fields.map((field) => (
+            <div key={field.id}>
+              <Label className="text-white/70 text-sm">{field.field_label}</Label>
+              {renderField(field)}
+            </div>
+          ))}
+        </div>
+
+        <div className="flex gap-2 justify-end mt-4">
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            className="border-gold/20 text-white"
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            className="bg-gold text-black hover:bg-gold/90"
+          >
+            Confirmar
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

@@ -183,6 +183,7 @@ export type Database = {
           created_at: string | null
           field_key: string
           field_label: string
+          field_options: Json | null
           field_type: string
           id: string
           is_active: boolean | null
@@ -195,6 +196,7 @@ export type Database = {
           created_at?: string | null
           field_key: string
           field_label: string
+          field_options?: Json | null
           field_type: string
           id?: string
           is_active?: boolean | null
@@ -207,6 +209,7 @@ export type Database = {
           created_at?: string | null
           field_key?: string
           field_label?: string
+          field_options?: Json | null
           field_type?: string
           id?: string
           is_active?: boolean | null
@@ -249,6 +252,7 @@ export type Database = {
       kanban_cards: {
         Row: {
           created_at: string | null
+          custom_field_values: Json | null
           id: string
           lead_id: string
           model_name: string | null
@@ -260,6 +264,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          custom_field_values?: Json | null
           id?: string
           lead_id: string
           model_name?: string | null
@@ -271,6 +276,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          custom_field_values?: Json | null
           id?: string
           lead_id?: string
           model_name?: string | null
@@ -329,6 +335,48 @@ export type Database = {
           {
             foreignKeyName: "kanban_events_to_stage_id_fkey"
             columns: ["to_stage_id"]
+            isOneToOne: false
+            referencedRelation: "kanban_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kanban_stage_fields: {
+        Row: {
+          created_at: string | null
+          field_id: string
+          id: string
+          is_required: boolean | null
+          sort_order: number | null
+          stage_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          field_id: string
+          id?: string
+          is_required?: boolean | null
+          sort_order?: number | null
+          stage_id: string
+        }
+        Update: {
+          created_at?: string | null
+          field_id?: string
+          id?: string
+          is_required?: boolean | null
+          sort_order?: number | null
+          stage_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kanban_stage_fields_field_id_fkey"
+            columns: ["field_id"]
+            isOneToOne: false
+            referencedRelation: "custom_fields"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kanban_stage_fields_stage_id_fkey"
+            columns: ["stage_id"]
             isOneToOne: false
             referencedRelation: "kanban_stages"
             referencedColumns: ["id"]

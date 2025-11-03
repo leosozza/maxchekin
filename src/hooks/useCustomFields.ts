@@ -5,12 +5,13 @@ export interface CustomField {
   id: string;
   field_key: string;
   field_label: string;
-  field_type: 'text' | 'number' | 'date' | 'image' | 'boolean';
+  field_type: 'text' | 'number' | 'date' | 'image' | 'boolean' | 'list';
   bitrix_field_name: string | null;
   is_active: boolean;
   show_in_checkin: boolean;
   show_in_panels: boolean;
   sort_order: number;
+  field_options?: string[];
 }
 
 export function useCustomFields(filter?: { show_in_checkin?: boolean; show_in_panels?: boolean }) {
