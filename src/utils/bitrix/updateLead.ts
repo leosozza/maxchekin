@@ -94,7 +94,7 @@ export async function updateLead(leadData: UpdateLeadData): Promise<{ success: b
 
     if (!data.result) {
       console.error('[UPDATE-LEAD] Bitrix update failed:', data);
-      throw new Error(`Falha ao atualizar lead: ${JSON.stringify(data)}`);
+      throw new Error('Falha ao atualizar lead no Bitrix');
     }
 
     console.log('[UPDATE-LEAD] Lead updated successfully:', data);
