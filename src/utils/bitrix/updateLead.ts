@@ -6,6 +6,9 @@
 
 import { supabase } from '@/integrations/supabase/client';
 
+// Default photo field from Bitrix CRM configuration
+const DEFAULT_BITRIX_PHOTO_FIELD = 'UF_CRM_1745431662';
+
 export interface UpdateLeadData {
   lead_id: string;
   name?: string;
@@ -52,7 +55,9 @@ export async function updateLead(leadData: UpdateLeadData): Promise<{ success: b
   // Map standard fields
   if (name !== undefined) {
     fields.NAME = name;
-    fields.TITLE = name; // Update both NAME and TITLE
+    // Update both NAME and TITLE to ensure consistency across Bitrix CRM interface
+    // NAME is displayed in list views, TITLE is shown in detail views
+    fields.TITLE = name;
   }
 
   if (responsible !== undefined) {
@@ -60,11 +65,8 @@ export async function updateLead(leadData: UpdateLeadData): Promise<{ success: b
   }
 
   if (photo !== undefined) {
-    // Assuming photo field name from configuration
     const photoFieldName = await getPhotoFieldName();
-    if (photoFieldName) {
-      fields[photoFieldName] = photo;
-    }
+    fields[photoFieldName] = photo;
   }
 
   console.log('[UPDATE-LEAD] Fields to update:', fields);
@@ -110,7 +112,7 @@ export async function updateLead(leadData: UpdateLeadData): Promise<{ success: b
 /**
  * Helper function to get the photo field name from configuration
  */
-async function getPhotoFieldName(): Promise<string | null> {
+async function getPhotoFieldName(): Promise<string> {
   try {
     const { data: fields } = await supabase
       .from('bitrix_field_mapping')
@@ -118,9 +120,9 @@ async function getPhotoFieldName(): Promise<string | null> {
       .eq('field_name', 'photo')
       .maybeSingle();
 
-    return fields?.bitrix_field_code || 'UF_CRM_1745431662'; // Default photo field
+    return fields?.bitrix_field_code || DEFAULT_BITRIX_PHOTO_FIELD;
   } catch (error) {
     console.error('[UPDATE-LEAD] Error fetching photo field name:', error);
-    return 'UF_CRM_1745431662'; // Return default
+    return DEFAULT_BITRIX_PHOTO_FIELD;
   }
 }
