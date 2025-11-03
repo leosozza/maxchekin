@@ -21,6 +21,8 @@ interface StageFieldLink {
 export function StageFieldsSettings({ stageId }: StageFieldsSettingsProps) {
   const [availableFields, setAvailableFields] = useState<CustomField[]>([]);
   const [stageFields, setStageFields] = useState<StageFieldLink[]>([]);
+  // Note: We only support text, number, and list types for Kanban custom fields
+  // Other field types (date, image, boolean) are not supported in this context
   const [newField, setNewField] = useState({
     field_label: '',
     field_type: 'text' as 'text' | 'number' | 'list',

@@ -27,7 +27,7 @@ export function CustomFieldModal({ open, onOpenChange, fields, onSubmit }: Custo
       case 'text':
         return (
           <Input
-            value={fieldValues[field.field_key] as string || ''}
+            value={String(fieldValues[field.field_key] || '')}
             onChange={(e) => setFieldValues(prev => ({ ...prev, [field.field_key]: e.target.value }))}
             placeholder={`Digite ${field.field_label}`}
             className="bg-background border-input text-foreground"
@@ -38,8 +38,11 @@ export function CustomFieldModal({ open, onOpenChange, fields, onSubmit }: Custo
         return (
           <Input
             type="number"
-            value={fieldValues[field.field_key] as string || ''}
-            onChange={(e) => setFieldValues(prev => ({ ...prev, [field.field_key]: e.target.value }))}
+            value={fieldValues[field.field_key] !== undefined ? String(fieldValues[field.field_key]) : ''}
+            onChange={(e) => {
+              const value = e.target.value === '' ? 0 : Number(e.target.value);
+              setFieldValues(prev => ({ ...prev, [field.field_key]: value }));
+            }}
             placeholder={`Digite ${field.field_label}`}
             className="bg-background border-input text-foreground"
           />
@@ -49,7 +52,7 @@ export function CustomFieldModal({ open, onOpenChange, fields, onSubmit }: Custo
         const options = field.field_options || [];
         return (
           <Select
-            value={fieldValues[field.field_key] as string || ''}
+            value={fieldValues[field.field_key] !== undefined ? String(fieldValues[field.field_key]) : ''}
             onValueChange={(value) => setFieldValues(prev => ({ ...prev, [field.field_key]: value }))}
           >
             <SelectTrigger className="bg-background border-input text-foreground">

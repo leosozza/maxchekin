@@ -167,10 +167,13 @@ export default function KanbanBoard() {
       setStages((s || []) as Stage[]);
       const grouped: Record<string, CardItem[]> = {};
       (c || []).forEach((item) => {
-        const cardItem = item as unknown as CardItem;
-        const key = cardItem.stage_id;
-        grouped[key] = grouped[key] || [];
-        grouped[key].push(cardItem);
+        // Type guard to ensure item has required CardItem properties
+        if (item && typeof item === 'object' && 'id' in item && 'stage_id' in item) {
+          const cardItem = item as CardItem;
+          const key = cardItem.stage_id;
+          grouped[key] = grouped[key] || [];
+          grouped[key].push(cardItem);
+        }
       });
       setCardsByStage(grouped);
     } catch (error) {
@@ -290,7 +293,11 @@ export default function KanbanBoard() {
 
       if (stageFields && stageFields.length > 0) {
         // Tem campos customizados - abrir modal
-        setCustomFieldsForStage(stageFields.map(sf => sf.custom_fields).filter(Boolean));
+        // Use type guard to filter out null/undefined fields
+        const validFields = stageFields
+          .map(sf => sf.custom_fields)
+          .filter((field): field is CustomField => field !== null && field !== undefined);
+        setCustomFieldsForStage(validFields);
         setPendingCardMove({ card, toStageId, toIndex });
         setCustomFieldsModalOpen(true);
       } else {
@@ -380,8 +387,15 @@ export default function KanbanBoard() {
         if (error) throw error;
       }
       
+      // Define proper update type for card updates
+      interface CardUpdateData {
+        stage_id: string;
+        position: number;
+        custom_field_values?: Record<string, string | number | boolean>;
+      }
+      
       for (const r of toListIndexed) {
-        const updateData: Record<string, unknown> = { stage_id: r.stage_id, position: r.position };
+        const updateData: CardUpdateData = { stage_id: r.stage_id, position: r.position };
         if (customFieldValues && r.id === card.id) {
           updateData.custom_field_values = { ...r.custom_field_values, ...customFieldValues };
         }
@@ -461,9 +475,19 @@ export default function KanbanBoard() {
     const position = stages.length;
     const { data, error } = await supabase.from('kanban_stages').insert({ name: newStageName, position }).select('*').single();
     if (!error && data) {
-      setStages(prev => [...prev, data as any]);
+      setStages(prev => [...prev, data as Stage]);
       setOpenCreateStage(false);
       setNewStageName('');
+      toast({
+        title: "Etapa criada!",
+        description: `A etapa "${newStageName}" foi criada com sucesso`,
+      });
+    } else if (error) {
+      toast({
+        title: "Erro ao criar etapa",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
