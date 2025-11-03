@@ -29,6 +29,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getLeadPhotoUrl, DEFAULT_PHOTO_FIELD } from "@/utils/photo";
+import { updateLead } from "@/utils/bitrix/updateLead";
 
 interface ModelData {
   lead_id: string;
@@ -831,7 +832,7 @@ export default function CheckInNew() {
     }
   };
 
-  const saveEdits = () => {
+  const saveEdits = async () => {
     if (!editableData) return;
 
     // Validate required fields
@@ -844,16 +845,43 @@ export default function CheckInNew() {
       return;
     }
 
-    // Reset photo error state
-    setPhotoError(false);
-    
-    // Exit edit mode after saving
-    setIsEditMode(false);
-    
-    toast({
-      title: "Edições salvas",
-      description: "As alterações foram aplicadas",
-    });
+    // Show loading state
+    setIsLoading(true);
+
+    try {
+      // Update lead in Bitrix
+      await updateLead({
+        lead_id: editableData.lead_id,
+        name: editableData.name,
+        responsible: editableData.responsible,
+        photo: editableData.photo,
+      });
+
+      // Update local state with edited data
+      setModelData(editableData);
+      setPendingCheckInData(editableData);
+
+      // Reset photo error state
+      setPhotoError(false);
+      
+      // Exit edit mode after saving
+      setIsEditMode(false);
+      
+      toast({
+        title: "Edições salvas",
+        description: "As alterações foram aplicadas no Bitrix",
+      });
+    } catch (error) {
+      console.error('[CHECKIN] Error saving edits to Bitrix:', error);
+      
+      toast({
+        title: "Erro ao salvar",
+        description: error instanceof Error ? error.message : "Não foi possível atualizar o lead no Bitrix",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const cancelCheckIn = () => {
