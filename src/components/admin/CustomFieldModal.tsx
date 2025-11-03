@@ -10,11 +10,11 @@ interface CustomFieldModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   fields: CustomField[];
-  onSubmit: (values: Record<string, any>) => void;
+  onSubmit: (values: Record<string, string | number | boolean>) => void;
 }
 
 export function CustomFieldModal({ open, onOpenChange, fields, onSubmit }: CustomFieldModalProps) {
-  const [fieldValues, setFieldValues] = useState<Record<string, any>>({});
+  const [fieldValues, setFieldValues] = useState<Record<string, string | number | boolean>>({});
 
   const handleSubmit = () => {
     onSubmit(fieldValues);
@@ -27,10 +27,10 @@ export function CustomFieldModal({ open, onOpenChange, fields, onSubmit }: Custo
       case 'text':
         return (
           <Input
-            value={fieldValues[field.field_key] || ''}
+            value={fieldValues[field.field_key] as string || ''}
             onChange={(e) => setFieldValues(prev => ({ ...prev, [field.field_key]: e.target.value }))}
             placeholder={`Digite ${field.field_label}`}
-            className="bg-black/20 border-gold/20 text-white"
+            className="bg-background border-input text-foreground"
           />
         );
       
@@ -38,32 +38,33 @@ export function CustomFieldModal({ open, onOpenChange, fields, onSubmit }: Custo
         return (
           <Input
             type="number"
-            value={fieldValues[field.field_key] || ''}
+            value={fieldValues[field.field_key] as string || ''}
             onChange={(e) => setFieldValues(prev => ({ ...prev, [field.field_key]: e.target.value }))}
             placeholder={`Digite ${field.field_label}`}
-            className="bg-black/20 border-gold/20 text-white"
+            className="bg-background border-input text-foreground"
           />
         );
       
-      case 'list':
-        const options = (field as any).field_options || [];
+      case 'list': {
+        const options = field.field_options || [];
         return (
           <Select
-            value={fieldValues[field.field_key] || ''}
+            value={fieldValues[field.field_key] as string || ''}
             onValueChange={(value) => setFieldValues(prev => ({ ...prev, [field.field_key]: value }))}
           >
-            <SelectTrigger className="bg-black/20 border-gold/20 text-white">
+            <SelectTrigger className="bg-background border-input text-foreground">
               <SelectValue placeholder={`Selecione ${field.field_label}`} />
             </SelectTrigger>
-            <SelectContent className="bg-studio-dark border-gold/20">
+            <SelectContent className="bg-card border-border">
               {options.map((option: string) => (
-                <SelectItem key={option} value={option} className="text-white">
+                <SelectItem key={option} value={option} className="text-foreground">
                   {option}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         );
+      }
       
       default:
         return null;
@@ -72,15 +73,15 @@ export function CustomFieldModal({ open, onOpenChange, fields, onSubmit }: Custo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-studio-dark border-gold/20 max-w-lg">
+      <DialogContent className="bg-card border-border max-w-lg">
         <DialogHeader>
-          <DialogTitle className="text-gold">Preencher Campos</DialogTitle>
+          <DialogTitle className="text-primary">Preencher Campos</DialogTitle>
         </DialogHeader>
         
         <div className="space-y-4">
           {fields.map((field) => (
             <div key={field.id}>
-              <Label className="text-white/70 text-sm">{field.field_label}</Label>
+              <Label className="text-foreground text-sm">{field.field_label}</Label>
               {renderField(field)}
             </div>
           ))}
@@ -90,13 +91,12 @@ export function CustomFieldModal({ open, onOpenChange, fields, onSubmit }: Custo
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
-            className="border-gold/20 text-white"
           >
             Cancelar
           </Button>
           <Button
             onClick={handleSubmit}
-            className="bg-gold text-black hover:bg-gold/90"
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
           >
             Confirmar
           </Button>
