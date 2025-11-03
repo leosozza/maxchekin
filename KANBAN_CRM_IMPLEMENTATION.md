@@ -134,7 +134,7 @@ The `applyFilters` function correctly calls `loadDaily()` and the "Aplicar" butt
    - `lead_creation_config` table with `field_name = 'SOURCE_ID'`
    
 3. **Priority 3**: Default
-   - `'CALL'`
+   - `'UC_SJ3VW5''`
 
 **Example Usage**:
 ```typescript
@@ -158,7 +158,7 @@ await createLead({
 **Location**: `src/pages/CheckInNew.tsx`
 
 **Changes**:
-- ✅ Added `SOURCE_ID: 'CALL'` to payload when creating leads in reception flow
+- ✅ Added `SOURCE_ID: 'UC_SJ3VW5'` to payload when creating leads in reception flow
 - This ensures all leads created from check-in have proper source tracking
 
 **Code**:
