@@ -155,16 +155,15 @@ export async function buildLeadFieldsFromNewLead(
     fields.TITLE = "Novo Lead Recepção";
   }
 
-  // SOURCE_ID priority: input/code > configuration > default 'CALL'
+  // SOURCE_ID priority: input/code > default 'UC_SJ3VW5' (not overridden by config)
   // First, check if SOURCE_ID is provided in input
   const inputSourceId = (input as any).SOURCE_ID;
   if (inputSourceId) {
     // Priority 1: Use SOURCE_ID from input/code
     fields.SOURCE_ID = inputSourceId;
   } else {
-    // Priority 2: Try to load from configuration (will be set later in config loop)
-    // Priority 3: Default to 'CALL' (set at the end if not overridden)
-    fields.SOURCE_ID = 'CALL'; // Default value
+    // Priority 2: Default to 'UC_SJ3VW5' (not overridden by config)
+    fields.SOURCE_ID = 'UC_SJ3VW5'; // Default value
   }
 
   // Set other default values (these are always set and never overridden)
@@ -198,8 +197,7 @@ export async function buildLeadFieldsFromNewLead(
 
   // Load configured default fields from lead_creation_config if supabase client is available
   // The lead_creation_config table should have columns: field_name (string), field_value (string), is_active (boolean)
-  // SOURCE_ID can be overridden by config (Priority 2) if not already set by input (Priority 1)
-  // PARENT_ID_1120 and UF_CRM_1741215746 are never overridden by config
+  // SOURCE_ID, PARENT_ID_1120 and UF_CRM_1741215746 are never overridden by config
   if (supabaseClient) {
     try {
       const { data: configFields } = await supabaseClient
@@ -209,13 +207,9 @@ export async function buildLeadFieldsFromNewLead(
 
       if (configFields && configFields.length > 0) {
         for (const config of configFields) {
-          // Allow SOURCE_ID from config if not provided in input (Priority 2)
-          if (config.field_name === "SOURCE_ID" && !inputSourceId && config.field_value) {
-            fields.SOURCE_ID = config.field_value;
-            continue;
-          }
-          // Skip overriding PARENT_ID_1120 and UF_CRM_1741215746 as they are always set
-          if (config.field_name === "PARENT_ID_1120" || 
+          // Skip protected fields that should not be overridden by config
+          if (config.field_name === "SOURCE_ID" || 
+              config.field_name === "PARENT_ID_1120" || 
               config.field_name === "UF_CRM_1741215746") {
             continue;
           }
@@ -278,7 +272,7 @@ export async function buildLeadFieldsFromNewLead(
  * Now supports async buildLeadFieldsFromNewLead
  */
 async function sendCrmLeadAdd(webhookBaseUrl: string, fields: BitrixLeadFields): Promise<BitrixLeadResponse> {
-  const url = `${webhookBaseUrl.replace(/\/$/, "")}/crm.lead.add.json`;
+  const url = `${webhookBaseUrl.replace(/\/\$/, "")}/crm.lead.add.json`;
 
   const resp = await fetch(url, {
     method: "POST",
