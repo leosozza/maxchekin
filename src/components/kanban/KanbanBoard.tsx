@@ -192,6 +192,7 @@ export function KanbanBoard({
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const onDragStart = (event: DragStartEvent) => {
