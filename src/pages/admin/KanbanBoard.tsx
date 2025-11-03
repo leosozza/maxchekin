@@ -61,11 +61,11 @@ function SortableCard({ item, stageId, stages, onMoveCard, onCallNow, onFinalSyn
       style={style}
       {...attributes}
       {...listeners}
-      className={`p-3 rounded bg-black/30 border border-gold/10 cursor-grab ${isDragging ? 'opacity-50' : ''}`}
+      className={`p-3 rounded bg-card border border-border cursor-grab ${isDragging ? 'opacity-50' : ''}`}
     >
-      <div className="text-white font-medium">{item.model_name || 'Sem nome'}</div>
-      <div className="text-white/60 text-xs">Lead #{item.lead_id}</div>
-      <div className="text-white/60 text-xs">Resp: {item.responsible || '—'}</div>
+      <div className="text-foreground font-medium">{item.model_name || 'Sem nome'}</div>
+      <div className="text-muted-foreground text-xs">Lead #{item.lead_id}</div>
+      <div className="text-muted-foreground text-xs">Resp: {item.responsible || '—'}</div>
 
       {/* ações rápidas */}
       <div className="mt-2 flex flex-col gap-2">
@@ -73,7 +73,7 @@ function SortableCard({ item, stageId, stages, onMoveCard, onCallNow, onFinalSyn
           <Button
             size="sm"
             variant="outline"
-            className="border-gold/20 text-white hover:bg-gold/10 flex-1"
+            className="flex-1"
             onClick={(e) => { e.stopPropagation(); onCallNow(item); }}
             title="Chamar agora no painel"
           >
@@ -87,7 +87,7 @@ function SortableCard({ item, stageId, stages, onMoveCard, onCallNow, onFinalSyn
           <Button
             size="sm"
             variant="default"
-            className="bg-green-600 hover:bg-green-700 text-white w-full"
+            className="bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 text-white w-full"
             onClick={(e) => { e.stopPropagation(); onFinalSync(item); }}
             title="Concluir e sincronizar com Bitrix"
           >
@@ -461,33 +461,33 @@ export default function KanbanBoard() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gold">Kanban (Etapas)</h1>
-          <p className="text-white/60">Arraste leads entre etapas. Cada etapa pode acionar um painel.</p>
+          <h1 className="text-3xl font-bold text-primary">Kanban (Etapas)</h1>
+          <p className="text-muted-foreground">Arraste leads entre etapas. Cada etapa pode acionar um painel.</p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => setOpenCreateStage(true)} className="bg-gold text-black">
+          <Button onClick={() => setOpenCreateStage(true)} className="bg-primary text-primary-foreground hover:bg-primary/90">
             <Plus className="w-4 h-4 mr-1" /> Nova Etapa
           </Button>
         </div>
       </div>
 
       {loading ? (
-        <div className="text-white/60">Carregando...</div>
+        <div className="text-muted-foreground">Carregando...</div>
       ) : (
         <div className="flex gap-4 overflow-auto pb-4">
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={onDragStart} onDragEnd={onDragEnd}>
             {stages.map(stage => {
               const items = cardsByStage[stage.id] || [];
               return (
-                <Card key={stage.id} className="min-w-[320px] border-gold/20 bg-black/40 backdrop-blur-sm">
+                <Card key={stage.id} className="min-w-[320px] border bg-card/50 backdrop-blur-sm">
                   <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle className="text-gold">{stage.name}</CardTitle>
+                    <CardTitle className="text-primary">{stage.name}</CardTitle>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="border-gold/20 text-white"
+                      <Button variant="outline" size="sm"
                         onClick={() => setStageUsersOpen({open:true, stage})}>
                         <UsersIcon className="w-4 h-4" />
                       </Button>
-                      <Button variant="outline" size="sm" className="border-gold/20 text-white"
+                      <Button variant="outline" size="sm"
                         onClick={() => setStageSettingsOpen({open:true, stage})}>
                         <Settings className="w-4 h-4" />
                       </Button>
@@ -519,19 +519,19 @@ export default function KanbanBoard() {
 
       {/* Criar Etapa */}
       <Dialog open={openCreateStage} onOpenChange={setOpenCreateStage}>
-        <DialogContent className="bg-studio-dark border-gold/20">
-          <DialogHeader><DialogTitle className="text-gold">Nova Etapa</DialogTitle></DialogHeader>
+        <DialogContent className="bg-background border">
+          <DialogHeader><DialogTitle className="text-primary">Nova Etapa</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <Input value={newStageName} onChange={e => setNewStageName(e.target.value)} placeholder="Nome da etapa" className="bg-black/20 border-gold/20 text-white"/>
-            <Button onClick={handleCreateStage} className="bg-gold text-black">Criar</Button>
+            <Input value={newStageName} onChange={e => setNewStageName(e.target.value)} placeholder="Nome da etapa" className="bg-input border text-foreground"/>
+            <Button onClick={handleCreateStage} className="bg-primary text-primary-foreground hover:bg-primary/90">Criar</Button>
           </div>
         </DialogContent>
       </Dialog>
 
       {/* Configurar Campos da Etapa */}
       <Dialog open={stageUsersOpen.open} onOpenChange={(o)=>setStageUsersOpen({open:o, stage: stageUsersOpen.stage})}>
-        <DialogContent className="bg-studio-dark border-gold/20 max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader><DialogTitle className="text-gold">Campos Personalizados: {stageUsersOpen.stage?.name}</DialogTitle></DialogHeader>
+        <DialogContent className="bg-background border max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader><DialogTitle className="text-primary">Campos Personalizados: {stageUsersOpen.stage?.name}</DialogTitle></DialogHeader>
           {stageUsersOpen.stage && (
             <StageFieldsSettings stageId={stageUsersOpen.stage.id} />
           )}
@@ -540,9 +540,9 @@ export default function KanbanBoard() {
 
       {/* Configurações da Etapa (Webhook) */}
       <Dialog open={stageSettingsOpen.open} onOpenChange={(o)=>setStageSettingsOpen({open:o, stage: stageSettingsOpen.stage})}>
-        <DialogContent className="bg-studio-dark border-gold/20 max-w-2xl">
+        <DialogContent className="bg-background border max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="text-gold">Configurações: {stageSettingsOpen.stage?.name}</DialogTitle>
+            <DialogTitle className="text-primary">Configurações: {stageSettingsOpen.stage?.name}</DialogTitle>
           </DialogHeader>
           {stageSettingsOpen.stage && (
             <StageWebhookSettings 
@@ -568,49 +568,49 @@ export default function KanbanBoard() {
 
       {/* Modal de Sincronização Final */}
       <Dialog open={finalSyncOpen} onOpenChange={setFinalSyncOpen}>
-        <DialogContent className="bg-studio-dark border-gold/20 max-w-lg">
+        <DialogContent className="bg-background border max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-gold">Concluir Fluxo e Sincronizar com Bitrix</DialogTitle>
+            <DialogTitle className="text-primary">Concluir Fluxo e Sincronizar com Bitrix</DialogTitle>
           </DialogHeader>
           
           <div className="space-y-4">
-            <div className="p-4 bg-black/20 rounded border border-gold/10">
-              <p className="text-white text-sm mb-2">
+            <div className="p-4 bg-muted rounded border">
+              <p className="text-foreground text-sm mb-2">
                 <strong>Lead:</strong> {finalSyncCard?.model_name || 'Sem nome'}
               </p>
-              <p className="text-white/60 text-xs">
+              <p className="text-muted-foreground text-xs">
                 ID: {finalSyncCard?.lead_id}
               </p>
             </div>
 
             <div>
-              <label className="text-white/70 text-sm block mb-2">Status Final no Bitrix</label>
+              <label className="text-foreground text-sm block mb-2">Status Final no Bitrix</label>
               <Input
                 value={finalSyncStatus}
                 onChange={(e) => setFinalSyncStatus(e.target.value)}
                 placeholder="Ex: COMPLETED, MATERIAL_DELIVERED"
-                className="bg-black/20 border-gold/20 text-white"
+                className="bg-input border text-foreground"
               />
-              <p className="text-white/40 text-xs mt-1">
+              <p className="text-muted-foreground text-xs mt-1">
                 ID do status no Bitrix (ex: COMPLETED, CONVERTED, etc.)
               </p>
             </div>
 
             <div>
-              <label className="text-white/70 text-sm block mb-2">Observações (opcional)</label>
+              <label className="text-foreground text-sm block mb-2">Observações (opcional)</label>
               <Textarea
                 value={finalSyncNotes}
                 onChange={(e) => setFinalSyncNotes(e.target.value)}
                 placeholder="Adicione observações sobre o atendimento..."
-                className="bg-black/20 border-gold/20 text-white min-h-[100px]"
+                className="bg-input border text-foreground min-h-[100px]"
               />
             </div>
 
-            <div className="p-3 bg-blue-900/20 border border-blue-500/30 rounded">
-              <p className="text-blue-300 text-xs">
+            <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded">
+              <p className="text-blue-600 dark:text-blue-400 text-xs">
                 <strong>O que será sincronizado:</strong>
               </p>
-              <ul className="text-blue-200 text-xs mt-2 space-y-1 list-disc list-inside">
+              <ul className="text-blue-600 dark:text-blue-400 text-xs mt-2 space-y-1 list-disc list-inside">
                 <li>Status final do lead</li>
                 <li>Timestamps de todas as etapas</li>
                 <li>Duração em cada etapa</li>
@@ -624,14 +624,13 @@ export default function KanbanBoard() {
                 variant="outline"
                 onClick={() => setFinalSyncOpen(false)}
                 disabled={syncingFinal}
-                className="border-gold/20 text-white"
               >
                 Cancelar
               </Button>
               <Button
                 onClick={executeFinalSync}
                 disabled={syncingFinal}
-                className="bg-green-600 hover:bg-green-700 text-white"
+                className="bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 text-white"
               >
                 {syncingFinal ? 'Sincronizando...' : 'Confirmar e Sincronizar'}
               </Button>
