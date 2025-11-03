@@ -47,6 +47,25 @@ interface FetchModelDataResult {
 // Bitrix field constants
 const BITRIX_CHECK_IN_TIME_FIELD = 'UF_CRM_CHECK_IN_TIME';
 
+/**
+ * Helper function to ensure Bitrix field values are always strings.
+ * Bitrix can return some fields as arrays instead of strings.
+ * This function extracts the first element if the value is an array.
+ * @param value - Value from Bitrix (can be string, array, or other)
+ * @returns String value or empty string if null/undefined
+ */
+const ensureString = (value: unknown): string => {
+  if (value === null || value === undefined) {
+    return "";
+  }
+  if (Array.isArray(value)) {
+    // If array, return first element as string, or empty string if array is empty
+    return value.length > 0 ? String(value[0]) : "";
+  }
+  // Convert to string for any other type
+  return String(value);
+};
+
 // Validation schemas for security
 const leadIdSchema = z.string()
   .trim()
@@ -489,22 +508,27 @@ export default function CheckInNew() {
           
           // Set value with fallback chain
           if (mapping.maxcheckin_field_name === "model_name") {
-            modelData.name = bitrixValue || lead.NAME || lead.TITLE || "Modelo Sem Nome";
+            // Ensure name is always a string, handling array values from Bitrix
+            const nameValue = ensureString(bitrixValue) || ensureString(lead.NAME) || ensureString(lead.TITLE) || "Modelo Sem Nome";
+            modelData.name = nameValue;
           } else if (mapping.maxcheckin_field_name === "model_photo") {
             const fieldName = mapping.bitrix_field_name || DEFAULT_PHOTO_FIELD;
             modelData.photo = getLeadPhotoUrl(validLeadId, fieldName);
           } else if (mapping.maxcheckin_field_name === "responsible") {
-            modelData.responsible = bitrixValue || lead.ASSIGNED_BY_NAME || "MaxFama";
+            // Ensure responsible is always a string, handling array values from Bitrix
+            const responsibleValue = ensureString(bitrixValue) || ensureString(lead.ASSIGNED_BY_NAME) || "MaxFama";
+            modelData.responsible = responsibleValue;
           } else {
+            // For other fields, convert to string if they might be used in string operations
             modelData[mapping.maxcheckin_field_name] = bitrixValue || null;
           }
         });
       } else {
         // Fallback to default fields if no mappings configured
         console.log(`[CHECK-IN] Sem mapeamentos, usando campos padrão`);
-        modelData.name = lead.NAME || lead.TITLE || "Modelo Sem Nome";
+        modelData.name = ensureString(lead.NAME) || ensureString(lead.TITLE) || "Modelo Sem Nome";
         modelData.photo = getLeadPhotoUrl(validLeadId, DEFAULT_PHOTO_FIELD);
-        modelData.responsible = lead.ASSIGNED_BY_NAME || "MaxFama";
+        modelData.responsible = ensureString(lead.ASSIGNED_BY_NAME) || "MaxFama";
       }
 
       console.log(`[CHECK-IN] Dados extraídos:`, {
@@ -835,8 +859,11 @@ export default function CheckInNew() {
   const saveEdits = async () => {
     if (!editableData) return;
 
+    // Ensure name is a string (defensive check for array values from Bitrix)
+    const nameValue = ensureString(editableData.name);
+
     // Validate required fields
-    if (!editableData.name || editableData.name.trim() === "") {
+    if (!nameValue || nameValue.trim() === "") {
       toast({
         title: "Erro de validação",
         description: "O nome é obrigatório",
@@ -852,16 +879,21 @@ export default function CheckInNew() {
       // Update lead in Bitrix
       const result = await updateLead({
         lead_id: editableData.lead_id,
-        name: editableData.name,
-        responsible: editableData.responsible,
+        name: nameValue,
+        responsible: ensureString(editableData.responsible),
         photo: editableData.photo,
       });
 
       // Only update local state after confirming Bitrix update was successful
       if (result.success) {
-        // Update local state with edited data
-        setModelData(editableData);
-        setPendingCheckInData(editableData);
+        // Update local state with edited data (ensure name is string)
+        const updatedData = {
+          ...editableData,
+          name: nameValue,
+          responsible: ensureString(editableData.responsible)
+        };
+        setModelData(updatedData);
+        setPendingCheckInData(updatedData);
 
         // Reset photo error state
         setPhotoError(false);
