@@ -378,23 +378,24 @@ export function KanbanBoard({
 
     // Call panel if stage has linked panel_id
     if (toStage?.panel_id) {
-      const customData: Record<string, unknown> = {};
+      const customData: Record<string, string | number | boolean> = {};
 
       // Include custom field values in custom_data
       if (customFieldValues) {
         Object.entries(customFieldValues).forEach(([key, value]) => {
-          customData[key] = value;
+          if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+            customData[key] = value;
+          }
         });
       }
 
-      await supabase.from('calls').insert({
-        panel_id: toStage.panel_id,
+      await supabase.from('calls').insert([{
         lead_id: card.lead_id,
         model_name: card.model_name || '',
         room: card.room,
         source: 'kanban',
-        custom_data: customData,
-      });
+        custom_data: customData as Record<string, never>,
+      }]);
 
       toast({
         title: 'Lead chamado no painel!',

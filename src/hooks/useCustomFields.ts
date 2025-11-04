@@ -12,6 +12,7 @@ export interface CustomField {
   show_in_panels: boolean;
   sort_order: number;
   field_options?: string[];
+  created_at?: string;
 }
 
 export function useCustomFields(filter?: { show_in_checkin?: boolean; show_in_panels?: boolean }) {

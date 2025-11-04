@@ -115,12 +115,12 @@ export async function updateLead(leadData: UpdateLeadData): Promise<{ success: b
 async function getPhotoFieldName(): Promise<string> {
   try {
     const { data: fields } = await supabase
-      .from('bitrix_field_mapping')
-      .select('bitrix_field_code')
-      .eq('field_name', 'photo')
+      .from('custom_fields')
+      .select('bitrix_field_name')
+      .eq('field_key', 'photo')
       .maybeSingle();
 
-    return fields?.bitrix_field_code || DEFAULT_BITRIX_PHOTO_FIELD;
+    return fields?.bitrix_field_name || DEFAULT_BITRIX_PHOTO_FIELD;
   } catch (error) {
     console.error('[UPDATE-LEAD] Error fetching photo field name:', error);
     return DEFAULT_BITRIX_PHOTO_FIELD;

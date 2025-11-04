@@ -30,6 +30,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getLeadPhotoUrl, DEFAULT_PHOTO_FIELD } from "@/utils/photo";
 import { updateLead } from "@/utils/bitrix/updateLead";
+import { MultiModelDialog } from "@/components/checkin/MultiModelDialog";
+import { getDealIdFromLead, cloneDealForNewModel } from "@/utils/bitrix/cloneDeal";
 
 interface ModelData {
   lead_id: string;
@@ -109,6 +111,12 @@ export default function CheckInNew() {
   const [pendingBitrixUpdate, setPendingBitrixUpdate] = useState<{ leadId: string; presencaFieldName: string | null } | null>(null);
   const [hasPreviousCheckIn, setHasPreviousCheckIn] = useState(false);
   const [previousCheckedAt, setPreviousCheckedAt] = useState<string | null>(null);
+  const [showMultiModelDialog, setShowMultiModelDialog] = useState(false);
+  const [existingCheckInData, setExistingCheckInData] = useState<{
+    lead_id: string;
+    model_name: string;
+    checked_in_at: string;
+  } | null>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const usbInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -613,37 +621,50 @@ export default function CheckInNew() {
       try {
         const { data: existingCheckIn, error: checkError } = await supabase
           .from('check_ins')
-          .select('id, checked_in_at')
+          .select('lead_id, model_name, checked_in_at')
           .eq('lead_id', parsedLeadId)
+          .order('checked_in_at', { ascending: false })
+          .limit(1)
           .maybeSingle();
         
         if (checkError) {
           console.error(`[CHECK-IN] Erro ao verificar check-in existente:`, checkError);
-          // Continue with flow even if check fails - just won't show warning
           setHasPreviousCheckIn(false);
           setPreviousCheckedAt(null);
-        } else {
-          setHasPreviousCheckIn(!!existingCheckIn);
-          setPreviousCheckedAt(existingCheckIn?.checked_in_at ?? null);
+          setExistingCheckInData(null);
+        } else if (existingCheckIn) {
+          console.log(`[CHECK-IN] Check-in existente encontrado:`, existingCheckIn);
+          setHasPreviousCheckIn(true);
+          setPreviousCheckedAt(existingCheckIn.checked_in_at);
+          setExistingCheckInData({
+            lead_id: existingCheckIn.lead_id,
+            model_name: existingCheckIn.model_name,
+            checked_in_at: existingCheckIn.checked_in_at
+          });
           
-          if (existingCheckIn) {
-            console.log(`[CHECK-IN] Check-in existente encontrado:`, existingCheckIn);
-          } else {
-            console.log(`[CHECK-IN] Nenhum check-in anterior encontrado`);
-          }
+          // Show multi-model dialog instead of confirmation
+          setPendingCheckInData(modelData);
+          setEditableData({ ...modelData });
+          setShowMultiModelDialog(true);
+          return; // Don't show normal confirmation dialog
+        } else {
+          console.log(`[CHECK-IN] Nenhum check-in anterior encontrado`);
+          setHasPreviousCheckIn(false);
+          setPreviousCheckedAt(null);
+          setExistingCheckInData(null);
         }
       } catch (checkErr) {
         console.error(`[CHECK-IN] Exceção ao verificar check-in:`, checkErr);
-        // Continue with flow even if check fails
         setHasPreviousCheckIn(false);
         setPreviousCheckedAt(null);
+        setExistingCheckInData(null);
       }
 
-      // Show confirmation dialog instead of immediately saving
+      // Show confirmation dialog for first check-in
       setPendingCheckInData(modelData);
-      setEditableData({ ...modelData }); // Create a copy for editing
-      setIsEditMode(false); // Start in view mode
-      setPhotoError(false); // Reset photo error
+      setEditableData({ ...modelData });
+      setIsEditMode(false);
+      setPhotoError(false);
       setShowConfirmDialog(true);
     } catch (error) {
       console.error(`[CHECK-IN] Erro:`, error);
@@ -706,12 +727,12 @@ export default function CheckInNew() {
     }
   };
 
-  const confirmCheckIn = async () => {
+  const confirmCheckIn = async (isNewModel: boolean = false) => {
     if (!editableData) return;
 
     try {
       setIsLoading(true);
-      console.log(`[CHECK-IN] Confirmando check-in...`);
+      console.log(`[CHECK-IN] Confirmando check-in (novo modelo: ${isNewModel})...`);
 
       // Prepare check-in row data
       const checkInRow = {
@@ -722,34 +743,35 @@ export default function CheckInNew() {
         checked_in_at: new Date().toISOString(),
       };
 
-      // Use upsert to handle duplicate lead_id gracefully
-      console.log(`[CHECK-IN] Tentando upsert para lead_id: ${checkInRow.lead_id}`);
-      const { data: upsertData, error: upsertError } = await supabase
-        .from("check_ins")
-        .upsert(checkInRow, { onConflict: 'lead_id' })
-        .select()
-        .maybeSingle();
-
-      // If upsert fails with 23505 (edge case), fallback to update
-      if (upsertError && upsertError.code === '23505') {
-        console.log(`[CHECK-IN] Upsert falhou com 23505, tentando update...`);
-        const { error: updateError } = await supabase
+      if (isNewModel) {
+        // Insert new check-in record (multiple models per lead)
+        console.log(`[CHECK-IN] Inserindo novo registro para modelo adicional...`);
+        const { data: insertData, error: insertError } = await supabase
           .from("check_ins")
-          .update(checkInRow)
-          .eq('lead_id', checkInRow.lead_id)
+          .insert(checkInRow)
           .select()
           .maybeSingle();
 
-        if (updateError) {
-          console.error(`[CHECK-IN] Erro ao atualizar:`, updateError);
-          throw new Error(`Erro ao salvar check-in: ${updateError.message}`);
+        if (insertError) {
+          console.error(`[CHECK-IN] Erro ao inserir:`, insertError);
+          throw new Error(`Erro ao salvar check-in: ${insertError.message}`);
         }
-      } else if (upsertError) {
-        console.error(`[CHECK-IN] Erro ao salvar:`, upsertError);
-        throw new Error(`Erro ao salvar check-in: ${upsertError.message}`);
-      }
+        console.log(`[CHECK-IN] Novo modelo registrado!`, insertData);
+      } else {
+        // Use upsert for first check-in or re-check-in
+        console.log(`[CHECK-IN] Tentando upsert para lead_id: ${checkInRow.lead_id}`);
+        const { data: upsertData, error: upsertError } = await supabase
+          .from("check_ins")
+          .insert(checkInRow)
+          .select()
+          .maybeSingle();
 
-      console.log(`[CHECK-IN] Sucesso!`, upsertData);
+        if (upsertError) {
+          console.error(`[CHECK-IN] Erro ao salvar:`, upsertError);
+          throw new Error(`Erro ao salvar check-in: ${upsertError.message}`);
+        }
+        console.log(`[CHECK-IN] Sucesso!`, upsertData);
+      }
 
       // Update Bitrix with all check-in data after successful local save
       if (pendingBitrixUpdate && webhookUrl) {
@@ -922,15 +944,71 @@ export default function CheckInNew() {
     }
   };
 
+  const handleRecheckIn = async () => {
+    // Simply proceed with normal check-in flow (will update existing record)
+    setShowMultiModelDialog(false);
+    setShowConfirmDialog(true);
+  };
+
+  const handleCreateAdditionalModel = async (newModelName: string) => {
+    if (!editableData || !existingCheckInData) return;
+
+    try {
+      setIsLoading(true);
+      setShowMultiModelDialog(false);
+
+      console.log('[CHECK-IN] Criando modelo adicional:', newModelName);
+
+      // Get deal ID from lead
+      const dealId = await getDealIdFromLead(editableData.lead_id);
+      
+      if (!dealId) {
+        toast({
+          title: "Erro",
+          description: "Não foi possível encontrar o negócio vinculado a este lead.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Clone deal for new model
+      console.log('[CHECK-IN] Clonando negócio:', dealId);
+      const newDealId = await cloneDealForNewModel(dealId, newModelName, editableData.lead_id);
+      console.log('[CHECK-IN] Novo negócio criado:', newDealId);
+
+      // Create new check-in record with new model name
+      const updatedData = { ...editableData, name: newModelName };
+      setEditableData(updatedData);
+      
+      // Call confirmCheckIn with isNewModel flag
+      await confirmCheckIn(true);
+
+      toast({
+        title: "Sucesso!",
+        description: `Novo modelo ${newModelName} cadastrado e negócio criado no Bitrix.`,
+      });
+    } catch (error) {
+      console.error('[CHECK-IN] Erro ao criar modelo adicional:', error);
+      toast({
+        title: "Erro ao criar modelo adicional",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+    }
+  };
+
   const cancelCheckIn = () => {
     setPendingCheckInData(null);
-    setPendingBitrixUpdate(null); // Clear pending Bitrix update
+    setPendingBitrixUpdate(null);
     setEditableData(null);
     setIsEditMode(false);
     setPhotoError(false);
     setHasPreviousCheckIn(false);
     setPreviousCheckedAt(null);
     setShowConfirmDialog(false);
+    setShowMultiModelDialog(false);
+    setExistingCheckInData(null);
     
     // Restart scanner
     setScreenState('scanner');
@@ -1705,7 +1783,7 @@ export default function CheckInNew() {
               </Button>
             ) : (
               <AlertDialogAction 
-                onClick={confirmCheckIn} 
+                onClick={() => confirmCheckIn(false)} 
                 disabled={isLoading}
                 className="w-full sm:w-auto bg-primary hover:bg-primary/90"
               >
@@ -1722,6 +1800,22 @@ export default function CheckInNew() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Multi-Model Dialog */}
+      {existingCheckInData && (
+        <MultiModelDialog
+          open={showMultiModelDialog}
+          onOpenChange={setShowMultiModelDialog}
+          leadData={{
+            lead_id: existingCheckInData.lead_id,
+            name: editableData?.name || '',
+            previousModelName: existingCheckInData.model_name,
+            checkedInAt: existingCheckInData.checked_in_at,
+          }}
+          onRecheckIn={handleRecheckIn}
+          onCreateNewModel={handleCreateAdditionalModel}
+        />
+      )}
       </div>
     </>
   );

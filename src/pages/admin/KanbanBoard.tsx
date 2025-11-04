@@ -299,10 +299,23 @@ export default function KanbanBoard() {
       }
 
       if (stageFields && stageFields.length > 0) {
-        // Filtrar apenas campos válidos
+        // Filtrar apenas campos válidos e mapear para tipo correto
         const validFields = stageFields
           .map(sf => sf.custom_fields)
-          .filter((field): field is CustomField => field !== null && field !== undefined);
+          .filter((field): field is NonNullable<typeof field> => field !== null && field !== undefined)
+          .map(field => ({
+            id: field.id,
+            field_key: field.field_key,
+            field_label: field.field_label,
+            field_type: field.field_type as 'text' | 'number' | 'date' | 'image' | 'boolean' | 'list',
+            bitrix_field_name: field.bitrix_field_name,
+            is_active: field.is_active,
+            show_in_checkin: field.show_in_checkin,
+            show_in_panels: field.show_in_panels,
+            sort_order: field.sort_order,
+            field_options: Array.isArray(field.field_options) ? field.field_options as string[] : [],
+            created_at: field.created_at
+          } as CustomField));
         setCustomFieldsForStage(validFields);
         setPendingCardMove({ card, toStageId, toIndex });
         setCustomFieldsModalOpen(true);
@@ -477,7 +490,6 @@ export default function KanbanBoard() {
       }
 
       await supabase.from('calls').insert({
-        panel_id: toStage.panel_id,
         lead_id: card.lead_id,
         model_name: card.model_name || '',
         room: card.room,
