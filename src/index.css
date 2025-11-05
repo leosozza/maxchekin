@@ -101,43 +101,43 @@ All colors MUST be HSL.
   /* Light Theme - Minimalista Preto e Branco */
   :root[data-theme="light"] {
     --background: 0 0% 100%;
-    --foreground: 0 0% 0%;
+    --foreground: 0 0% 9%;
 
-    --primary: 0 0% 0%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 0 0% 9%;
+    --primary-foreground: 0 0% 98%;
 
-    --secondary: 0 0% 20%;
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 9%;
 
-    --accent: 0 0% 95%;
-    --accent-foreground: 0 0% 0%;
+    --accent: 0 0% 96%;
+    --accent-foreground: 0 0% 9%;
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 0%;
+    --card-foreground: 0 0% 9%;
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 0%;
+    --popover-foreground: 0 0% 9%;
     --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 45%;
-    --destructive: 0 84% 45%;
-    --destructive-foreground: 0 0% 100%;
+    --muted-foreground: 0 0% 46%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
     --border: 0 0% 90%;
     --input: 0 0% 90%;
-    --ring: 0 0% 0%;
+    --ring: 0 0% 9%;
 
     --radius: 0.5rem;
 
-    --gradient-gold: linear-gradient(135deg, hsl(0 0% 10%), hsl(0 0% 20%));
-    --gradient-studio: radial-gradient(circle at center, hsl(0 0% 98%), hsl(0 0% 100%));
-    --gradient-neon: linear-gradient(135deg, hsl(0 0% 20%), hsl(0 0% 30%));
+    --gradient-gold: linear-gradient(135deg, hsl(0 0% 13%), hsl(0 0% 26%));
+    --gradient-studio: linear-gradient(180deg, hsl(0 0% 98%), hsl(0 0% 100%));
+    --gradient-neon: linear-gradient(135deg, hsl(0 0% 26%), hsl(0 0% 39%));
 
-    --shadow-gold: 0 2px 8px hsl(0 0% 0% / 0.08);
-    --shadow-neon: 0 0 15px hsl(0 0% 0% / 0.08);
-    --shadow-elevation: 0 4px 16px hsl(0 0% 0% / 0.06);
+    --shadow-gold: 0 2px 8px hsl(0 0% 0% / 0.1);
+    --shadow-neon: 0 0 20px hsl(0 0% 0% / 0.12);
+    --shadow-elevation: 0 4px 16px hsl(0 0% 0% / 0.08);
 
-    --studio-dark: 0 0% 95%;
+    --studio-dark: 0 0% 96%;
     --studio-light: 0 0% 100%;
-    --gold-shimmer: 0 0% 15%;
-    --neon-glow: 0 0% 20%;
+    --gold-shimmer: 0 0% 20%;
+    --neon-glow: 0 0% 26%;
   }
 
   :root {

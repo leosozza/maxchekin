@@ -819,7 +819,10 @@ export default function CheckInNew() {
         }
       }
 
-      setModelData(editableData);
+      // Only update modelData if not already set (for new models, it's set before confirmCheckIn)
+      if (!modelData) {
+        setModelData(editableData);
+      }
       setPendingCheckInData(null);
       setPendingBitrixUpdate(null); // Clear pending update
       setEditableData(null);
@@ -830,7 +833,7 @@ export default function CheckInNew() {
 
       toast({
         title: "Check-in realizado!",
-        description: `Bem-vinda, ${editableData.name}!`,
+        description: `Bem-vinda, ${modelData?.name || editableData.name}!`,
       });
 
       // Muda para tela de boas-vindas
@@ -976,9 +979,13 @@ export default function CheckInNew() {
       const newDealId = await cloneDealForNewModel(dealId, newModelName, editableData.lead_id);
       console.log('[CHECK-IN] Novo negócio criado:', newDealId);
 
-      // Create new check-in record with new model name
+      // Update editable data with new model name BEFORE calling confirmCheckIn
       const updatedData = { ...editableData, name: newModelName };
       setEditableData(updatedData);
+      
+      // CRITICAL: Update modelData directly for welcome screen to show correct name
+      // This ensures the welcome screen displays the new model name, not the original
+      setModelData(updatedData);
       
       // Call confirmCheckIn with isNewModel flag
       await confirmCheckIn(true);
