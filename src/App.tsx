@@ -24,7 +24,7 @@ import CustomFields from "./pages/admin/CustomFields";
 import CheckInSettings from "./pages/admin/CheckInSettings";
 import Users from "./pages/admin/Users";
 import LeadSearch from "./pages/admin/LeadSearch";
-import { InstallPWA } from "./components/InstallPWA";
+
 import KanbanBoard from "./pages/admin/KanbanBoard";
 
 const queryClient = new QueryClient();
@@ -34,13 +34,13 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <InstallPWA />
+      
       <div className="fixed top-4 right-4 z-50">
         <ThemeToggle />
       </div>
       <BrowserRouter>
         <Routes>
-          {/* PWA Main Route - Directly to Check-in */}
+          {/* Main Route - Check-in */}
           <Route path="/" element={<CheckInNew />} />
           <Route path="/checkin" element={<CheckInNew />} />
 
