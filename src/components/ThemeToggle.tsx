@@ -1,4 +1,4 @@
-import { Sun, Moon, Palette } from 'lucide-react';
+import { Sun, Moon, Palette, Sparkles, Square, Cpu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -15,6 +15,9 @@ export function ThemeToggle() {
     { value: 'blue-pink', label: 'Blue-Pink', icon: Palette },
     { value: 'dark', label: 'Escuro', icon: Moon },
     { value: 'light', label: 'Claro', icon: Sun },
+    { value: 'elegante', label: 'Elegante', icon: Sparkles },
+    { value: 'minimalista', label: 'Minimalista', icon: Square },
+    { value: 'tecnologico', label: 'Tecnológico', icon: Cpu },
   ];
 
   return (
@@ -24,6 +27,9 @@ export function ThemeToggle() {
           {theme === 'light' && <Sun className="h-5 w-5" />}
           {theme === 'dark' && <Moon className="h-5 w-5" />}
           {theme === 'blue-pink' && <Palette className="h-5 w-5" />}
+          {theme === 'elegante' && <Sparkles className="h-5 w-5" />}
+          {theme === 'minimalista' && <Square className="h-5 w-5" />}
+          {theme === 'tecnologico' && <Cpu className="h-5 w-5" />}
           <span className="sr-only">Alternar tema</span>
         </Button>
       </DropdownMenuTrigger>

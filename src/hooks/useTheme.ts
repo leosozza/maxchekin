@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
-export type ThemeMode = 'light' | 'dark' | 'blue-pink';
+export type ThemeMode = 'light' | 'dark' | 'blue-pink' | 'elegante' | 'minimalista' | 'tecnologico';
 
 export function useTheme() {
   const [theme, setThemeState] = useState<ThemeMode>(() => {

@@ -140,6 +140,132 @@ All colors MUST be HSL.
     --neon-glow: 174 72% 45%;
   }
 
+  /* Elegante Theme - Luxo e sofisticação */
+  :root[data-theme="elegante"] {
+    --background: 240 10% 8%;
+    --foreground: 45 100% 98%;
+
+    --primary: 45 100% 55%;
+    --primary-foreground: 240 10% 8%;
+
+    --secondary: 280 30% 25%;
+    --secondary-foreground: 45 100% 98%;
+
+    --accent: 340 75% 65%;
+    --accent-foreground: 240 10% 8%;
+
+    --card: 240 8% 12%;
+    --card-foreground: 45 100% 98%;
+    --popover: 240 8% 12%;
+    --popover-foreground: 45 100% 98%;
+    --muted: 240 10% 18%;
+    --muted-foreground: 240 5% 65%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 10% 22%;
+    --input: 240 10% 22%;
+    --ring: 45 100% 55%;
+
+    --radius: 0.5rem;
+
+    --gradient-gold: linear-gradient(135deg, hsl(45 100% 55%), hsl(38 90% 50%));
+    --gradient-studio: radial-gradient(circle at center, hsl(240 10% 12%), hsl(240 10% 8%));
+    --gradient-neon: linear-gradient(135deg, hsl(280 30% 25%), hsl(300 40% 35%));
+
+    --shadow-gold: 0 10px 40px -10px hsl(45 100% 55% / 0.5);
+    --shadow-neon: 0 0 60px hsl(340 75% 65% / 0.4);
+    --shadow-elevation: 0 20px 60px -15px hsl(240 10% 8% / 0.7);
+
+    --studio-dark: 240 10% 8%;
+    --studio-light: 240 8% 12%;
+    --gold-shimmer: 45 100% 65%;
+    --neon-glow: 340 75% 65%;
+  }
+
+  /* Minimalista Theme - Limpo e funcional */
+  :root[data-theme="minimalista"] {
+    --background: 0 0% 98%;
+    --foreground: 0 0% 10%;
+
+    --primary: 0 0% 20%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 90%;
+    --secondary-foreground: 0 0% 10%;
+
+    --accent: 0 0% 75%;
+    --accent-foreground: 0 0% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+    --muted: 0 0% 94%;
+    --muted-foreground: 0 0% 45%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 88%;
+    --input: 0 0% 88%;
+    --ring: 0 0% 20%;
+
+    --radius: 0.25rem;
+
+    --gradient-gold: linear-gradient(135deg, hsl(0 0% 20%), hsl(0 0% 30%));
+    --gradient-studio: linear-gradient(180deg, hsl(0 0% 100%), hsl(0 0% 98%));
+    --gradient-neon: linear-gradient(135deg, hsl(0 0% 85%), hsl(0 0% 75%));
+
+    --shadow-gold: 0 2px 8px hsl(0 0% 0% / 0.08);
+    --shadow-neon: 0 4px 12px hsl(0 0% 0% / 0.12);
+    --shadow-elevation: 0 1px 3px hsl(0 0% 0% / 0.08);
+
+    --studio-dark: 0 0% 94%;
+    --studio-light: 0 0% 100%;
+    --gold-shimmer: 0 0% 30%;
+    --neon-glow: 0 0% 75%;
+  }
+
+  /* Tecnológico Theme - Futurista e vibrante */
+  :root[data-theme="tecnologico"] {
+    --background: 200 100% 5%;
+    --foreground: 180 100% 95%;
+
+    --primary: 180 100% 45%;
+    --primary-foreground: 200 100% 5%;
+
+    --secondary: 280 100% 50%;
+    --secondary-foreground: 200 100% 5%;
+
+    --accent: 320 100% 55%;
+    --accent-foreground: 200 100% 5%;
+
+    --card: 200 90% 8%;
+    --card-foreground: 180 100% 95%;
+    --popover: 200 90% 8%;
+    --popover-foreground: 180 100% 95%;
+    --muted: 200 80% 12%;
+    --muted-foreground: 200 20% 70%;
+    --destructive: 0 80% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 200 70% 18%;
+    --input: 200 70% 18%;
+    --ring: 180 100% 45%;
+
+    --radius: 0.75rem;
+
+    --gradient-gold: linear-gradient(135deg, hsl(180 100% 45%), hsl(160 100% 50%));
+    --gradient-studio: radial-gradient(circle at center, hsl(200 90% 10%), hsl(200 100% 5%));
+    --gradient-neon: linear-gradient(135deg, hsl(280 100% 50%), hsl(320 100% 55%));
+
+    --shadow-gold: 0 10px 40px -10px hsl(180 100% 45% / 0.6);
+    --shadow-neon: 0 0 60px hsl(280 100% 50% / 0.5);
+    --shadow-elevation: 0 20px 60px -15px hsl(200 100% 5% / 0.8);
+
+    --studio-dark: 200 100% 5%;
+    --studio-light: 200 90% 8%;
+    --gold-shimmer: 180 100% 55%;
+    --neon-glow: 320 100% 55%;
+  }
+
   :root {
 
     /* Transitions */
