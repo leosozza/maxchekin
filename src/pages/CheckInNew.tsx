@@ -522,7 +522,9 @@ export default function CheckInNew() {
             modelData.name = nameValue;
           } else if (mapping.maxcheckin_field_name === "model_photo") {
             const fieldName = mapping.bitrix_field_name || DEFAULT_PHOTO_FIELD;
-            modelData.photo = getLeadPhotoUrl(validLeadId, fieldName);
+            const photoUrl = getLeadPhotoUrl(validLeadId, fieldName);
+            console.log(`[PHOTO] URL gerada para lead ${validLeadId}:`, photoUrl);
+            modelData.photo = photoUrl;
           } else if (mapping.maxcheckin_field_name === "responsible") {
             // Ensure responsible is always a string, handling array values from Bitrix
             const responsibleValue = ensureString(bitrixValue) || ensureString(lead.ASSIGNED_BY_NAME) || "MaxFama";
@@ -537,7 +539,9 @@ export default function CheckInNew() {
         // Fallback to default fields if no mappings configured
         console.log(`[CHECK-IN] Sem mapeamentos, usando campos padrão`);
         modelData.name = ensureString(lead.NAME) || ensureString(lead.TITLE) || "Modelo Sem Nome";
-        modelData.photo = getLeadPhotoUrl(validLeadId, DEFAULT_PHOTO_FIELD);
+        const photoUrl = getLeadPhotoUrl(validLeadId, DEFAULT_PHOTO_FIELD);
+        console.log(`[PHOTO] URL gerada (fallback) para lead ${validLeadId}:`, photoUrl);
+        modelData.photo = photoUrl;
         modelData.responsible = ensureString(lead.ASSIGNED_BY_NAME) || "MaxFama";
       }
 
