@@ -1708,8 +1708,16 @@ export default function CheckInNew() {
                             src={editableData.photo}
                             alt={editableData.name}
                             className="w-32 h-32 rounded-full object-cover border-4 border-gold"
+                            onError={(e) => {
+                              console.error('[PHOTO] Erro ao carregar imagem:', editableData.photo);
+                              e.currentTarget.style.display = 'none';
+                            }}
+                            onLoad={() => {
+                              console.log('[PHOTO] Imagem carregada com sucesso:', editableData.photo);
+                            }}
                           />
-                        ) : (
+                        ) : null}
+                        {!editableData.photo && (
                           <div className="w-32 h-32 rounded-full bg-muted border-4 border-gold flex items-center justify-center">
                             <User className="w-16 h-16 text-muted-foreground" />
                           </div>
