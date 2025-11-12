@@ -159,12 +159,15 @@ serve(async (req) => {
       );
     }
 
+    console.log(`[LEAD-PHOTO] Lead ${leadId}: fileId extraído =`, fileId);
+
     // 3) Obter URL de download assinada
-    const metaResp = await fetch(`${bitrixWebhook}/disk.file.get.json`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: fileId }),
-    });
+    const metaResp = await fetch(
+      `${bitrixWebhook}/disk.file.get.json?id=${encodeURIComponent(String(fileId))}`
+    );
+    
+    console.log(`[LEAD-PHOTO] disk.file.get status: ${metaResp.status}`);
+    
     if (!metaResp.ok) {
       return new Response(JSON.stringify({ error: `disk.file.get falhou: ${metaResp.status}` }), {
         status: 502,
