@@ -117,6 +117,7 @@ export default function CheckInNew() {
     model_name: string;
     checked_in_at: string;
   } | null>(null);
+  const [cameraActive, setCameraActive] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const usbInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -238,7 +239,7 @@ export default function CheckInNew() {
   }, [manualSearchOpen, scanning]);
 
   useEffect(() => {
-    if (!configLoaded || !webhookUrl || screenState !== 'scanner') {
+    if (!configLoaded || !webhookUrl || screenState !== 'scanner' || !cameraActive) {
       return;
     }
 
@@ -294,7 +295,7 @@ export default function CheckInNew() {
         stopScanner();
       }
     };
-  }, [configLoaded, webhookUrl, screenState]);
+  }, [configLoaded, webhookUrl, screenState, cameraActive]);
 
   const forceReloadCamera = async () => {
     console.log("[CAMERA] Recarregando câmera...");
@@ -1005,6 +1006,11 @@ export default function CheckInNew() {
     }
   };
 
+  const handleStartCamera = () => {
+    console.log("[CHECK-IN] Usuário acionou a câmera");
+    setCameraActive(true);
+  };
+
   const cancelCheckIn = () => {
     setPendingCheckInData(null);
     setPendingBitrixUpdate(null);
@@ -1019,23 +1025,8 @@ export default function CheckInNew() {
     
     // Restart scanner
     setScreenState('scanner');
-    setScanning(true);
-    
-    if (isNativeApp()) {
-      startNativeScan(
-        (code) => processCheckIn(code),
-        (error) => {
-          setCameraError(error);
-          toast({
-            variant: "destructive",
-            title: "Erro na Câmera",
-            description: error,
-          });
-        }
-      );
-    } else {
-      initScanner();
-    }
+    setCameraActive(false);
+    setScanning(false);
   };
 
   const onScanSuccess = async (decodedText: string) => {
@@ -1296,7 +1287,34 @@ export default function CheckInNew() {
         </div>
       )}
 
-      {configLoaded && scanning && !modelData && (
+      {configLoaded && !cameraActive && !modelData && (
+        <div className="flex flex-col items-center space-y-6 sm:space-y-10 animate-fade-in flex-1 justify-center w-full">
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-gold blur-3xl opacity-20 animate-pulse-glow"></div>
+            <QrCode className="w-24 h-24 sm:w-40 sm:h-40 text-gold animate-pulse relative z-10" />
+          </div>
+          
+          <div className="text-center space-y-3 px-4">
+            <p className="text-2xl sm:text-3xl font-light text-foreground">
+              Bem-vindo à MaxFama
+            </p>
+            <p className="text-base sm:text-lg text-muted-foreground">
+              Clique no botão abaixo para iniciar o scanner
+            </p>
+          </div>
+
+          <Button
+            onClick={handleStartCamera}
+            size="lg"
+            className="h-16 px-12 text-xl font-semibold bg-primary hover:bg-primary/90 shadow-glow"
+          >
+            <QrCode className="w-6 h-6 mr-2" />
+            Iniciar Scanner
+          </Button>
+        </div>
+      )}
+
+      {configLoaded && cameraActive && scanning && !modelData && (
         <div className="flex flex-col items-center space-y-4 sm:space-y-8 animate-fade-in flex-1 justify-center w-full">
           <div className="relative">
             <div className="absolute inset-0 bg-gradient-gold blur-3xl opacity-20 animate-pulse-glow"></div>
@@ -1342,7 +1360,7 @@ export default function CheckInNew() {
           
           <div className="text-center space-y-2 px-4">
             <p className="text-xl sm:text-2xl font-light text-foreground">
-              Bem-vindo à MaxFama
+              Scanner Ativo
             </p>
             <p className="text-base sm:text-lg text-muted-foreground">
               {isInitializing
