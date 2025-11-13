@@ -365,6 +365,7 @@ export default function CheckInNew() {
       }, 30000);
       
       console.log("[SCANNER] Solicitando câmera traseira...");
+      const startTime = Date.now();
       
       try {
         // Tentar câmera traseira primeiro
@@ -375,13 +376,15 @@ export default function CheckInNew() {
           onScanError
         );
         
+        const elapsedTime = Date.now() - startTime;
         clearTimeout(scannerTimeout); // Limpar se sucesso
-        console.log("✅ [SCANNER] Câmera traseira iniciada com sucesso!");
+        console.log(`✅ [SCANNER] Câmera traseira iniciada com sucesso! (${elapsedTime}ms)`);
+        console.log('[SCANNER] Scanner ativo, aguardando QR Code...');
         setIsInitializing(false);
         return;
         
       } catch (backError) {
-        console.warn("[SCANNER] Falha na câmera traseira, tentando frontal...");
+        console.warn("[SCANNER] Falha na câmera traseira, tentando frontal...", backError);
         
         try {
           // Tentar câmera frontal
@@ -392,16 +395,19 @@ export default function CheckInNew() {
             onScanError
           );
           
+          const elapsedTime = Date.now() - startTime;
           clearTimeout(scannerTimeout); // Limpar se sucesso
-          console.log("✅ [SCANNER] Câmera frontal iniciada!");
+          console.log(`✅ [SCANNER] Câmera frontal iniciada! (${elapsedTime}ms)`);
+          console.log('[SCANNER] Scanner ativo, aguardando QR Code...');
           setIsInitializing(false);
           return;
           
         } catch (frontError) {
-          console.warn("[SCANNER] Falha nas câmeras específicas, listando todas...");
+          console.warn("[SCANNER] Falha nas câmeras específicas, listando todas...", frontError);
           
           // Último recurso: listar todas as câmeras e usar a primeira
           const devices = await Html5Qrcode.getCameras();
+          console.log(`[SCANNER] ${devices?.length || 0} câmeras disponíveis:`, devices);
           
           if (devices && devices.length > 0) {
             const firstCamera = devices[0];
@@ -414,8 +420,10 @@ export default function CheckInNew() {
               onScanError
             );
             
+            const elapsedTime = Date.now() - startTime;
             clearTimeout(scannerTimeout); // Limpar se sucesso
-            console.log("✅ [SCANNER] Câmera iniciada (primeira disponível)!");
+            console.log(`✅ [SCANNER] Câmera iniciada (primeira disponível)! (${elapsedTime}ms)`);
+            console.log('[SCANNER] Scanner ativo, aguardando QR Code...');
             setIsInitializing(false);
             return;
           }
