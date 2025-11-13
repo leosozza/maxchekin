@@ -28,25 +28,62 @@ export const startNativeScan = async (
 
   try {
     scannerActive = true;
-    const hasPermission = await requestCameraPermission();
     
+    // Verificar permissões
+    const hasPermission = await requestCameraPermission();
     if (!hasPermission) {
       scannerActive = false;
       onError('Permissão de câmera não concedida');
       return;
     }
 
-    // Esconde o body para mostrar a câmera nativa
+    console.log('[CAPACITOR] Permissões OK, iniciando scanner...');
+
+    // Para Android: verificar se o Google Barcode Scanner Module está disponível
+    if (Capacitor.getPlatform() === 'android') {
+      try {
+        const { available } = await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable();
+        console.log('[CAPACITOR] Google Barcode Scanner Module disponível:', available);
+        
+        if (!available) {
+          console.log('[CAPACITOR] Instalando Google Barcode Scanner Module...');
+          await BarcodeScanner.installGoogleBarcodeScannerModule();
+          console.log('[CAPACITOR] Módulo instalado com sucesso');
+        }
+      } catch (err) {
+        console.warn('[CAPACITOR] Erro ao verificar/instalar módulo:', err);
+        // Continua mesmo com erro - pode funcionar em alguns dispositivos
+      }
+    }
+
+    // Esconde o WebView para mostrar a câmera nativa
     document.body.classList.add('scanner-active');
+    console.log('[CAPACITOR] Classe scanner-active adicionada');
     
+    // Usar o método scan() que retorna um único código
+    console.log('[CAPACITOR] Chamando BarcodeScanner.scan()...');
     const { barcodes } = await BarcodeScanner.scan();
+    
+    console.log('[CAPACITOR] Scan completado, códigos detectados:', barcodes?.length || 0);
     
     // Remove a classe quando terminar
     document.body.classList.remove('scanner-active');
     scannerActive = false;
     
-    if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
-      onSuccess(barcodes[0].rawValue);
+    if (barcodes && barcodes.length > 0) {
+      const firstBarcode = barcodes[0];
+      console.log('[CAPACITOR] Primeiro código:', firstBarcode);
+      
+      if (firstBarcode.rawValue) {
+        console.log('[CAPACITOR] Código lido com sucesso:', firstBarcode.rawValue);
+        onSuccess(firstBarcode.rawValue);
+      } else {
+        console.error('[CAPACITOR] Código sem rawValue:', firstBarcode);
+        onError('Código detectado mas sem valor');
+      }
+    } else {
+      console.warn('[CAPACITOR] Nenhum código detectado');
+      onError('Nenhum código detectado');
     }
   } catch (error) {
     document.body.classList.remove('scanner-active');
@@ -68,6 +105,7 @@ export const stopNativeScan = async (): Promise<void> => {
     console.log('[CAPACITOR] Scanner parado com sucesso');
   } catch (error) {
     console.error('[CAPACITOR] Erro ao parar scanner:', error);
+    document.body.classList.remove('scanner-active');
     scannerActive = false;
   }
 };
