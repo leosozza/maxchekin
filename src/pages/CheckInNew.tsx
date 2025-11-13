@@ -325,6 +325,13 @@ export default function CheckInNew() {
         } catch (e) {
           console.log("[SCANNER] Nenhum scanner para parar");
         }
+        scannerRef.current = null;
+      }
+      
+      // Limpar o elemento HTML antes de criar novo scanner
+      const qrReaderElement = document.getElementById("qr-reader");
+      if (qrReaderElement) {
+        qrReaderElement.innerHTML = '';
       }
       
       // Criar novo scanner
