@@ -349,12 +349,24 @@ export default function CheckInNew() {
       const scanner = new Html5Qrcode("qr-reader");
       scannerRef.current = scanner;
       
-      // Configurações mais permissivas
+      // Configurações otimizadas para melhor detecção
       const config = {
-        fps: 10,
-        qrbox: { width: 250, height: 250 },
+        fps: 30, // Aumentado de 10 para 30 para melhor detecção em tempo real
+        qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+          // QR box responsivo baseado nas dimensões da câmera
+          const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+          const qrboxSize = Math.floor(minEdge * 0.7); // 70% da menor dimensão
+          return {
+            width: qrboxSize,
+            height: qrboxSize,
+          };
+        },
         aspectRatio: 1.0,
         disableFlip: false,
+        // Configurações experimentais para melhor performance
+        useBarCodeDetectorIfSupported: true, // Usa API nativa do navegador se disponível (mais rápida)
+        rememberLastUsedCamera: true, // Mantém a câmera selecionada entre sessões
+        showTorchButtonIfSupported: true, // Adiciona botão de flash se disponível
       };
       
       // Timeout de segurança - 30 segundos
@@ -1083,13 +1095,20 @@ export default function CheckInNew() {
   const onScanSuccess = async (decodedText: string) => {
     const now = Date.now();
     
+    // Log detalhado para debug
+    console.log(`✅ [SCANNER] QR Code detectado com sucesso!`);
+    console.log(`[SCANNER] Conteúdo: "${decodedText}"`);
+    console.log(`[SCANNER] Timestamp: ${new Date(now).toISOString()}`);
+    console.log(`[SCANNER] Tipo: ${typeof decodedText}, Comprimento: ${decodedText.length} caracteres`);
+    
     // Ignorar se for o mesmo código dentro do cooldown period
     if (decodedText === lastScannedCode && (now - lastScanTime) < SCAN_COOLDOWN_MS) {
-      console.log(`[CHECK-IN] Ignorando leitura duplicada do Lead ${decodedText}`);
+      const remainingCooldown = SCAN_COOLDOWN_MS - (now - lastScanTime);
+      console.log(`[CHECK-IN] Ignorando leitura duplicada do Lead ${decodedText} (cooldown: ${remainingCooldown}ms restantes)`);
       return;
     }
     
-    console.log("QR Code detected:", decodedText);
+    console.log(`[CHECK-IN] Processando check-in para Lead ID: ${decodedText}`);
     setLastScannedCode(decodedText);
     setLastScanTime(now);
     
@@ -1097,7 +1116,20 @@ export default function CheckInNew() {
   };
 
   const onScanError = (err: unknown) => {
-    // Ignore scan errors (they happen constantly while scanning)
+    // Log apenas erros relevantes, não "NotFoundException" que é esperado durante scanning
+    if (err && typeof err === 'string' && !err.includes('NotFoundException')) {
+      console.warn('[SCANNER] Erro durante detecção:', err);
+    } else if (err && typeof err === 'object' && 'message' in err) {
+      const errorObj = err as { message?: string; name?: string };
+      // Log apenas erros que não sejam NotFoundException
+      if (errorObj.name !== 'NotFoundException' && !errorObj.message?.includes('NotFoundException')) {
+        console.warn('[SCANNER] Erro durante detecção:', {
+          name: errorObj.name,
+          message: errorObj.message,
+        });
+      }
+    }
+    // Nota: NotFoundException é esperado quando nenhum QR code está visível
   };
 
   const handleUsbInput = async (e: React.KeyboardEvent<HTMLInputElement>) => {
