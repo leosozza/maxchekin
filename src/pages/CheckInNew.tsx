@@ -314,7 +314,7 @@ export default function CheckInNew() {
       
       console.log(`[SCANNER] Tentativa ${retryCount + 1}/${MAX_RETRIES}`);
       
-      // Parar scanner existente
+      // Parar scanner existente e aguardar liberação da câmera
       if (scannerRef.current) {
         try {
           const state = await scannerRef.current.getState();
@@ -322,6 +322,8 @@ export default function CheckInNew() {
             await scannerRef.current.stop();
           }
           await scannerRef.current.clear();
+          // Aguardar liberação da câmera
+          await new Promise(resolve => setTimeout(resolve, 500));
         } catch (e) {
           console.log("[SCANNER] Nenhum scanner para parar");
         }
@@ -333,6 +335,9 @@ export default function CheckInNew() {
       if (qrReaderElement) {
         qrReaderElement.innerHTML = '';
       }
+      
+      // Aguardar antes de criar novo scanner
+      await new Promise(resolve => setTimeout(resolve, 300));
       
       // Criar novo scanner
       const scanner = new Html5Qrcode("qr-reader");
