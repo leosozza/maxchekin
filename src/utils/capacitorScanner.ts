@@ -18,7 +18,8 @@ export const requestCameraPermission = async (): Promise<boolean> => {
 
 export const startNativeScan = async (
   onSuccess: (result: string) => void,
-  onError: (error: string) => void
+  onError: (error: string) => void,
+  timeout: number = 60000 // 60 segundos default
 ): Promise<void> => {
   // Prevenir múltiplas instâncias
   if (scannerActive) {
@@ -60,10 +61,19 @@ export const startNativeScan = async (
     document.body.classList.add('scanner-active');
     console.log('[CAPACITOR] Classe scanner-active adicionada');
     
+    // Adicionar timeout
+    const timeoutId = setTimeout(() => {
+      if (scannerActive) {
+        stopNativeScan();
+        onError('Tempo limite excedido. Nenhum QR Code foi detectado.');
+      }
+    }, timeout);
+    
     // Usar o método scan() que retorna um único código
     console.log('[CAPACITOR] Chamando BarcodeScanner.scan()...');
     const { barcodes } = await BarcodeScanner.scan();
     
+    clearTimeout(timeoutId);
     console.log('[CAPACITOR] Scan completado, códigos detectados:', barcodes?.length || 0);
     
     // Remove a classe quando terminar
@@ -86,8 +96,17 @@ export const startNativeScan = async (
       onError('Nenhum código detectado');
     }
   } catch (error) {
+    // SEMPRE limpar estado
     document.body.classList.remove('scanner-active');
     scannerActive = false;
+    
+    // Tentar parar scanner explicitamente
+    try {
+      await BarcodeScanner.stopScan();
+    } catch {
+      // Ignore errors when stopping
+    }
+    
     console.error('[CAPACITOR] Erro ao escanear:', error);
     onError(error instanceof Error ? error.message : 'Erro desconhecido');
   }

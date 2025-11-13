@@ -330,16 +330,22 @@ export default function CheckInNew() {
         scannerRef.current = null;
       }
       
-      // Limpar o elemento HTML antes de criar novo scanner
+      // Verificar se elemento existe
       const qrReaderElement = document.getElementById("qr-reader");
-      if (qrReaderElement) {
-        qrReaderElement.innerHTML = '';
+      if (!qrReaderElement) {
+        console.error('[SCANNER] Elemento qr-reader não encontrado no DOM');
+        throw new Error('Elemento do scanner não encontrado');
       }
+      
+      // Limpar o elemento HTML antes de criar novo scanner
+      qrReaderElement.innerHTML = '';
+      console.log('[SCANNER] Elemento qr-reader encontrado e limpo');
       
       // Aguardar antes de criar novo scanner
       await new Promise(resolve => setTimeout(resolve, 300));
       
       // Criar novo scanner
+      console.log('[SCANNER] Criando novo scanner...');
       const scanner = new Html5Qrcode("qr-reader");
       scannerRef.current = scanner;
       
@@ -351,7 +357,15 @@ export default function CheckInNew() {
         disableFlip: false,
       };
       
+      // Timeout de segurança - 30 segundos
+      const scannerTimeout = setTimeout(() => {
+        console.error('[SCANNER] Timeout ao iniciar câmera');
+        setCameraError('Tempo limite excedido ao acessar câmera');
+        stopScanner();
+      }, 30000);
+      
       console.log("[SCANNER] Solicitando câmera traseira...");
+      const startTime = Date.now();
       
       try {
         // Tentar câmera traseira primeiro
@@ -362,12 +376,15 @@ export default function CheckInNew() {
           onScanError
         );
         
-        console.log("✅ [SCANNER] Câmera traseira iniciada com sucesso!");
+        const elapsedTime = Date.now() - startTime;
+        clearTimeout(scannerTimeout); // Limpar se sucesso
+        console.log(`✅ [SCANNER] Câmera traseira iniciada com sucesso! (${elapsedTime}ms)`);
+        console.log('[SCANNER] Scanner ativo, aguardando QR Code...');
         setIsInitializing(false);
         return;
         
       } catch (backError) {
-        console.warn("[SCANNER] Falha na câmera traseira, tentando frontal...");
+        console.warn("[SCANNER] Falha na câmera traseira, tentando frontal...", backError);
         
         try {
           // Tentar câmera frontal
@@ -378,15 +395,19 @@ export default function CheckInNew() {
             onScanError
           );
           
-          console.log("✅ [SCANNER] Câmera frontal iniciada!");
+          const elapsedTime = Date.now() - startTime;
+          clearTimeout(scannerTimeout); // Limpar se sucesso
+          console.log(`✅ [SCANNER] Câmera frontal iniciada! (${elapsedTime}ms)`);
+          console.log('[SCANNER] Scanner ativo, aguardando QR Code...');
           setIsInitializing(false);
           return;
           
         } catch (frontError) {
-          console.warn("[SCANNER] Falha nas câmeras específicas, listando todas...");
+          console.warn("[SCANNER] Falha nas câmeras específicas, listando todas...", frontError);
           
           // Último recurso: listar todas as câmeras e usar a primeira
           const devices = await Html5Qrcode.getCameras();
+          console.log(`[SCANNER] ${devices?.length || 0} câmeras disponíveis:`, devices);
           
           if (devices && devices.length > 0) {
             const firstCamera = devices[0];
@@ -399,11 +420,15 @@ export default function CheckInNew() {
               onScanError
             );
             
-            console.log("✅ [SCANNER] Câmera iniciada (primeira disponível)!");
+            const elapsedTime = Date.now() - startTime;
+            clearTimeout(scannerTimeout); // Limpar se sucesso
+            console.log(`✅ [SCANNER] Câmera iniciada (primeira disponível)! (${elapsedTime}ms)`);
+            console.log('[SCANNER] Scanner ativo, aguardando QR Code...');
             setIsInitializing(false);
             return;
           }
           
+          clearTimeout(scannerTimeout); // Limpar timeout antes de lançar erro
           throw new Error("Nenhuma câmera disponível no dispositivo");
         }
       }
@@ -457,9 +482,19 @@ export default function CheckInNew() {
         } else {
           console.log('[SCANNER] Scanner já estava parado (state:', state, ')');
         }
+        // ADICIONAR: Limpeza completa do scanner
+        await scannerRef.current.clear();
+        scannerRef.current = null;
       } catch (error) {
         // Silently handle errors - scanner might already be stopped
-        console.log('[SCANNER] Erro ao parar (provavelmente já estava parado):', error);
+        console.log('[SCANNER] Erro ao parar:', error);
+        // ADICIONAR: Forçar limpeza mesmo com erro
+        try {
+          await scannerRef.current?.clear();
+        } catch {
+          // Ignore cleanup errors
+        }
+        scannerRef.current = null;
       }
     }
   };
@@ -1239,6 +1274,25 @@ export default function CheckInNew() {
       });
     }
   };
+
+  // Função de diagnóstico para debug
+  const debugScannerState = () => {
+    console.log('[DEBUG] Estado do Scanner:', {
+      scannerRef: !!scannerRef.current,
+      scanning,
+      cameraActive,
+      configLoaded,
+      screenState,
+      isInitializing,
+      cameraError,
+      elementExists: !!document.getElementById('qr-reader'),
+    });
+  };
+
+  // Expor função de debug para console
+  if (typeof window !== 'undefined') {
+    (window as any).debugScanner = debugScannerState;
+  }
 
   return (
     <>
