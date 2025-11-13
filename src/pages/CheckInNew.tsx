@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
+import { Html5Qrcode } from "html5-qrcode";
 import { supabase } from "@/integrations/supabase/client";
 import { Sparkles, QrCode, Search, X, Delete, User, Menu, Loader2, Phone, UserPlus, Edit, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -331,31 +331,12 @@ export default function CheckInNew() {
       const scanner = new Html5Qrcode("qr-reader");
       scannerRef.current = scanner;
       
-      // Configuração otimizada para melhor detecção de QR codes
+      // Configurações mais permissivas
       const config = {
-        fps: 20, // FPS aumentado para melhor detecção
-        qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-          // Usar 70% da menor dimensão para área de scan
-          const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-          const qrboxSize = Math.floor(minEdge * 0.7);
-          return {
-            width: qrboxSize,
-            height: qrboxSize,
-          };
-        },
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
         aspectRatio: 1.0,
         disableFlip: false,
-        formatsToSupport: [
-          Html5QrcodeSupportedFormats.QR_CODE
-        ],
-        experimentalFeatures: {
-          useBarCodeDetectorIfSupported: true
-        },
-        videoConstraints: {
-          facingMode: "environment",
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        }
       };
       
       console.log("[SCANNER] Solicitando câmera traseira...");
@@ -1061,19 +1042,15 @@ export default function CheckInNew() {
       return;
     }
     
-    console.log("✅ [SCANNER] QR Code detectado com sucesso:", decodedText);
-    console.log(`[SCANNER] Timestamp: ${new Date().toISOString()}`);
+    console.log("QR Code detected:", decodedText);
     setLastScannedCode(decodedText);
     setLastScanTime(now);
     
     await processCheckIn(decodedText);
   };
 
-  const onScanError = (errorMessage: string) => {
-    // Apenas logar erros relevantes (não NotFoundException que ocorre em cada frame sem QR code)
-    if (!errorMessage.includes('NotFoundException')) {
-      console.log('[SCANNER] Erro de scan:', errorMessage);
-    }
+  const onScanError = (err: unknown) => {
+    // Ignore scan errors (they happen constantly while scanning)
   };
 
   const handleUsbInput = async (e: React.KeyboardEvent<HTMLInputElement>) => {
