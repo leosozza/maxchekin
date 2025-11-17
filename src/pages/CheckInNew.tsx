@@ -314,7 +314,7 @@ export default function CheckInNew() {
       
       console.log(`[SCANNER] Tentativa ${retryCount + 1}/${MAX_RETRIES}`);
       
-      // Parar scanner existente e aguardar liberação da câmera
+      // Parar scanner existente
       if (scannerRef.current) {
         try {
           const state = await scannerRef.current.getState();
@@ -322,8 +322,6 @@ export default function CheckInNew() {
             await scannerRef.current.stop();
           }
           await scannerRef.current.clear();
-          // Aguardar liberação da câmera
-          await new Promise(resolve => setTimeout(resolve, 500));
         } catch (e) {
           console.log("[SCANNER] Nenhum scanner para parar");
         }
@@ -341,40 +339,18 @@ export default function CheckInNew() {
       qrReaderElement.innerHTML = '';
       console.log('[SCANNER] Elemento qr-reader encontrado e limpo');
       
-      // Aguardar antes de criar novo scanner
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
       // Criar novo scanner
       console.log('[SCANNER] Criando novo scanner...');
       const scanner = new Html5Qrcode("qr-reader");
       scannerRef.current = scanner;
       
-      // Configurações otimizadas para melhor detecção
+      // Configuração simples e funcional
       const config = {
-        fps: 30, // Aumentado de 10 para 30 para melhor detecção em tempo real
-        qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-          // QR box responsivo baseado nas dimensões da câmera
-          const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-          const qrboxSize = Math.floor(minEdge * 0.7); // 70% da menor dimensão
-          return {
-            width: qrboxSize,
-            height: qrboxSize,
-          };
-        },
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
         aspectRatio: 1.0,
         disableFlip: false,
-        // Configurações experimentais para melhor performance
-        useBarCodeDetectorIfSupported: true, // Usa API nativa do navegador se disponível (mais rápida)
-        rememberLastUsedCamera: true, // Mantém a câmera selecionada entre sessões
-        showTorchButtonIfSupported: true, // Adiciona botão de flash se disponível
       };
-      
-      // Timeout de segurança - 30 segundos
-      const scannerTimeout = setTimeout(() => {
-        console.error('[SCANNER] Timeout ao iniciar câmera');
-        setCameraError('Tempo limite excedido ao acessar câmera');
-        stopScanner();
-      }, 30000);
       
       console.log("[SCANNER] Solicitando câmera traseira...");
       const startTime = Date.now();
@@ -389,7 +365,6 @@ export default function CheckInNew() {
         );
         
         const elapsedTime = Date.now() - startTime;
-        clearTimeout(scannerTimeout); // Limpar se sucesso
         console.log(`✅ [SCANNER] Câmera traseira iniciada com sucesso! (${elapsedTime}ms)`);
         console.log('[SCANNER] Scanner ativo, aguardando QR Code...');
         setIsInitializing(false);
@@ -408,7 +383,6 @@ export default function CheckInNew() {
           );
           
           const elapsedTime = Date.now() - startTime;
-          clearTimeout(scannerTimeout); // Limpar se sucesso
           console.log(`✅ [SCANNER] Câmera frontal iniciada! (${elapsedTime}ms)`);
           console.log('[SCANNER] Scanner ativo, aguardando QR Code...');
           setIsInitializing(false);
@@ -433,14 +407,12 @@ export default function CheckInNew() {
             );
             
             const elapsedTime = Date.now() - startTime;
-            clearTimeout(scannerTimeout); // Limpar se sucesso
             console.log(`✅ [SCANNER] Câmera iniciada (primeira disponível)! (${elapsedTime}ms)`);
             console.log('[SCANNER] Scanner ativo, aguardando QR Code...');
             setIsInitializing(false);
             return;
           }
           
-          clearTimeout(scannerTimeout); // Limpar timeout antes de lançar erro
           throw new Error("Nenhuma câmera disponível no dispositivo");
         }
       }
