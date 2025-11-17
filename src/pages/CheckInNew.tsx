@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from "html5-qrcode";
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import { supabase } from "@/integrations/supabase/client";
 import { Sparkles, QrCode, Search, X, Delete, User, Menu, Loader2, Phone, UserPlus, Edit, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -120,7 +120,7 @@ export default function CheckInNew() {
     checked_in_at: string;
   } | null>(null);
   const [cameraActive, setCameraActive] = useState(false);
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
   const usbInputRef = useRef<HTMLInputElement>(null);
   const isInitializingRef = useRef(false);
   const { toast } = useToast();
@@ -244,7 +244,7 @@ export default function CheckInNew() {
   const stopScanner = async () => {
     if (scannerRef.current) {
       try {
-        await scannerRef.current.clear();
+        await scannerRef.current.stop();
         scannerRef.current = null;
         console.log("[SCANNER] Scanner parado e limpo");
       } catch (e) {
@@ -280,125 +280,81 @@ export default function CheckInNew() {
     try {
       setIsInitializing(true);
       setCameraError(null);
-      
+
       console.log('[SCANNER] ========================================');
-      console.log('[SCANNER] Iniciando Html5QrcodeScanner...');
+      console.log('[SCANNER] Iniciando Html5Qrcode (CÂMERA DIRETA)...');
       console.log('[SCANNER] Timestamp:', new Date().toISOString());
-      
+
       // Verificar suporte a getUserMedia
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('Navegador não suporta acesso à câmera (getUserMedia não disponível)');
+        throw new Error('Navegador não suporta acesso à câmera');
       }
       console.log('[SCANNER] ✅ getUserMedia disponível');
-      
+
       // Parar scanner existente
       if (scannerRef.current) {
         try {
           console.log('[SCANNER] Parando scanner existente...');
-          await scannerRef.current.clear();
+          await scannerRef.current.stop();
           console.log('[SCANNER] ✅ Scanner anterior parado');
         } catch (e) {
-          console.log("[SCANNER] Nenhum scanner para parar ou já estava parado");
+          console.log("[SCANNER] Nenhum scanner ativo para parar");
         }
         scannerRef.current = null;
       }
-      
-      // Aguardar DOM estar pronto (pequeno delay)
+
+      // Aguardar DOM
       await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Verificar elemento com retry
-      let qrReaderElement = document.getElementById("qr-reader");
-      let retries = 0;
-      while (!qrReaderElement && retries < 10) {
-        console.log(`[SCANNER] Aguardando elemento... tentativa ${retries + 1}/10`);
-        await new Promise(resolve => setTimeout(resolve, 100));
-        qrReaderElement = document.getElementById("qr-reader");
-        retries++;
-      }
-      
+
+      // Verificar elemento
+      const qrReaderElement = document.getElementById("qr-reader");
       if (!qrReaderElement) {
-        throw new Error('Elemento do scanner não encontrado após 10 tentativas (1 segundo)');
+        throw new Error('Elemento #qr-reader não encontrado');
       }
-      
+
       console.log('[SCANNER] ✅ Elemento #qr-reader encontrado!');
       qrReaderElement.innerHTML = '';
-      
+
       // Detectar mobile
-      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      console.log('[SCANNER] Dispositivo mobile:', isMobile);
-      console.log('[SCANNER] User Agent:', navigator.userAgent);
-      
-      // Configuração SIMPLIFICADA e CORRETA
+      const isMobile = /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      console.log('[SCANNER] Mobile:', isMobile);
+
+      // Criar scanner SEM UI
+      console.log('[SCANNER] Criando Html5Qrcode...');
+      const scanner = new Html5Qrcode("qr-reader");
+      scannerRef.current = scanner;
+
+      // Configuração da câmera
       const config = {
         fps: isMobile ? 5 : 10,
-        qrbox: isMobile ? 200 : 250,
-        rememberLastUsedCamera: true,
-        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
-        experimentalFeatures: {
-          useBarCodeDetectorIfSupported: true
-        },
-        videoConstraints: {
-          facingMode: { ideal: "environment" }
-        }
+        qrbox: { width: isMobile ? 200 : 250, height: isMobile ? 200 : 250 },
+        aspectRatio: 1.0
       };
-      
-      console.log('[SCANNER] Configuração do scanner:', JSON.stringify(config, null, 2));
-      
-      // Criar scanner com UI integrada
-      console.log('[SCANNER] Criando instância do Html5QrcodeScanner...');
-      const scanner = new Html5QrcodeScanner(
-        "qr-reader",
+
+      console.log('[SCANNER] Configuração:', JSON.stringify(config, null, 2));
+
+      // INICIAR CÂMERA DIRETAMENTE
+      console.log('[SCANNER] Solicitando acesso à câmera...');
+      await scanner.start(
+        { facingMode: "environment" }, // Câmera traseira
         config,
-        true // verbose logging
+        onScanSuccess,
+        onScanError
       );
-      
-      scannerRef.current = scanner;
-      console.log('[SCANNER] ✅ Instância criada');
-      
-      // Renderizar - MUITO MAIS SIMPLES!
-      console.log('[SCANNER] Renderizando scanner (chamando scanner.render)...');
-      scanner.render(onScanSuccess, onScanError);
-      
-      console.log('✅ [SCANNER] Scanner renderizado com sucesso!');
+
+      console.log('✅ [SCANNER] Câmera iniciada com sucesso!');
       console.log('[SCANNER] ========================================');
       setIsInitializing(false);
-      
+
     } catch (error) {
-      console.error('❌ [SCANNER] Erro fatal durante inicialização:', error);
-      console.error('[SCANNER] Stack trace:', (error as Error)?.stack);
-      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido ao inicializar scanner';
-      setCameraError(errorMessage);
+      console.error('❌ [SCANNER] Erro ao iniciar câmera:', error);
+      console.error('[SCANNER] Stack:', (error as Error)?.stack);
+      setCameraError(error instanceof Error ? error.message : 'Erro ao acessar câmera');
       setIsInitializing(false);
-      
-      // Run diagnostics to help identify the problem
-      console.log('[SCANNER] Executando diagnóstico automático após falha...');
+
+      // Diagnóstico em caso de erro
       runFullDiagnostics().then(diagnostics => {
         logDiagnostics(diagnostics);
-        
-        if (!diagnostics.overall) {
-          // Provide specific guidance based on diagnostics
-          const issues: string[] = [];
-          if (!diagnostics.results.browserCompatibility.success) {
-            issues.push('Navegador incompatível');
-          }
-          if (!diagnostics.results.cameraAccess.success) {
-            issues.push('Problemas com acesso à câmera');
-          }
-          if (!diagnostics.results.scannerElement.success) {
-            issues.push('Elemento do scanner não encontrado');
-          }
-          
-          console.error('[SCANNER] Problemas identificados:', issues);
-        }
-      }).catch(diagError => {
-        console.error('[SCANNER] Erro ao executar diagnóstico:', diagError);
-      });
-      
-      // Notificar usuário via toast
-      toast({
-        title: "Erro ao inicializar scanner",
-        description: `${errorMessage}. Verifique o console para mais detalhes.`,
-        variant: "destructive",
       });
     }
   };
