@@ -87,6 +87,7 @@ type ScreenState = 'scanner' | 'welcome' | 'transition';
 
 export default function CheckInNew() {
   const [screenState, setScreenState] = useState<ScreenState>('scanner');
+  const [scannerDetecting, setScannerDetecting] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [modelData, setModelData] = useState<ModelData | null>(null);
   const [pendingCheckInData, setPendingCheckInData] = useState<ModelData | null>(null);
@@ -339,16 +340,25 @@ export default function CheckInNew() {
       qrReaderElement.innerHTML = '';
       console.log('[SCANNER] Elemento qr-reader encontrado e limpo');
       
+      // Detectar se está em dispositivo móvel
+      const isMobileDevice = () => {
+        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      };
+
       // Criar novo scanner
       console.log('[SCANNER] Criando novo scanner...');
       const scanner = new Html5Qrcode("qr-reader");
       scannerRef.current = scanner;
       
-      // Configuração otimizada para leitura de QR codes
+      // Configuração responsiva baseada no tipo de dispositivo
+      const isMobile = isMobileDevice();
+      const screenWidth = window.innerWidth;
+      
       const config = {
-        fps: 10,
-        qrbox: { width: 250, height: 250 },
-        aspectRatio: 1.0,
+        fps: isMobile ? 20 : 10,
+        qrbox: isMobile 
+          ? { width: Math.floor(screenWidth * 0.7), height: Math.floor(screenWidth * 0.7) }
+          : { width: 250, height: 250 },
         disableFlip: false,
         formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
       };
@@ -359,7 +369,7 @@ export default function CheckInNew() {
       try {
         // Tentar câmera traseira primeiro
         await scanner.start(
-          { facingMode: "environment" },
+          { facingMode: { exact: "environment" } },
           config,
           onScanSuccess,
           onScanError
@@ -1089,12 +1099,15 @@ export default function CheckInNew() {
   };
 
   const onScanError = (err: unknown) => {
-    // Log apenas erros relevantes, não "NotFoundException" que é esperado durante scanning
-    if (err && typeof err === 'string' && !err.includes('NotFoundException')) {
+    // Feedback visual quando detectar algo
+    const errorStr = typeof err === 'string' ? err : (err as any)?.message || '';
+    if (errorStr.includes('NotFoundException')) {
+      setScannerDetecting(true);
+      setTimeout(() => setScannerDetecting(false), 100);
+    } else if (err && typeof err === 'string' && !err.includes('NotFoundException')) {
       console.warn('[SCANNER] Erro durante detecção:', err);
     } else if (err && typeof err === 'object' && 'message' in err) {
       const errorObj = err as { message?: string; name?: string };
-      // Log apenas erros que não sejam NotFoundException
       if (errorObj.name !== 'NotFoundException' && !errorObj.message?.includes('NotFoundException')) {
         console.warn('[SCANNER] Erro durante detecção:', {
           name: errorObj.name,
@@ -1102,7 +1115,6 @@ export default function CheckInNew() {
         });
       }
     }
-    // Nota: NotFoundException é esperado quando nenhum QR code está visível
   };
 
   const handleUsbInput = async (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -1403,7 +1415,13 @@ export default function CheckInNew() {
             <div 
               id="qr-reader" 
               className="w-full max-h-[250px] sm:max-h-[400px] min-h-[200px] overflow-hidden rounded-lg border-2 border-primary/20"
+              style={{ minHeight: '300px' }}
             ></div>
+            
+            {/* Feedback visual de detecção */}
+            {scannerDetecting && (
+              <div className="absolute inset-0 pointer-events-none border-4 border-primary/50 rounded-lg animate-pulse" />
+            )}
             
             {/* Overlay de loading */}
             {isInitializing && (
