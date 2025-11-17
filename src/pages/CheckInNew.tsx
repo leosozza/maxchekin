@@ -344,12 +344,13 @@ export default function CheckInNew() {
       const scanner = new Html5Qrcode("qr-reader");
       scannerRef.current = scanner;
       
-      // Configuração simples e funcional
+      // Configuração otimizada para leitura de QR codes
       const config = {
         fps: 10,
-        qrbox: { width: 250, height: 250 },
+        qrbox: 300, // Área maior de leitura
         aspectRatio: 1.0,
         disableFlip: false,
+        formatsToSupport: [0, 1], // QR_CODE = 0, DATA_MATRIX = 1
       };
       
       console.log("[SCANNER] Solicitando câmera traseira...");
