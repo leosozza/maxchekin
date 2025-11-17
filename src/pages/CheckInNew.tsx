@@ -106,8 +106,7 @@ export default function CheckInNew() {
   const [showLeadId, setShowLeadId] = useState(false);
   const [lastScannedCode, setLastScannedCode] = useState<string>("");
   const [lastScanTime, setLastScanTime] = useState<number>(0);
-  const [configLoaded, setConfigLoaded] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(true);
+  const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [pendingBitrixUpdate, setPendingBitrixUpdate] = useState<{ leadId: string; presencaFieldName: string | null } | null>(null);
@@ -122,7 +121,7 @@ export default function CheckInNew() {
   const [cameraActive, setCameraActive] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const usbInputRef = useRef<HTMLInputElement>(null);
-  const isInitializingRef = useRef(false);
+  const scannerInitializedRef = useRef(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   const { user, isAdmin } = useAuth();
@@ -163,12 +162,8 @@ export default function CheckInNew() {
   // Load webhook config on mount - works with or without login
   useEffect(() => {
     const loadConfigs = async () => {
-      console.log("[CHECK-IN] Iniciando carregamento de configurações...");
       await Promise.all([loadWebhookConfig(), loadCheckInConfig()]);
-      setConfigLoaded(true);
-      console.log("[CHECK-IN] Configurações carregadas com sucesso");
     };
-    
     loadConfigs();
   }, []);
 
@@ -254,174 +249,96 @@ export default function CheckInNew() {
   };
 
   const forceReloadCamera = async () => {
-    console.log("[CAMERA] Recarregando câmera...");
     setCameraError(null);
+    setCameraReady(false);
+    scannerInitializedRef.current = false;
     await stopScanner();
-    
-    // Run diagnostics before reloading
-    console.log("[CAMERA] Executando diagnóstico antes de recarregar...");
-    const diagnostics = await runFullDiagnostics();
-    logDiagnostics(diagnostics);
-    
-    if (!diagnostics.overall) {
-      console.warn("[CAMERA] ⚠️ Diagnóstico detectou problemas");
-      toast({
-        title: "Problemas Detectados",
-        description: "Verifique o console do navegador para detalhes sobre os problemas encontrados.",
-        variant: "destructive",
-      });
-    }
-    
-    // Chamar initScanner diretamente sem delays
+    await new Promise(resolve => setTimeout(resolve, 500));
     initScanner();
   };
 
   const initScanner = async () => {
     try {
-      setIsInitializing(true);
       setCameraError(null);
-
-      console.log('[SCANNER] ========================================');
-      console.log('[SCANNER] Iniciando Html5Qrcode (CÂMERA DIRETA)...');
-      console.log('[SCANNER] Timestamp:', new Date().toISOString());
-
-      // Verificar suporte a getUserMedia
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('Navegador não suporta acesso à câmera');
-      }
-      console.log('[SCANNER] ✅ getUserMedia disponível');
-
-      // Parar scanner existente
-      if (scannerRef.current) {
-        try {
-          console.log('[SCANNER] Parando scanner existente...');
-          await scannerRef.current.stop();
-          console.log('[SCANNER] ✅ Scanner anterior parado');
-        } catch (e) {
-          console.log("[SCANNER] Nenhum scanner ativo para parar");
-        }
-        scannerRef.current = null;
-      }
-
-      // Aguardar DOM
-      await new Promise(resolve => setTimeout(resolve, 100));
 
       // Verificar elemento
       const qrReaderElement = document.getElementById("qr-reader");
       if (!qrReaderElement) {
         throw new Error('Elemento #qr-reader não encontrado');
       }
-
-      console.log('[SCANNER] ✅ Elemento #qr-reader encontrado!');
       qrReaderElement.innerHTML = '';
 
-      // Detectar mobile
-      const isMobile = /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent);
-      console.log('[SCANNER] Mobile:', isMobile);
+      // Parar scanner existente
+      if (scannerRef.current) {
+        try {
+          await scannerRef.current.stop();
+        } catch (e) {
+          console.log("Scanner já estava parado");
+        }
+        scannerRef.current = null;
+      }
 
-      // Criar scanner SEM UI
-      console.log('[SCANNER] Criando Html5Qrcode...');
-      const scanner = new Html5Qrcode("qr-reader");
+      // Criar Html5Qrcode
+      const scanner = new Html5Qrcode("qr-reader", {
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.QR_CODE,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39
+        ],
+        verbose: false
+      });
       scannerRef.current = scanner;
 
-      // Configuração da câmera
-      const config = {
-        fps: isMobile ? 5 : 10,
-        qrbox: { width: isMobile ? 200 : 250, height: isMobile ? 200 : 250 },
-        aspectRatio: 1.0
-      };
-
-      console.log('[SCANNER] Configuração:', JSON.stringify(config, null, 2));
-
-      // INICIAR CÂMERA DIRETAMENTE
-      console.log('[SCANNER] Solicitando acesso à câmera...');
+      // Iniciar câmera
       await scanner.start(
-        { facingMode: "environment" }, // Câmera traseira
-        config,
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
         onScanSuccess,
         onScanError
       );
 
-      console.log('✅ [SCANNER] Câmera iniciada com sucesso!');
-      console.log('[SCANNER] ========================================');
-      setIsInitializing(false);
-
+      setCameraReady(true);
+      setScanning(true);
     } catch (error) {
-      console.error('❌ [SCANNER] Erro ao iniciar câmera:', error);
-      console.error('[SCANNER] Stack:', (error as Error)?.stack);
+      console.error('Erro ao iniciar câmera:', error);
       setCameraError(error instanceof Error ? error.message : 'Erro ao acessar câmera');
-      setIsInitializing(false);
-
-      // Diagnóstico em caso de erro
-      runFullDiagnostics().then(diagnostics => {
-        logDiagnostics(diagnostics);
-      });
+      runFullDiagnostics().then(logDiagnostics);
     }
   };
 
-  // Camera control effect - SIMPLIFICADO para evitar loop
+  // Camera control effect - ULTRA SIMPLIFICADO
   useEffect(() => {
-    if (screenState !== 'scanner') {
-      console.log("[CHECK-IN] Não está na tela scanner, não iniciando câmera");
+    if (screenState !== 'scanner' || scannerInitializedRef.current) {
       return;
     }
 
-    // Só iniciar câmera quando configurações estiverem carregadas
-    if (!configLoaded) {
-      console.log("[CHECK-IN] Aguardando configurações serem carregadas...");
-      return;
-    }
-
-    // Proteção contra reinicialização múltipla
-    if (isInitializingRef.current) {
-      console.log("[CHECK-IN] Já está inicializando, ignorando...");
-      return;
-    }
-
-    console.log("[CHECK-IN] Iniciando câmera...");
-    isInitializingRef.current = true;
-    
     let isMounted = true;
     
     const initCamera = async () => {
+      // Pequeno delay para garantir que DOM está pronto
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
       if (!isMounted) return;
       
       if (isNativeApp()) {
-        console.log("[CAPACITOR] Detectado app nativo, usando scanner nativo");
-        startNativeScan(
-          (result) => {
-            if (isMounted) {
-              console.log("[CAPACITOR] QR Code detectado:", result);
-              onScanSuccess(result);
-            }
-          },
-          (error) => {
-            if (isMounted) {
-              console.error("[CAPACITOR] Erro no scanner:", error);
-              setCameraError(error);
-            }
-          }
-        );
+        startNativeScan(onScanSuccess, (error) => setCameraError(error));
       } else {
-        console.log("[WEB] Usando scanner HTML5");
         await initScanner();
       }
     };
     
     initCamera();
+    scannerInitializedRef.current = true;
     
     return () => {
       isMounted = false;
-      isInitializingRef.current = false;
-      console.log("[CHECK-IN] Cleanup de câmera");
-      
       if (isNativeApp()) {
         stopNativeScan();
       } else {
         stopScanner();
       }
     };
-  }, [screenState, configLoaded]);
+  }, [screenState]);
 
 
   const fetchModelDataFromBitrix = async (leadId: string, source: 'qr' | 'usb' | 'manual' = 'qr'): Promise<FetchModelDataResult> => {
@@ -1281,9 +1198,8 @@ export default function CheckInNew() {
       scannerRef: !!scannerRef.current,
       scanning,
       cameraActive,
-      configLoaded,
+      cameraReady,
       screenState,
-      isInitializing,
       cameraError,
       elementExists: !!document.getElementById('qr-reader'),
     });
@@ -1307,7 +1223,7 @@ export default function CheckInNew() {
       <div className={`min-h-screen max-h-screen overflow-hidden bg-gradient-to-b from-studio-dark via-background to-studio-dark flex flex-col items-center justify-between p-4 md:p-8 portrait:orientation-portrait transition-all duration-800 ${
         screenState === 'transition' ? 'animate-scanner-exit' : ''
       } ${
-        screenState === 'scanner' && configLoaded && !modelData ? 'animate-scanner-enter' : ''
+        screenState === 'scanner' && !modelData ? 'animate-scanner-enter' : ''
       }`}>
       {/* Hidden USB input for barcode scanner */}
       <input
@@ -1365,16 +1281,8 @@ export default function CheckInNew() {
               <div className="absolute inset-0 pointer-events-none border-4 border-primary/50 rounded-lg animate-pulse" />
             )}
             
-            {/* Overlay de configurações não carregadas */}
-            {!configLoaded && (
-              <div className="absolute inset-0 bg-background/90 backdrop-blur-sm flex flex-col items-center justify-center rounded-lg z-50">
-                <Loader2 className="w-12 h-12 animate-spin text-primary mb-4" />
-                <p className="text-sm text-muted-foreground">Carregando configurações...</p>
-              </div>
-            )}
-            
             {/* Overlay de inicialização da câmera */}
-            {isInitializing && (
+            {!cameraReady && !cameraError && (
               <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center rounded-lg">
                 <Loader2 className="w-12 h-12 animate-spin text-primary mb-4" />
                 <p className="text-sm text-muted-foreground">Iniciando câmera...</p>
@@ -1407,7 +1315,7 @@ export default function CheckInNew() {
               Scanner Ativo
             </p>
             <p className="text-base sm:text-lg text-muted-foreground">
-              {isInitializing ? 
+              {!cameraReady ? 
                 "Iniciando câmera..." : 
                 cameraError ?
                 "Erro na câmera - use a busca manual" :
