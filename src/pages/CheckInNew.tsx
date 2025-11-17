@@ -354,8 +354,6 @@ export default function CheckInNew() {
 
     console.log("[CHECK-IN] Iniciando câmera...");
     isInitializingRef.current = true;
-    setCameraActive(true);
-    setScanning(true);
     
     let isMounted = true;
     
@@ -396,9 +394,6 @@ export default function CheckInNew() {
       } else {
         stopScanner();
       }
-      
-      setCameraActive(false);
-      setScanning(false);
     };
   }, [screenState]);
 
@@ -1284,34 +1279,7 @@ export default function CheckInNew() {
         </div>
       )}
 
-      {configLoaded && !cameraActive && !modelData && (
-        <div className="flex flex-col items-center space-y-6 sm:space-y-10 animate-fade-in flex-1 justify-center w-full">
-          <div className="relative">
-            <div className="absolute inset-0 bg-gradient-gold blur-3xl opacity-20 animate-pulse-glow"></div>
-            <QrCode className="w-24 h-24 sm:w-40 sm:h-40 text-gold animate-pulse relative z-10" />
-          </div>
-          
-          <div className="text-center space-y-3 px-4">
-            <p className="text-2xl sm:text-3xl font-light text-foreground">
-              Bem-vindo à MaxFama
-            </p>
-            <p className="text-base sm:text-lg text-muted-foreground">
-              Clique no botão abaixo para iniciar o scanner
-            </p>
-          </div>
-
-          <Button
-            onClick={handleStartCamera}
-            size="lg"
-            className="h-16 px-12 text-xl font-semibold bg-primary hover:bg-primary/90 shadow-glow"
-          >
-            <QrCode className="w-6 h-6 mr-2" />
-            Iniciar Scanner
-          </Button>
-        </div>
-      )}
-
-      {configLoaded && cameraActive && scanning && !modelData && (
+      {screenState === 'scanner' && configLoaded && !modelData && (
         <div className="flex flex-col items-center space-y-4 sm:space-y-8 animate-fade-in flex-1 justify-center w-full">
           <div className="relative">
             <div className="absolute inset-0 bg-gradient-gold blur-3xl opacity-20 animate-pulse-glow"></div>
@@ -1366,11 +1334,11 @@ export default function CheckInNew() {
               Scanner Ativo
             </p>
             <p className="text-base sm:text-lg text-muted-foreground">
-              {isInitializing
-                ? "Aguarde, carregando câmera..."
-                : cameraError
-                ? "Use busca manual ou recarregue a câmera"
-                : "Aproxime sua credencial ou use o leitor USB"}
+              {isInitializing ? 
+                "Iniciando câmera..." : 
+                cameraError ?
+                "Erro na câmera - use a busca manual" :
+                "Posicione o QR Code na câmera ou use a busca manual"}
             </p>
           </div>
         </div>
