@@ -347,11 +347,9 @@ export default function CheckInNew() {
     setScanning(true);
     
     let isMounted = true;
-    let scannerInitialized = false;
     
     const initCamera = async () => {
-      if (!isMounted || scannerInitialized) return;
-      scannerInitialized = true;
+      if (!isMounted) return;
       
       if (isNativeApp()) {
         console.log("[CAPACITOR] Detectado app nativo, usando scanner nativo");
@@ -387,7 +385,6 @@ export default function CheckInNew() {
     
     return () => {
       isMounted = false;
-      scannerInitialized = false;
       console.log("[CHECK-IN] Cleanup de câmera");
       
       if (isNativeApp()) {
