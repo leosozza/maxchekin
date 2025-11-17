@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { Html5Qrcode } from "html5-qrcode";
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import { supabase } from "@/integrations/supabase/client";
 import { Sparkles, QrCode, Search, X, Delete, User, Menu, Loader2, Phone, UserPlus, Edit, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -347,10 +347,10 @@ export default function CheckInNew() {
       // Configuração otimizada para leitura de QR codes
       const config = {
         fps: 10,
-        qrbox: 300, // Área maior de leitura
+        qrbox: { width: 250, height: 250 },
         aspectRatio: 1.0,
         disableFlip: false,
-        formatsToSupport: [0, 1], // QR_CODE = 0, DATA_MATRIX = 1
+        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
       };
       
       console.log("[SCANNER] Solicitando câmera traseira...");
