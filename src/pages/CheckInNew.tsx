@@ -345,9 +345,9 @@ export default function CheckInNew() {
         return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       };
 
-      // Criar novo scanner
+      // Criar novo scanner com verbose logging
       console.log('[SCANNER] Criando novo scanner...');
-      const scanner = new Html5Qrcode("qr-reader");
+      const scanner = new Html5Qrcode("qr-reader", true);
       scannerRef.current = scanner;
       
       // Configuração responsiva baseada no tipo de dispositivo
@@ -355,12 +355,16 @@ export default function CheckInNew() {
       const screenWidth = window.innerWidth;
       
       const config = {
-        fps: isMobile ? 20 : 10,
+        fps: isMobile ? 5 : 10, // FPS reduzido para mobile (mais estável)
         qrbox: isMobile 
-          ? { width: Math.floor(screenWidth * 0.7), height: Math.floor(screenWidth * 0.7) }
+          ? { width: 200, height: 200 } // Tamanho fixo e confiável para mobile
           : { width: 250, height: 250 },
         disableFlip: false,
         formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+        experimentalFeatures: {
+          useBarCodeDetectorIfSupported: true // Usa API nativa quando disponível
+        },
+        aspectRatio: 1.0, // Força proporção 1:1 para melhor detecção
       };
       
       console.log("[SCANNER] Solicitando câmera traseira...");
@@ -379,6 +383,14 @@ export default function CheckInNew() {
         console.log(`✅ [SCANNER] Câmera traseira iniciada com sucesso! (${elapsedTime}ms)`);
         console.log('[SCANNER] Scanner ativo, aguardando QR Code...');
         setIsInitializing(false);
+        
+        // Timeout de segurança para detectar se o scanner travou
+        setTimeout(() => {
+          if (scannerRef.current && !modelData) {
+            console.error('[SCANNER] ⚠️ Scanner não detectou nada em 30s - possível problema de configuração');
+          }
+        }, 30000);
+        
         return;
         
       } catch (backError) {
@@ -1099,21 +1111,21 @@ export default function CheckInNew() {
   };
 
   const onScanError = (err: unknown) => {
-    // Feedback visual quando detectar algo
     const errorStr = typeof err === 'string' ? err : (err as any)?.message || '';
+    
+    // Feedback visual quando detectar algo
     if (errorStr.includes('NotFoundException')) {
       setScannerDetecting(true);
       setTimeout(() => setScannerDetecting(false), 100);
-    } else if (err && typeof err === 'string' && !err.includes('NotFoundException')) {
-      console.warn('[SCANNER] Erro durante detecção:', err);
-    } else if (err && typeof err === 'object' && 'message' in err) {
-      const errorObj = err as { message?: string; name?: string };
-      if (errorObj.name !== 'NotFoundException' && !errorObj.message?.includes('NotFoundException')) {
-        console.warn('[SCANNER] Erro durante detecção:', {
-          name: errorObj.name,
-          message: errorObj.message,
-        });
-      }
+    } else {
+      // REGISTRAR TODOS OS OUTROS ERROS para debugging completo
+      console.warn('[SCANNER] ⚠️ Erro completo:', {
+        type: typeof err,
+        error: err,
+        message: errorStr,
+        stack: (err as any)?.stack,
+        name: (err as any)?.name
+      });
     }
   };
 
