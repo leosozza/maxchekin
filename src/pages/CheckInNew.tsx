@@ -276,12 +276,24 @@ export default function CheckInNew() {
         scannerRef.current = null;
       }
       
-      // Verificar elemento
-      const qrReaderElement = document.getElementById("qr-reader");
-      if (!qrReaderElement) {
-        throw new Error('Elemento do scanner não encontrado');
+      // Aguardar DOM estar pronto (pequeno delay)
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Verificar elemento com retry
+      let qrReaderElement = document.getElementById("qr-reader");
+      let retries = 0;
+      while (!qrReaderElement && retries < 10) {
+        console.log(`[SCANNER] Aguardando elemento... tentativa ${retries + 1}`);
+        await new Promise(resolve => setTimeout(resolve, 100));
+        qrReaderElement = document.getElementById("qr-reader");
+        retries++;
       }
       
+      if (!qrReaderElement) {
+        throw new Error('Elemento do scanner não encontrado após múltiplas tentativas');
+      }
+      
+      console.log('[SCANNER] ✅ Elemento encontrado!');
       qrReaderElement.innerHTML = '';
       
       // Detectar mobile
