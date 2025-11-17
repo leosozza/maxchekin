@@ -366,6 +366,12 @@ export default function CheckInNew() {
       return;
     }
 
+    // Só iniciar câmera quando configurações estiverem carregadas
+    if (!configLoaded) {
+      console.log("[CHECK-IN] Aguardando configurações serem carregadas...");
+      return;
+    }
+
     // Proteção contra reinicialização múltipla
     if (isInitializingRef.current) {
       console.log("[CHECK-IN] Já está inicializando, ignorando...");
@@ -415,7 +421,7 @@ export default function CheckInNew() {
         stopScanner();
       }
     };
-  }, [screenState]);
+  }, [screenState, configLoaded]);
 
 
   const fetchModelDataFromBitrix = async (leadId: string, source: 'qr' | 'usb' | 'manual' = 'qr'): Promise<FetchModelDataResult> => {
@@ -1338,21 +1344,7 @@ export default function CheckInNew() {
         <Search className="w-5 h-5 text-primary" />
       </Button>
 
-      {!configLoaded && screenState === 'scanner' && (
-        <div className="flex flex-col items-center space-y-4 sm:space-y-8 animate-fade-in flex-1 justify-center w-full">
-          <div className="relative">
-            <div className="absolute inset-0 bg-gradient-gold blur-3xl opacity-20 animate-pulse-glow"></div>
-            <QrCode className="w-20 h-20 sm:w-32 sm:h-32 text-gold animate-pulse relative z-10" />
-          </div>
-          <div className="text-center space-y-2 px-4">
-            <p className="text-xl sm:text-2xl font-light text-foreground">
-              Carregando configurações...
-            </p>
-          </div>
-        </div>
-      )}
-
-      {screenState === 'scanner' && configLoaded && !modelData && (
+      {screenState === 'scanner' && !modelData && (
         <div className="flex flex-col items-center space-y-4 sm:space-y-8 animate-fade-in flex-1 justify-center w-full">
           <div className="relative">
             <div className="absolute inset-0 bg-gradient-gold blur-3xl opacity-20 animate-pulse-glow"></div>
@@ -1373,7 +1365,15 @@ export default function CheckInNew() {
               <div className="absolute inset-0 pointer-events-none border-4 border-primary/50 rounded-lg animate-pulse" />
             )}
             
-            {/* Overlay de loading */}
+            {/* Overlay de configurações não carregadas */}
+            {!configLoaded && (
+              <div className="absolute inset-0 bg-background/90 backdrop-blur-sm flex flex-col items-center justify-center rounded-lg z-50">
+                <Loader2 className="w-12 h-12 animate-spin text-primary mb-4" />
+                <p className="text-sm text-muted-foreground">Carregando configurações...</p>
+              </div>
+            )}
+            
+            {/* Overlay de inicialização da câmera */}
             {isInitializing && (
               <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center rounded-lg">
                 <Loader2 className="w-12 h-12 animate-spin text-primary mb-4" />
