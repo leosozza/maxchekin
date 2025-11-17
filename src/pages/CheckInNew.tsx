@@ -32,6 +32,7 @@ import { getLeadPhotoUrl, DEFAULT_PHOTO_FIELD } from "@/utils/photo";
 import { updateLead } from "@/utils/bitrix/updateLead";
 import { MultiModelDialog } from "@/components/checkin/MultiModelDialog";
 import { getDealIdFromLead, cloneDealForNewModel } from "@/utils/bitrix/cloneDeal";
+import { runFullDiagnostics, logDiagnostics } from "@/utils/scannerDiagnostics";
 
 interface ModelData {
   lead_id: string;
@@ -256,6 +257,21 @@ export default function CheckInNew() {
     console.log("[CAMERA] Recarregando câmera...");
     setCameraError(null);
     await stopScanner();
+    
+    // Run diagnostics before reloading
+    console.log("[CAMERA] Executando diagnóstico antes de recarregar...");
+    const diagnostics = await runFullDiagnostics();
+    logDiagnostics(diagnostics);
+    
+    if (!diagnostics.overall) {
+      console.warn("[CAMERA] ⚠️ Diagnóstico detectou problemas");
+      toast({
+        title: "Problemas Detectados",
+        description: "Verifique o console do navegador para detalhes sobre os problemas encontrados.",
+        variant: "destructive",
+      });
+    }
+    
     // Chamar initScanner diretamente sem delays
     initScanner();
   };
@@ -265,14 +281,24 @@ export default function CheckInNew() {
       setIsInitializing(true);
       setCameraError(null);
       
+      console.log('[SCANNER] ========================================');
       console.log('[SCANNER] Iniciando Html5QrcodeScanner...');
+      console.log('[SCANNER] Timestamp:', new Date().toISOString());
+      
+      // Verificar suporte a getUserMedia
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Navegador não suporta acesso à câmera (getUserMedia não disponível)');
+      }
+      console.log('[SCANNER] ✅ getUserMedia disponível');
       
       // Parar scanner existente
       if (scannerRef.current) {
         try {
+          console.log('[SCANNER] Parando scanner existente...');
           await scannerRef.current.clear();
+          console.log('[SCANNER] ✅ Scanner anterior parado');
         } catch (e) {
-          console.log("[SCANNER] Nenhum scanner para parar");
+          console.log("[SCANNER] Nenhum scanner para parar ou já estava parado");
         }
         scannerRef.current = null;
       }
@@ -284,21 +310,23 @@ export default function CheckInNew() {
       let qrReaderElement = document.getElementById("qr-reader");
       let retries = 0;
       while (!qrReaderElement && retries < 10) {
-        console.log(`[SCANNER] Aguardando elemento... tentativa ${retries + 1}`);
+        console.log(`[SCANNER] Aguardando elemento... tentativa ${retries + 1}/10`);
         await new Promise(resolve => setTimeout(resolve, 100));
         qrReaderElement = document.getElementById("qr-reader");
         retries++;
       }
       
       if (!qrReaderElement) {
-        throw new Error('Elemento do scanner não encontrado após múltiplas tentativas');
+        throw new Error('Elemento do scanner não encontrado após 10 tentativas (1 segundo)');
       }
       
-      console.log('[SCANNER] ✅ Elemento encontrado!');
+      console.log('[SCANNER] ✅ Elemento #qr-reader encontrado!');
       qrReaderElement.innerHTML = '';
       
       // Detectar mobile
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      console.log('[SCANNER] Dispositivo mobile:', isMobile);
+      console.log('[SCANNER] User Agent:', navigator.userAgent);
       
       // Configuração SIMPLIFICADA e CORRETA
       const config = {
@@ -314,9 +342,10 @@ export default function CheckInNew() {
         }
       };
       
-      console.log('[SCANNER] Config:', config);
+      console.log('[SCANNER] Configuração do scanner:', JSON.stringify(config, null, 2));
       
       // Criar scanner com UI integrada
+      console.log('[SCANNER] Criando instância do Html5QrcodeScanner...');
       const scanner = new Html5QrcodeScanner(
         "qr-reader",
         config,
@@ -324,18 +353,53 @@ export default function CheckInNew() {
       );
       
       scannerRef.current = scanner;
+      console.log('[SCANNER] ✅ Instância criada');
       
       // Renderizar - MUITO MAIS SIMPLES!
+      console.log('[SCANNER] Renderizando scanner (chamando scanner.render)...');
       scanner.render(onScanSuccess, onScanError);
       
       console.log('✅ [SCANNER] Scanner renderizado com sucesso!');
+      console.log('[SCANNER] ========================================');
       setIsInitializing(false);
       
     } catch (error) {
-      console.error('[SCANNER] Erro fatal:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      console.error('❌ [SCANNER] Erro fatal durante inicialização:', error);
+      console.error('[SCANNER] Stack trace:', (error as Error)?.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido ao inicializar scanner';
       setCameraError(errorMessage);
       setIsInitializing(false);
+      
+      // Run diagnostics to help identify the problem
+      console.log('[SCANNER] Executando diagnóstico automático após falha...');
+      runFullDiagnostics().then(diagnostics => {
+        logDiagnostics(diagnostics);
+        
+        if (!diagnostics.overall) {
+          // Provide specific guidance based on diagnostics
+          const issues: string[] = [];
+          if (!diagnostics.results.browserCompatibility.success) {
+            issues.push('Navegador incompatível');
+          }
+          if (!diagnostics.results.cameraAccess.success) {
+            issues.push('Problemas com acesso à câmera');
+          }
+          if (!diagnostics.results.scannerElement.success) {
+            issues.push('Elemento do scanner não encontrado');
+          }
+          
+          console.error('[SCANNER] Problemas identificados:', issues);
+        }
+      }).catch(diagError => {
+        console.error('[SCANNER] Erro ao executar diagnóstico:', diagError);
+      });
+      
+      // Notificar usuário via toast
+      toast({
+        title: "Erro ao inicializar scanner",
+        description: `${errorMessage}. Verifique o console para mais detalhes.`,
+        variant: "destructive",
+      });
     }
   };
 
@@ -983,19 +1047,36 @@ export default function CheckInNew() {
     const now = Date.now();
     
     // Log detalhado para debug
+    console.log('========================================');
     console.log(`✅ [SCANNER] QR Code detectado com sucesso!`);
     console.log(`[SCANNER] Conteúdo: "${decodedText}"`);
     console.log(`[SCANNER] Timestamp: ${new Date(now).toISOString()}`);
     console.log(`[SCANNER] Tipo: ${typeof decodedText}, Comprimento: ${decodedText.length} caracteres`);
     
-    // Ignorar se for o mesmo código dentro do cooldown period
-    if (decodedText === lastScannedCode && (now - lastScanTime) < SCAN_COOLDOWN_MS) {
-      const remainingCooldown = SCAN_COOLDOWN_MS - (now - lastScanTime);
-      console.log(`[CHECK-IN] Ignorando leitura duplicada do Lead ${decodedText} (cooldown: ${remainingCooldown}ms restantes)`);
+    // Validate decoded text
+    if (!decodedText || decodedText.trim() === '') {
+      console.warn('[SCANNER] ⚠️ QR Code vazio ou inválido detectado');
+      toast({
+        title: "QR Code inválido",
+        description: "O QR Code lido está vazio. Tente novamente.",
+        variant: "destructive",
+      });
       return;
     }
     
-    console.log(`[CHECK-IN] Processando check-in para Lead ID: ${decodedText}`);
+    console.log(`[SCANNER] ✅ QR Code válido (não vazio)`);
+    
+    // Ignorar se for o mesmo código dentro do cooldown period
+    if (decodedText === lastScannedCode && (now - lastScanTime) < SCAN_COOLDOWN_MS) {
+      const remainingCooldown = SCAN_COOLDOWN_MS - (now - lastScanTime);
+      console.log(`[CHECK-IN] ⏸️ Ignorando leitura duplicada do Lead ${decodedText}`);
+      console.log(`[CHECK-IN] Cooldown: ${remainingCooldown}ms restantes de ${SCAN_COOLDOWN_MS}ms`);
+      console.log('========================================');
+      return;
+    }
+    
+    console.log(`[CHECK-IN] 🚀 Processando check-in para Lead ID: ${decodedText}`);
+    console.log('========================================');
     setLastScannedCode(decodedText);
     setLastScanTime(now);
     
@@ -1009,14 +1090,50 @@ export default function CheckInNew() {
     if (errorStr.includes('NotFoundException')) {
       setScannerDetecting(true);
       setTimeout(() => setScannerDetecting(false), 100);
-    } else {
+    } else if (errorStr.includes('QR code parse error')) {
+      // QR code detected but couldn't be parsed - this is important to log
+      console.warn('[SCANNER] ⚠️ QR Code detectado mas não pôde ser lido:', {
+        type: typeof err,
+        error: err,
+        message: errorStr,
+        timestamp: new Date().toISOString()
+      });
+    } else if (errorStr.includes('NotAllowedError') || errorStr.includes('Permission')) {
+      // Camera permission denied
+      console.error('[SCANNER] ❌ Erro de permissão de câmera:', {
+        type: typeof err,
+        error: err,
+        message: errorStr,
+        timestamp: new Date().toISOString()
+      });
+      setCameraError('Permissão de câmera negada. Por favor, permita o acesso à câmera.');
+    } else if (errorStr.includes('NotFoundError') || errorStr.includes('No camera')) {
+      // No camera found
+      console.error('[SCANNER] ❌ Nenhuma câmera encontrada:', {
+        type: typeof err,
+        error: err,
+        message: errorStr,
+        timestamp: new Date().toISOString()
+      });
+      setCameraError('Nenhuma câmera encontrada. Verifique se sua câmera está conectada.');
+    } else if (errorStr.includes('NotReadableError') || errorStr.includes('not readable')) {
+      // Camera hardware error
+      console.error('[SCANNER] ❌ Erro de hardware da câmera:', {
+        type: typeof err,
+        error: err,
+        message: errorStr,
+        timestamp: new Date().toISOString()
+      });
+      setCameraError('Erro ao acessar a câmera. A câmera pode estar em uso por outro aplicativo.');
+    } else if (errorStr) {
       // REGISTRAR TODOS OS OUTROS ERROS para debugging completo
       console.warn('[SCANNER] ⚠️ Erro completo:', {
         type: typeof err,
         error: err,
         message: errorStr,
         stack: (err as any)?.stack,
-        name: (err as any)?.name
+        name: (err as any)?.name,
+        timestamp: new Date().toISOString()
       });
     }
   };
