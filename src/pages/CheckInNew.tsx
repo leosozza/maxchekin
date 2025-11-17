@@ -121,6 +121,7 @@ export default function CheckInNew() {
   const [cameraActive, setCameraActive] = useState(false);
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
   const usbInputRef = useRef<HTMLInputElement>(null);
+  const isInitializingRef = useRef(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   const { user, isAdmin } = useAuth();
@@ -338,12 +339,22 @@ export default function CheckInNew() {
     }
   };
 
+  // Camera control effect - SIMPLIFICADO para evitar loop
   useEffect(() => {
-    if (!configLoaded || !webhookUrl || screenState !== 'scanner' || !cameraActive) {
+    if (screenState !== 'scanner') {
+      console.log("[CHECK-IN] Não está na tela scanner, não iniciando câmera");
+      return;
+    }
+
+    // Proteção contra reinicialização múltipla
+    if (isInitializingRef.current) {
+      console.log("[CHECK-IN] Já está inicializando, ignorando...");
       return;
     }
 
     console.log("[CHECK-IN] Iniciando câmera...");
+    isInitializingRef.current = true;
+    setCameraActive(true);
     setScanning(true);
     
     let isMounted = true;
@@ -353,31 +364,23 @@ export default function CheckInNew() {
       
       if (isNativeApp()) {
         console.log("[CAPACITOR] Detectado app nativo, usando scanner nativo");
-        try {
-          await startNativeScan(
-            (code) => {
-              if (isMounted) {
-                console.log("[CAPACITOR] QR Code escaneado:", code);
-                processCheckIn(code);
-              }
-            },
-            (error) => {
-              if (isMounted) {
-                setCameraError(error);
-                console.error('[NATIVE SCAN] Erro:', error);
-                toast({
-                  variant: "destructive",
-                  title: "Erro na Câmera",
-                  description: error,
-                });
-              }
+        startNativeScan(
+          (result) => {
+            if (isMounted) {
+              console.log("[CAPACITOR] QR Code detectado:", result);
+              onScanSuccess(result);
             }
-          );
-        } catch (err) {
-          console.error('[NATIVE SCAN] Falha ao iniciar:', err);
-        }
+          },
+          (error) => {
+            if (isMounted) {
+              console.error("[CAPACITOR] Erro no scanner:", error);
+              setCameraError(error);
+            }
+          }
+        );
       } else {
-        initScanner();
+        console.log("[WEB] Usando scanner HTML5");
+        await initScanner();
       }
     };
     
@@ -385,17 +388,19 @@ export default function CheckInNew() {
     
     return () => {
       isMounted = false;
+      isInitializingRef.current = false;
       console.log("[CHECK-IN] Cleanup de câmera");
       
       if (isNativeApp()) {
-        stopNativeScan().catch(err => 
-          console.error('[NATIVE SCAN] Erro no cleanup:', err)
-        );
+        stopNativeScan();
       } else {
         stopScanner();
       }
+      
+      setCameraActive(false);
+      setScanning(false);
     };
-  }, [configLoaded, webhookUrl, screenState, cameraActive]);
+  }, [screenState]);
 
 
   const fetchModelDataFromBitrix = async (leadId: string, source: 'qr' | 'usb' | 'manual' = 'qr'): Promise<FetchModelDataResult> => {
