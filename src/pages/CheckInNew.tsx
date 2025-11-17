@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
+import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import { supabase } from "@/integrations/supabase/client";
 import { Sparkles, QrCode, Search, X, Delete, User, Menu, Loader2, Phone, UserPlus, Edit, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -119,7 +119,7 @@ export default function CheckInNew() {
     checked_in_at: string;
   } | null>(null);
   const [cameraActive, setCameraActive] = useState(false);
-  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
   const usbInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -239,6 +239,93 @@ export default function CheckInNew() {
     }
   }, [manualSearchOpen, scanning]);
 
+  const stopScanner = async () => {
+    if (scannerRef.current) {
+      try {
+        await scannerRef.current.clear();
+        scannerRef.current = null;
+        console.log("[SCANNER] Scanner parado e limpo");
+      } catch (e) {
+        console.warn("[SCANNER] Erro ao parar:", e);
+      }
+    }
+  };
+
+  const forceReloadCamera = async () => {
+    console.log("[CAMERA] Recarregando câmera...");
+    setCameraError(null);
+    await stopScanner();
+    // Chamar initScanner diretamente sem delays
+    initScanner();
+  };
+
+  const initScanner = async () => {
+    try {
+      setIsInitializing(true);
+      setCameraError(null);
+      
+      console.log('[SCANNER] Iniciando Html5QrcodeScanner...');
+      
+      // Parar scanner existente
+      if (scannerRef.current) {
+        try {
+          await scannerRef.current.clear();
+        } catch (e) {
+          console.log("[SCANNER] Nenhum scanner para parar");
+        }
+        scannerRef.current = null;
+      }
+      
+      // Verificar elemento
+      const qrReaderElement = document.getElementById("qr-reader");
+      if (!qrReaderElement) {
+        throw new Error('Elemento do scanner não encontrado');
+      }
+      
+      qrReaderElement.innerHTML = '';
+      
+      // Detectar mobile
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
+      // Configuração SIMPLIFICADA e CORRETA
+      const config = {
+        fps: isMobile ? 5 : 10,
+        qrbox: isMobile ? 200 : 250,
+        rememberLastUsedCamera: true,
+        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+        experimentalFeatures: {
+          useBarCodeDetectorIfSupported: true
+        },
+        videoConstraints: {
+          facingMode: { ideal: "environment" }
+        }
+      };
+      
+      console.log('[SCANNER] Config:', config);
+      
+      // Criar scanner com UI integrada
+      const scanner = new Html5QrcodeScanner(
+        "qr-reader",
+        config,
+        true // verbose logging
+      );
+      
+      scannerRef.current = scanner;
+      
+      // Renderizar - MUITO MAIS SIMPLES!
+      scanner.render(onScanSuccess, onScanError);
+      
+      console.log('✅ [SCANNER] Scanner renderizado com sucesso!');
+      setIsInitializing(false);
+      
+    } catch (error) {
+      console.error('[SCANNER] Erro fatal:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      setCameraError(errorMessage);
+      setIsInitializing(false);
+    }
+  };
+
   useEffect(() => {
     if (!configLoaded || !webhookUrl || screenState !== 'scanner' || !cameraActive) {
       return;
@@ -298,213 +385,6 @@ export default function CheckInNew() {
     };
   }, [configLoaded, webhookUrl, screenState, cameraActive]);
 
-  const forceReloadCamera = async () => {
-    console.log("[CAMERA] Recarregando câmera...");
-    setCameraError(null);
-    await stopScanner();
-    // Chamar initScanner diretamente sem delays
-    initScanner();
-  };
-
-  const initScanner = async (retryCount = 0) => {
-    const MAX_RETRIES = 3;
-    
-    try {
-      setIsInitializing(true);
-      setCameraError(null);
-      
-      console.log(`[SCANNER] Tentativa ${retryCount + 1}/${MAX_RETRIES}`);
-      
-      // Parar scanner existente
-      if (scannerRef.current) {
-        try {
-          const state = await scannerRef.current.getState();
-          if (state === 2) {
-            await scannerRef.current.stop();
-          }
-          await scannerRef.current.clear();
-        } catch (e) {
-          console.log("[SCANNER] Nenhum scanner para parar");
-        }
-        scannerRef.current = null;
-      }
-      
-      // Verificar se elemento existe
-      const qrReaderElement = document.getElementById("qr-reader");
-      if (!qrReaderElement) {
-        console.error('[SCANNER] Elemento qr-reader não encontrado no DOM');
-        throw new Error('Elemento do scanner não encontrado');
-      }
-      
-      // Limpar o elemento HTML antes de criar novo scanner
-      qrReaderElement.innerHTML = '';
-      console.log('[SCANNER] Elemento qr-reader encontrado e limpo');
-      
-      // Detectar se está em dispositivo móvel
-      const isMobileDevice = () => {
-        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      };
-
-      // Criar novo scanner com verbose logging
-      console.log('[SCANNER] Criando novo scanner...');
-      const scanner = new Html5Qrcode("qr-reader", true);
-      scannerRef.current = scanner;
-      
-      // Configuração responsiva baseada no tipo de dispositivo
-      const isMobile = isMobileDevice();
-      const screenWidth = window.innerWidth;
-      
-      const config = {
-        fps: isMobile ? 5 : 10, // FPS reduzido para mobile (mais estável)
-        qrbox: isMobile 
-          ? { width: 200, height: 200 } // Tamanho fixo e confiável para mobile
-          : { width: 250, height: 250 },
-        disableFlip: false,
-        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
-        experimentalFeatures: {
-          useBarCodeDetectorIfSupported: true // Usa API nativa quando disponível
-        },
-        aspectRatio: 1.0, // Força proporção 1:1 para melhor detecção
-      };
-      
-      console.log("[SCANNER] Solicitando câmera traseira...");
-      const startTime = Date.now();
-      
-      try {
-        // Tentar câmera traseira primeiro
-        await scanner.start(
-          { facingMode: { exact: "environment" } },
-          config,
-          onScanSuccess,
-          onScanError
-        );
-        
-        const elapsedTime = Date.now() - startTime;
-        console.log(`✅ [SCANNER] Câmera traseira iniciada com sucesso! (${elapsedTime}ms)`);
-        console.log('[SCANNER] Scanner ativo, aguardando QR Code...');
-        setIsInitializing(false);
-        
-        // Timeout de segurança para detectar se o scanner travou
-        setTimeout(() => {
-          if (scannerRef.current && !modelData) {
-            console.error('[SCANNER] ⚠️ Scanner não detectou nada em 30s - possível problema de configuração');
-          }
-        }, 30000);
-        
-        return;
-        
-      } catch (backError) {
-        console.warn("[SCANNER] Falha na câmera traseira, tentando frontal...", backError);
-        
-        try {
-          // Tentar câmera frontal
-          await scanner.start(
-            { facingMode: "user" },
-            config,
-            onScanSuccess,
-            onScanError
-          );
-          
-          const elapsedTime = Date.now() - startTime;
-          console.log(`✅ [SCANNER] Câmera frontal iniciada! (${elapsedTime}ms)`);
-          console.log('[SCANNER] Scanner ativo, aguardando QR Code...');
-          setIsInitializing(false);
-          return;
-          
-        } catch (frontError) {
-          console.warn("[SCANNER] Falha nas câmeras específicas, listando todas...", frontError);
-          
-          // Último recurso: listar todas as câmeras e usar a primeira
-          const devices = await Html5Qrcode.getCameras();
-          console.log(`[SCANNER] ${devices?.length || 0} câmeras disponíveis:`, devices);
-          
-          if (devices && devices.length > 0) {
-            const firstCamera = devices[0];
-            console.log("[SCANNER] Usando primeira câmera disponível:", firstCamera);
-            
-            await scanner.start(
-              firstCamera.id,
-              config,
-              onScanSuccess,
-              onScanError
-            );
-            
-            const elapsedTime = Date.now() - startTime;
-            console.log(`✅ [SCANNER] Câmera iniciada (primeira disponível)! (${elapsedTime}ms)`);
-            console.log('[SCANNER] Scanner ativo, aguardando QR Code...');
-            setIsInitializing(false);
-            return;
-          }
-          
-          throw new Error("Nenhuma câmera disponível no dispositivo");
-        }
-      }
-      
-    } catch (err: any) {
-      console.error(`[SCANNER] Erro na tentativa ${retryCount + 1}:`, err);
-      
-      // Retry automático
-      if (retryCount < MAX_RETRIES - 1) {
-        const delay = retryCount * 500; // 0ms, 500ms, 1000ms
-        console.log(`[SCANNER] Tentando novamente em ${delay}ms...`);
-        
-        setTimeout(() => {
-          initScanner(retryCount + 1);
-        }, delay);
-        return;
-      }
-      
-      // Falha definitiva após 3 tentativas
-      setIsInitializing(false);
-      
-      let errorMessage = "Erro ao acessar câmera";
-      
-      if (err.name === 'NotAllowedError') {
-        errorMessage = "Permissão de câmera negada. Clique em 'Permitir' quando solicitado.";
-      } else if (err.name === 'NotFoundError') {
-        errorMessage = "Nenhuma câmera encontrada no dispositivo";
-      } else if (!window.isSecureContext) {
-        errorMessage = "Use HTTPS ou localhost para acessar a câmera";
-      }
-      
-      setCameraError(errorMessage);
-      
-      toast({
-        title: "❌ Erro na Câmera",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    }
-  };
-
-
-  const stopScanner = async () => {
-    if (scannerRef.current) {
-      try {
-        // Check if scanner is actually running before stopping
-        const state = await scannerRef.current.getState();
-        if (state === 2) { // 2 = Html5QrcodeScannerState.SCANNING
-          await scannerRef.current.stop();
-          console.log('[SCANNER] Scanner parado com sucesso');
-        } else {
-          console.log('[SCANNER] Scanner já estava parado (state:', state, ')');
-        }
-        // ADICIONAR: Limpeza completa do scanner
-        await scannerRef.current.clear();
-        scannerRef.current = null;
-      } catch (error) {
-        // Silently handle errors - scanner might already be stopped
-        console.log('[SCANNER] Erro ao parar:', error);
-        // ADICIONAR: Forçar limpeza mesmo com erro
-        try {
-          await scannerRef.current?.clear();
-        } catch {
-          // Ignore cleanup errors
-        }
-        scannerRef.current = null;
-      }
-    }
-  };
 
   const fetchModelDataFromBitrix = async (leadId: string, source: 'qr' | 'usb' | 'manual' = 'qr'): Promise<FetchModelDataResult> => {
     try {
