@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { UserPlus, RotateCcw } from "lucide-react";
+import { FormShareButton } from "./FormShareButton";
 
 interface MultiModelDialogProps {
   open: boolean;
@@ -19,6 +20,7 @@ interface MultiModelDialogProps {
     name: string;
     previousModelName: string;
     checkedInAt: string;
+    dealId?: string;
   };
   onRecheckIn: () => void;
   onCreateNewModel: (newModelName: string) => void;
@@ -65,7 +67,21 @@ export function MultiModelDialog({
                   <p><strong>Nome:</strong> {leadData.name}</p>
                   <p><strong>Modelo:</strong> {leadData.previousModelName}</p>
                   <p><strong>Check-in:</strong> {new Date(leadData.checkedInAt).toLocaleString('pt-BR')}</p>
+                  {leadData.dealId && (
+                    <p><strong>Deal ID:</strong> {leadData.dealId}</p>
+                  )}
                 </div>
+                
+                {leadData.dealId && (
+                  <div className="pt-3">
+                    <FormShareButton
+                      dealId={leadData.dealId}
+                      modelName={leadData.previousModelName}
+                      leadName={leadData.name}
+                    />
+                  </div>
+                )}
+                
                 <p className="pt-2">
                   Deseja refazer o check-in ou cadastrar outro modelo?
                 </p>

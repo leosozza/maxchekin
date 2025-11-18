@@ -119,7 +119,9 @@ export default function CheckInNew() {
     lead_id: string;
     model_name: string;
     checked_in_at: string;
+    deal_id?: string;
   } | null>(null);
+  const [manualScanMode, setManualScanMode] = useState(true);
   const [cameraActive, setCameraActive] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const usbInputRef = useRef<HTMLInputElement>(null);
@@ -310,6 +312,12 @@ export default function CheckInNew() {
 
   // Camera control effect - ULTRA SIMPLIFICADO
   useEffect(() => {
+    // NÃO iniciar câmera se estiver em modo manual de espera
+    if (manualScanMode) {
+      console.log('[CAMERA] Manual scan mode - skipping init');
+      return;
+    }
+
     if (screenState !== 'scanner' || scannerInitializedRef.current) {
       return;
     }
@@ -340,7 +348,7 @@ export default function CheckInNew() {
         stopScanner();
       }
     };
-  }, [screenState]);
+  }, [screenState, manualScanMode]);
 
 
   const fetchModelDataFromBitrix = async (leadId: string, source: 'qr' | 'usb' | 'manual' = 'qr'): Promise<FetchModelDataResult> => {
@@ -541,7 +549,8 @@ export default function CheckInNew() {
           setExistingCheckInData({
             lead_id: existingCheckIn.lead_id,
             model_name: existingCheckIn.model_name,
-            checked_in_at: existingCheckIn.checked_in_at
+            checked_in_at: existingCheckIn.checked_in_at,
+            deal_id: modelData.dealId || undefined
           });
           
           // Show multi-model dialog instead of confirmation
@@ -852,7 +861,17 @@ export default function CheckInNew() {
   const handleRecheckIn = async () => {
     // Simply proceed with normal check-in flow (will update existing record)
     setShowMultiModelDialog(false);
+    setManualScanMode(false);
     setShowConfirmDialog(true);
+  };
+
+  const handleMultiModelClose = (open: boolean) => {
+    if (!open) {
+      // Modal foi fechado sem escolher uma ação
+      setShowMultiModelDialog(false);
+      setManualScanMode(true); // Bloquear scanner automático
+      setScreenState('scanner'); // Voltar para tela inicial
+    }
   };
 
   const handleCreateAdditionalModel = async (newModelName: string) => {
@@ -1268,7 +1287,35 @@ export default function CheckInNew() {
         <Search className="w-5 h-5 text-primary" />
       </Button>
 
-      {screenState === 'scanner' && !modelData && (
+      {/* Estado Idle - Tela de Espera */}
+      {screenState === 'scanner' && manualScanMode && (
+        <div className="flex-1 flex flex-col items-center justify-center gap-6 p-8">
+          <div className="text-center space-y-2">
+            <QrCode className="w-24 h-24 mx-auto text-gold animate-pulse" />
+            <p className="text-xl font-semibold text-foreground">
+              Pronto para escanear
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Clique no botão abaixo para ativar o scanner
+            </p>
+          </div>
+          
+          <Button
+            onClick={() => {
+              setManualScanMode(false);
+              scannerInitializedRef.current = false;
+              setScreenState('scanner');
+            }}
+            size="lg"
+            className="bg-gold hover:bg-gold/90 text-studio-dark"
+          >
+            <QrCode className="w-5 h-5 mr-2" />
+            Escanear QR Code
+          </Button>
+        </div>
+      )}
+
+      {screenState === 'scanner' && !manualScanMode && !modelData && (
         <div className="flex flex-col items-center space-y-4 sm:space-y-8 animate-fade-in flex-1 justify-center w-full">
           <div className="relative">
             <div className="absolute inset-0 bg-gradient-gold blur-3xl opacity-20 animate-pulse-glow"></div>
@@ -1793,12 +1840,13 @@ export default function CheckInNew() {
       {existingCheckInData && (
         <MultiModelDialog
           open={showMultiModelDialog}
-          onOpenChange={setShowMultiModelDialog}
+          onOpenChange={handleMultiModelClose}
           leadData={{
             lead_id: existingCheckInData.lead_id,
             name: editableData?.name || '',
             previousModelName: existingCheckInData.model_name,
             checkedInAt: existingCheckInData.checked_in_at,
+            dealId: editableData?.dealId || existingCheckInData.deal_id,
           }}
           onRecheckIn={handleRecheckIn}
           onCreateNewModel={handleCreateAdditionalModel}
