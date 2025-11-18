@@ -98,46 +98,46 @@ All colors MUST be HSL.
     --neon-glow: 340 80% 60%;
   }
 
-  /* Light Theme - Moderno e Vibrante */
+  /* Light Theme - Moderno e clean */
   :root[data-theme="light"] {
-    --background: 0 0% 100%;
+    --background: 210 20% 98%;
     --foreground: 222 47% 11%;
 
-    --primary: 174 72% 45%;
+    --primary: 217 91% 60%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 210 40% 96%;
     --secondary-foreground: 222 47% 11%;
 
-    --accent: 43 96% 56%;
-    --accent-foreground: 222 47% 11%;
+    --accent: 27 96% 61%;
+    --accent-foreground: 0 0% 100%;
 
     --card: 0 0% 100%;
     --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
-    --destructive: 0 72% 58%;
+    --muted: 210 40% 95%;
+    --muted-foreground: 215 25% 35%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 174 72% 45%;
+    --border: 214 32% 85%;
+    --input: 214 32% 85%;
+    --ring: 217 91% 60%;
 
     --radius: 0.5rem;
 
-    --gradient-gold: linear-gradient(135deg, hsl(43 96% 56%), hsl(38 92% 50%));
-    --gradient-studio: linear-gradient(180deg, hsl(210 40% 98%), hsl(0 0% 100%));
-    --gradient-neon: linear-gradient(135deg, hsl(174 72% 45%), hsl(189 85% 52%));
+    --gradient-gold: linear-gradient(135deg, hsl(217 91% 60%), hsl(195 100% 55%));
+    --gradient-studio: linear-gradient(180deg, hsl(210 20% 100%), hsl(210 20% 98%));
+    --gradient-neon: linear-gradient(135deg, hsl(27 96% 61%), hsl(38 92% 50%));
 
-    --shadow-gold: 0 4px 12px hsl(43 96% 56% / 0.2);
-    --shadow-neon: 0 4px 20px hsl(174 72% 45% / 0.25);
-    --shadow-elevation: 0 2px 8px hsl(215 20% 65% / 0.15);
+    --shadow-gold: 0 4px 12px hsl(217 91% 60% / 0.15);
+    --shadow-neon: 0 8px 24px hsl(27 96% 61% / 0.2);
+    --shadow-elevation: 0 2px 8px hsl(222 47% 11% / 0.08);
 
-    --studio-dark: 210 40% 96%;
+    --studio-dark: 210 20% 95%;
     --studio-light: 0 0% 100%;
-    --gold-shimmer: 43 96% 56%;
-    --neon-glow: 174 72% 45%;
+    --gold-shimmer: 217 91% 70%;
+    --neon-glow: 27 96% 61%;
   }
 
   /* Elegante Theme - Luxo e sofisticação */
@@ -184,44 +184,44 @@ All colors MUST be HSL.
 
   /* Minimalista Theme - Limpo e funcional */
   :root[data-theme="minimalista"] {
-    --background: 0 0% 98%;
-    --foreground: 0 0% 10%;
+    --background: 30 10% 98%;
+    --foreground: 220 13% 9%;
 
-    --primary: 0 0% 20%;
+    --primary: 220 39% 11%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 90%;
-    --secondary-foreground: 0 0% 10%;
+    --secondary: 30 20% 94%;
+    --secondary-foreground: 220 13% 9%;
 
-    --accent: 0 0% 75%;
-    --accent-foreground: 0 0% 10%;
+    --accent: 150 15% 45%;
+    --accent-foreground: 0 0% 100%;
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 10%;
+    --card-foreground: 220 13% 9%;
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 10%;
-    --muted: 0 0% 94%;
-    --muted-foreground: 0 0% 45%;
-    --destructive: 0 70% 50%;
+    --popover-foreground: 220 13% 9%;
+    --muted: 30 15% 94%;
+    --muted-foreground: 220 9% 40%;
+    --destructive: 0 65% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 88%;
-    --input: 0 0% 88%;
-    --ring: 0 0% 20%;
+    --border: 30 10% 82%;
+    --input: 30 10% 82%;
+    --ring: 220 39% 11%;
 
     --radius: 0.25rem;
 
-    --gradient-gold: linear-gradient(135deg, hsl(0 0% 20%), hsl(0 0% 30%));
-    --gradient-studio: linear-gradient(180deg, hsl(0 0% 100%), hsl(0 0% 98%));
-    --gradient-neon: linear-gradient(135deg, hsl(0 0% 85%), hsl(0 0% 75%));
+    --gradient-gold: linear-gradient(135deg, hsl(220 39% 11%), hsl(220 39% 18%));
+    --gradient-studio: linear-gradient(180deg, hsl(0 0% 100%), hsl(30 10% 98%));
+    --gradient-neon: linear-gradient(135deg, hsl(150 15% 45%), hsl(170 20% 50%));
 
-    --shadow-gold: 0 2px 8px hsl(0 0% 0% / 0.08);
-    --shadow-neon: 0 4px 12px hsl(0 0% 0% / 0.12);
-    --shadow-elevation: 0 1px 3px hsl(0 0% 0% / 0.08);
+    --shadow-gold: 0 2px 8px hsl(220 39% 11% / 0.08);
+    --shadow-neon: 0 4px 12px hsl(150 15% 45% / 0.12);
+    --shadow-elevation: 0 1px 3px hsl(220 13% 9% / 0.06);
 
-    --studio-dark: 0 0% 94%;
+    --studio-dark: 30 15% 94%;
     --studio-light: 0 0% 100%;
-    --gold-shimmer: 0 0% 30%;
-    --neon-glow: 0 0% 75%;
+    --gold-shimmer: 220 39% 18%;
+    --neon-glow: 150 15% 45%;
   }
 
   /* Tecnológico Theme - Futurista e vibrante */
