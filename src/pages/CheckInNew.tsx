@@ -1843,7 +1843,7 @@ export default function CheckInNew() {
           onOpenChange={handleMultiModelClose}
           leadData={{
             lead_id: existingCheckInData.lead_id,
-            name: editableData?.name || '',
+            name: editableData?.responsible || editableData?.name || '',
             previousModelName: existingCheckInData.model_name,
             checkedInAt: existingCheckInData.checked_in_at,
             dealId: editableData?.dealId || existingCheckInData.deal_id,
