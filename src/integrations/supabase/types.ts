@@ -58,6 +58,48 @@ export type Database = {
           },
         ]
       }
+      apk_config: {
+        Row: {
+          created_at: string | null
+          file_name: string
+          file_path: string
+          file_size: number
+          id: string
+          is_active: boolean | null
+          updated_at: string | null
+          uploaded_at: string | null
+          uploaded_by: string | null
+          version_code: number | null
+          version_name: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          file_name: string
+          file_path: string
+          file_size: number
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string | null
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+          version_code?: number | null
+          version_name?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string | null
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+          version_code?: number | null
+          version_name?: string | null
+        }
+        Relationships: []
+      }
       calls: {
         Row: {
           called_at: string | null

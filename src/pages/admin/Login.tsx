@@ -6,9 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, ArrowLeft, QrCode, Sparkles } from 'lucide-react';
+import { Loader2, ArrowLeft, QrCode, Sparkles, Smartphone } from 'lucide-react';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { isMobileDevice } from '@/utils/deviceDetection';
 
 const authSchema = z.object({
   email: z.string().trim().email({ message: "Email inválido" }),
@@ -21,9 +23,16 @@ export default function Login() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string; confirmPassword?: string }>({});
+  const [apkInfo, setApkInfo] = useState<{
+    fileName: string;
+    filePath: string;
+    fileSize: number;
+    versionName?: string;
+  } | null>(null);
   const { signIn, signUp, user, role } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const showApkButton = isMobileDevice();
 
   // Auto-redirect only admin users
   useEffect(() => {
@@ -31,6 +40,66 @@ export default function Login() {
       navigate('/admin/dashboard');
     }
   }, [user, role, navigate]);
+
+  // Carregar informações do APK ativo
+  useEffect(() => {
+    const fetchActiveApk = async () => {
+      const { data, error } = await supabase
+        .from('apk_config')
+        .select('file_name, file_path, file_size, version_name')
+        .eq('is_active', true)
+        .single();
+      
+      if (data && !error) {
+        setApkInfo({
+          fileName: data.file_name,
+          filePath: data.file_path,
+          fileSize: data.file_size,
+          versionName: data.version_name || undefined,
+        });
+      }
+    };
+    
+    fetchActiveApk();
+  }, []);
+
+  const handleDownloadApk = async () => {
+    if (!apkInfo) {
+      toast({
+        title: "APK não disponível",
+        description: "Nenhum APK foi configurado ainda.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { data } = supabase.storage
+        .from('apk-files')
+        .getPublicUrl(apkInfo.filePath);
+
+      if (data?.publicUrl) {
+        const link = document.createElement('a');
+        link.href = data.publicUrl;
+        link.download = apkInfo.fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        toast({
+          title: "Download iniciado",
+          description: `Baixando ${apkInfo.fileName}...`,
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao baixar APK:', error);
+      toast({
+        title: "Erro no download",
+        description: "Não foi possível baixar o APK.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const validateForm = (isSignUp: boolean) => {
     const newErrors: typeof errors = {};
@@ -154,6 +223,28 @@ export default function Login() {
             </p>
           </CardContent>
         </Card>
+
+        {/* Botão Baixar APK - Apenas em dispositivos móveis */}
+        {showApkButton && apkInfo && (
+          <div className="lg:hidden">
+            <Button
+              onClick={handleDownloadApk}
+              className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 text-primary-foreground font-semibold py-6 rounded-xl shadow-lg"
+              size="lg"
+            >
+              <Smartphone className="w-5 h-5 mr-2" />
+              Baixar APK
+              {apkInfo.versionName && (
+                <span className="ml-2 text-xs opacity-80">
+                  v{apkInfo.versionName}
+                </span>
+              )}
+            </Button>
+            <p className="text-xs text-center text-muted-foreground mt-2">
+              Instale o app no seu celular
+            </p>
+          </div>
+        )}
 
         {/* Painel de Login Admin */}
         <Card className="border-primary/20 bg-card/90 backdrop-blur-sm">

@@ -24,6 +24,7 @@ import CustomFields from "./pages/admin/CustomFields";
 import CheckInSettings from "./pages/admin/CheckInSettings";
 import Users from "./pages/admin/Users";
 import LeadSearch from "./pages/admin/LeadSearch";
+import ApkSettings from "./pages/admin/ApkSettings";
 
 import KanbanBoard from "./pages/admin/KanbanBoard";
 
@@ -65,6 +66,7 @@ const App = () => (
             <Route path="lead-search" element={<LeadSearch />} />
             <Route path="logs" element={<Logs />} />
             <Route path="settings" element={<Settings />} />
+            <Route path="apk-settings" element={<ApkSettings />} />
             {/* Kanban dentro do Admin */}
             <Route path="kanban" element={<KanbanBoard />} />
           </Route>

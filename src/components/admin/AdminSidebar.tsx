@@ -15,6 +15,7 @@ import {
   UserSearch,
   UserPlus,
   LayoutGrid,
+  Smartphone,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -46,6 +47,7 @@ const menuItems = [
   { title: 'Usuários', url: '/admin/users', icon: Users },
   { title: 'Logs', url: '/admin/logs', icon: FileText },
   { title: 'Configurações', url: '/admin/settings', icon: Settings },
+  { title: 'Gerenciar APK', url: '/admin/apk-settings', icon: Smartphone },
 ];
 
 export function AdminSidebar() {
