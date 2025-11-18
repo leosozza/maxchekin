@@ -1,5 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import QRCodeSVG from "react-qr-code";
 
 interface FormShareModalProps {
   open: boolean;
@@ -11,8 +12,6 @@ interface FormShareModalProps {
 }
 
 export function FormShareModal({ open, onClose, formUrl, modelName, leadName, dealId }: FormShareModalProps) {
-  const qrCodeUrl = `https://chart.googleapis.com/chart?cht=qr&chs=300x300&chl=${encodeURIComponent(formUrl)}`;
-
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
@@ -29,7 +28,12 @@ export function FormShareModal({ open, onClose, formUrl, modelName, leadName, de
           </div>
 
           <div className="flex justify-center p-4 bg-white rounded-lg">
-            <img src={qrCodeUrl} alt="QR Code" className="w-64 h-64" />
+            <QRCodeSVG
+              value={formUrl}
+              size={256}
+              level="H"
+              style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+            />
           </div>
 
           <Button onClick={onClose} className="w-full">
