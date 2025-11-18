@@ -1552,7 +1552,7 @@ export default function CheckInNew() {
                         >
                           <div className="flex justify-between items-start">
                             <div>
-                              <p className="font-semibold text-foreground">{lead.NAME || "Sem nome"}</p>
+                              <p className="font-semibold text-foreground">{(lead as any).UF_CRM_1744900570916 || lead.NAME || "Sem nome"}</p>
                               <p className="text-sm text-muted-foreground">
                                 {lead.TITLE || "Sem título"}
                               </p>
