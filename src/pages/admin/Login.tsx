@@ -32,7 +32,6 @@ export default function Login() {
   const { signIn, signUp, user, role } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const showApkButton = isMobileDevice();
 
   // Auto-redirect only admin users
   useEffect(() => {
@@ -224,9 +223,9 @@ export default function Login() {
           </CardContent>
         </Card>
 
-        {/* Botão Baixar APK - Apenas em dispositivos móveis */}
-        {showApkButton && apkInfo && (
-          <div className="lg:hidden">
+        {/* Botão Baixar APK */}
+        {apkInfo && (
+          <div className="w-full max-w-5xl">
             <Button
               onClick={handleDownloadApk}
               className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 text-primary-foreground font-semibold py-6 rounded-xl shadow-lg"
