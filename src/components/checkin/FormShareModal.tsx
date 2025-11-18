@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import QRCodeSVG from "react-qr-code";
+import QRCode from "react-qr-code";
 
 interface FormShareModalProps {
   open: boolean;
@@ -28,7 +28,7 @@ export function FormShareModal({ open, onClose, formUrl, modelName, leadName, de
           </div>
 
           <div className="flex justify-center p-4 bg-white rounded-lg">
-            <QRCodeSVG
+            <QRCode
               value={formUrl}
               size={256}
               level="H"
