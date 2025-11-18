@@ -33,12 +33,14 @@ import { updateLead } from "@/utils/bitrix/updateLead";
 import { MultiModelDialog } from "@/components/checkin/MultiModelDialog";
 import { getDealIdFromLead, cloneDealForNewModel } from "@/utils/bitrix/cloneDeal";
 import { runFullDiagnostics, logDiagnostics } from "@/utils/scannerDiagnostics";
+import { FormShareButton } from "@/components/checkin/FormShareButton";
 
 interface ModelData {
   lead_id: string;
   name: string;
   photo: string;
   responsible: string;
+  dealId?: string;
   [key: string]: unknown;
 }
 
@@ -389,6 +391,9 @@ export default function CheckInNew() {
 
       const lead = validatedData.result;
 
+      // Capture Deal ID from UF_CRM_1762265571
+      const dealId = ensureString(lead.UF_CRM_1762265571) || null;
+
       // Get field mappings
       const { data: mappings } = await supabase
         .from("field_mapping")
@@ -398,7 +403,10 @@ export default function CheckInNew() {
       console.log(`[CHECK-IN] Mapeamentos encontrados:`, mappings);
 
       // Build model data dynamically from mappings
-      const modelData: any = { lead_id: validLeadId };
+      const modelData: any = { 
+        lead_id: validLeadId,
+        dealId: dealId
+      };
 
       if (mappings && mappings.length > 0) {
         mappings.forEach((mapping) => {
@@ -1686,10 +1694,23 @@ export default function CheckInNew() {
                       </div>
                     </div>
                   ) : (
-                    <div className="space-y-2">
-                      <p className="text-xl font-bold text-foreground">{editableData.name}</p>
-                      <p className="text-sm text-muted-foreground">{editableData.responsible}</p>
-                      <p className="text-sm text-muted-foreground">Lead ID: {editableData.lead_id}</p>
+                    <div className="space-y-3">
+                      <div className="space-y-2">
+                        <p className="text-xl font-bold text-foreground">{editableData.name}</p>
+                        <p className="text-sm text-muted-foreground">{editableData.responsible}</p>
+                        <p className="text-sm text-muted-foreground">Lead ID: {editableData.lead_id}</p>
+                        {editableData.dealId && (
+                          <p className="text-sm text-muted-foreground">Deal ID: {editableData.dealId}</p>
+                        )}
+                      </div>
+                      
+                      {editableData.dealId && hasPreviousCheckIn && (
+                        <FormShareButton
+                          dealId={editableData.dealId}
+                          modelName={editableData.name}
+                          leadName={editableData.name}
+                        />
+                      )}
                     </div>
                   )}
                   
