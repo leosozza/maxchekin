@@ -103,11 +103,6 @@ export function AdminSidebar() {
       </SidebarContent>
 
       <div className="mt-auto p-4 border-t border-gold/20">
-        {state !== 'collapsed' && user && (
-          <div className="mb-2 text-xs text-white/60 truncate">
-            {user.email}
-          </div>
-        )}
         <Button
           variant="ghost"
           className="w-full justify-start text-white/80 hover:bg-white/5"
