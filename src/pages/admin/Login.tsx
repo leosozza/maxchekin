@@ -145,6 +145,17 @@ export default function Login() {
                 Iniciar Check-in
               </Button>
 
+              {apkConfig && (
+                <Button
+                  onClick={() => window.open(apkConfig.download_url, "_blank")}
+                  variant="outline"
+                  className="w-full h-12 border-primary/40 hover:bg-primary/10 hover:border-primary transition-all"
+                >
+                  <Download className="mr-2 h-5 w-5" />
+                  Baixar App (v{apkConfig.version})
+                </Button>
+              )}
+
               <p className="text-xs text-center text-muted-foreground">
                 Não é necessário fazer login para realizar check-in
               </p>
