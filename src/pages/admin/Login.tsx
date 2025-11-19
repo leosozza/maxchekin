@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, ArrowLeft } from 'lucide-react';
+import { Loader2, ArrowLeft, Download, Smartphone } from 'lucide-react';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const authSchema = z.object({
   email: z.string().trim().email({ message: "Email inválido" }),
@@ -30,6 +33,30 @@ export default function Login() {
       navigate('/dashboard');
     }
   }, [user, role, navigate]);
+
+  // Fetch active APK config
+  const { data: apkConfig } = useQuery({
+    queryKey: ["active-apk-config"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("apk_config")
+        .select("*")
+        .eq("is_active", true)
+        .single();
+
+      if (error) {
+        console.error("Error fetching APK config:", error);
+        return null;
+      }
+      return data;
+    },
+  });
+
+  const formatFileSize = (bytes: number | null) => {
+    if (!bytes) return "";
+    const mb = bytes / (1024 * 1024);
+    return `${mb.toFixed(2)} MB`;
+  };
 
 
   const validateForm = (isSignUp: boolean) => {

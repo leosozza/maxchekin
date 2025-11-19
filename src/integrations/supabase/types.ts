@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      apk_config: {
+        Row: {
+          created_at: string | null
+          download_url: string
+          file_size: number | null
+          id: string
+          is_active: boolean | null
+          release_notes: string | null
+          updated_at: string | null
+          version: string
+        }
+        Insert: {
+          created_at?: string | null
+          download_url: string
+          file_size?: number | null
+          id?: string
+          is_active?: boolean | null
+          release_notes?: string | null
+          updated_at?: string | null
+          version: string
+        }
+        Update: {
+          created_at?: string | null
+          download_url?: string
+          file_size?: number | null
+          id?: string
+          is_active?: boolean | null
+          release_notes?: string | null
+          updated_at?: string | null
+          version?: string
+        }
+        Relationships: []
+      }
       check_in_config: {
         Row: {
           created_at: string | null

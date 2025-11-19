@@ -46,6 +46,12 @@ const menuItems = [
     icon: Settings,
     adminOnly: true 
   },
+  { 
+    title: 'APK Manager', 
+    url: '/admin/apk', 
+    icon: Smartphone,
+    adminOnly: true 
+  },
 ];
 
 export function AdminSidebar() {
