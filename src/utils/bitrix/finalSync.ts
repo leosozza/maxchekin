@@ -32,59 +32,11 @@ export interface FinalSyncData {
 
 /**
  * Busca histórico completo de movimentações de um lead no Kanban
+ * NOTA: Funcionalidade Kanban foi removida - retorna array vazio
  */
 export async function getLeadKanbanHistory(leadId: string): Promise<StageTimestamp[]> {
-  const { data: events, error } = await supabase
-    .from('kanban_events')
-    .select(`
-      *,
-      from_stage:kanban_stages!from_stage_id(name),
-      to_stage:kanban_stages!to_stage_id(name)
-    `)
-    .eq('lead_id', leadId)
-    .order('created_at', { ascending: true });
-
-  if (error) {
-    console.error('[SYNC-FINAL] Erro ao buscar histórico:', error);
-    throw error;
-  }
-
-  // Processar eventos para extrair timestamps por etapa
-  const stageMap = new Map<string, { entered_at: string; exited_at?: string }>();
-  
-  events?.forEach((event: any) => {
-    const toStageName = event.to_stage?.name;
-    const fromStageName = event.from_stage?.name;
-    
-    if (toStageName && !stageMap.has(toStageName)) {
-      stageMap.set(toStageName, { 
-        entered_at: event.created_at 
-      });
-    }
-    
-    if (fromStageName && stageMap.has(fromStageName)) {
-      const stage = stageMap.get(fromStageName);
-      if (stage && !stage.exited_at) {
-        stage.exited_at = event.created_at;
-      }
-    }
-  });
-
-  // Converter para array com durações
-  const timestamps: StageTimestamp[] = [];
-  stageMap.forEach((data, stageName) => {
-    const entered = new Date(data.entered_at);
-    const exited = data.exited_at ? new Date(data.exited_at) : new Date();
-    const durationMs = exited.getTime() - entered.getTime();
-    
-    timestamps.push({
-      stage_name: stageName,
-      entered_at: data.entered_at,
-      duration_seconds: Math.round(durationMs / 1000),
-    });
-  });
-
-  return timestamps;
+  console.warn('[SYNC-FINAL] Kanban removido - getLeadKanbanHistory retorna vazio');
+  return [];
 }
 
 /**

@@ -94,8 +94,8 @@ export function FieldMappingSettings() {
 
       <BitrixFieldDetector
         open={detectorOpen}
-        onClose={() => setDetectorOpen(false)}
-        onFieldsDetected={() => {
+        onOpenChange={setDetectorOpen}
+        onSuccess={() => {
           refetch();
           setDetectorOpen(false);
         }}

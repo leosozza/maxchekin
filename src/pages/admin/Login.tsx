@@ -22,12 +22,6 @@ export default function Login() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string; confirmPassword?: string }>({});
-  const [apkInfo, setApkInfo] = useState<{
-    fileName: string;
-    filePath: string;
-    fileSize: number;
-    versionName?: string;
-  } | null>(null);
   const { signIn, signUp, user, role } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -37,65 +31,6 @@ export default function Login() {
       navigate('/dashboard');
     }
   }, [user, role, navigate]);
-
-  useEffect(() => {
-    const fetchActiveApk = async () => {
-      const { data, error } = await supabase
-        .from('apk_config')
-        .select('file_name, file_path, file_size, version_name')
-        .eq('is_active', true)
-        .single();
-      
-      if (data && !error) {
-        setApkInfo({
-          fileName: data.file_name,
-          filePath: data.file_path,
-          fileSize: data.file_size,
-          versionName: data.version_name || undefined,
-        });
-      }
-    };
-    
-    fetchActiveApk();
-  }, []);
-
-  const handleDownloadApk = async () => {
-    if (!apkInfo) {
-      toast({
-        title: "APK não disponível",
-        description: "Nenhum APK foi configurado ainda.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const { data } = supabase.storage
-        .from('apk-files')
-        .getPublicUrl(apkInfo.filePath);
-
-      if (data?.publicUrl) {
-        const link = document.createElement('a');
-        link.href = data.publicUrl;
-        link.download = apkInfo.fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-        toast({
-          title: "Download iniciado",
-          description: `Baixando ${apkInfo.fileName}...`,
-        });
-      }
-    } catch (error) {
-      console.error('Erro ao baixar APK:', error);
-      toast({
-        title: "Erro no download",
-        description: "Não foi possível baixar o APK.",
-        variant: "destructive",
-      });
-    }
-  };
 
   const validateForm = (isSignUp: boolean) => {
     const newErrors: typeof errors = {};
