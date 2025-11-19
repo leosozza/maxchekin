@@ -12,6 +12,7 @@ import Login from "./pages/admin/Login";
 import AdminLayout from "./pages/admin/AdminLayout";
 import Dashboard from "./pages/admin/Dashboard";
 import Settings from "./pages/admin/Settings";
+import ApkManagement from "./pages/admin/ApkManagement";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +46,13 @@ const App = () => (
             <AuthGuard requireRole="admin">
               <AdminLayout>
                 <Settings />
+              </AdminLayout>
+            </AuthGuard>
+          } />
+          <Route path="/admin/apk" element={
+            <AuthGuard requireRole="admin">
+              <AdminLayout>
+                <ApkManagement />
               </AdminLayout>
             </AuthGuard>
           } />
