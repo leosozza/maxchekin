@@ -12,17 +12,65 @@ export const useAuth = () => {
   const [role, setRole] = useState<UserRole | null>(null);
   const { toast } = useToast();
 
+  const fetchUserRole = async (userId: string): Promise<boolean> => {
+    try {
+      console.log('[useAuth] Fetching role for user:', userId);
+      
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .maybeSingle();
+      
+      console.log('[useAuth] Role query result:', { data, error });
+
+      if (error) {
+        console.error('Error fetching user role:', error);
+        setRole(null);
+        return false;
+      }
+      
+      if (data) {
+        console.log('[useAuth] Setting role:', data.role);
+        setRole(data.role as UserRole);
+        return true;
+      } else {
+        console.warn('[useAuth] No role found for user');
+        setRole(null);
+        return false;
+      }
+    } catch (error) {
+      console.error('Error in fetchUserRole:', error);
+      setRole(null);
+      return false;
+    }
+  };
+
   useEffect(() => {
+    let retryCount = 0;
+    const MAX_RETRIES = 3;
+
+    const fetchRoleWithRetry = async (userId: string) => {
+      const success = await fetchUserRole(userId);
+      
+      if (!success && retryCount < MAX_RETRIES) {
+        retryCount++;
+        console.log(`[useAuth] Retrying role fetch (${retryCount}/${MAX_RETRIES})...`);
+        setTimeout(() => fetchRoleWithRetry(userId), 1000);
+      }
+    };
+
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.log('[useAuth] Auth state changed:', event);
         setSession(session);
         setUser(session?.user ?? null);
         
-        // Fetch user role when authenticated
         if (session?.user) {
+          retryCount = 0;
           setTimeout(() => {
-            fetchUserRole(session.user.id);
+            fetchRoleWithRetry(session.user.id);
           }, 0);
         } else {
           setRole(null);
@@ -32,36 +80,17 @@ export const useAuth = () => {
 
     // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('[useAuth] Initial session check');
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchUserRole(session.user.id);
+        fetchRoleWithRetry(session.user.id);
       }
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
-
-  const fetchUserRole = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .single();
-
-      if (error) {
-        console.error('Error fetching user role:', error);
-        setRole(null);
-      } else {
-        setRole(data?.role as UserRole || null);
-      }
-    } catch (error) {
-      console.error('Error in fetchUserRole:', error);
-      setRole(null);
-    }
-  };
 
   const signIn = async (email: string, password: string) => {
     try {
