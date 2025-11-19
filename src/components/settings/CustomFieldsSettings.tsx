@@ -158,7 +158,7 @@ export function CustomFieldsSettings() {
 
       <CustomFieldForm
         open={formOpen}
-        onClose={handleFormClose}
+        onOpenChange={setFormOpen}
         field={editingField}
         onSuccess={() => {
           refetch();
@@ -168,8 +168,8 @@ export function CustomFieldsSettings() {
 
       <BitrixFieldDetector
         open={detectorOpen}
-        onClose={() => setDetectorOpen(false)}
-        onFieldsDetected={() => {
+        onOpenChange={setDetectorOpen}
+        onSuccess={() => {
           refetch();
           setDetectorOpen(false);
         }}

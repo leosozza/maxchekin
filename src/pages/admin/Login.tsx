@@ -6,10 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, ArrowLeft, QrCode, Sparkles, Smartphone } from 'lucide-react';
+import { Loader2, ArrowLeft } from 'lucide-react';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 
 const authSchema = z.object({
   email: z.string().trim().email({ message: "Email inválido" }),
@@ -22,12 +21,6 @@ export default function Login() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string; confirmPassword?: string }>({});
-  const [apkInfo, setApkInfo] = useState<{
-    fileName: string;
-    filePath: string;
-    fileSize: number;
-    versionName?: string;
-  } | null>(null);
   const { signIn, signUp, user, role } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -38,64 +31,6 @@ export default function Login() {
     }
   }, [user, role, navigate]);
 
-  useEffect(() => {
-    const fetchActiveApk = async () => {
-      const { data, error } = await supabase
-        .from('apk_config')
-        .select('file_name, file_path, file_size, version_name')
-        .eq('is_active', true)
-        .single();
-      
-      if (data && !error) {
-        setApkInfo({
-          fileName: data.file_name,
-          filePath: data.file_path,
-          fileSize: data.file_size,
-          versionName: data.version_name || undefined,
-        });
-      }
-    };
-    
-    fetchActiveApk();
-  }, []);
-
-  const handleDownloadApk = async () => {
-    if (!apkInfo) {
-      toast({
-        title: "APK não disponível",
-        description: "Nenhum APK foi configurado ainda.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const { data } = supabase.storage
-        .from('apk-files')
-        .getPublicUrl(apkInfo.filePath);
-
-      if (data?.publicUrl) {
-        const link = document.createElement('a');
-        link.href = data.publicUrl;
-        link.download = apkInfo.fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-        toast({
-          title: "Download iniciado",
-          description: `Baixando ${apkInfo.fileName}...`,
-        });
-      }
-    } catch (error) {
-      console.error('Erro ao baixar APK:', error);
-      toast({
-        title: "Erro no download",
-        description: "Não foi possível baixar o APK.",
-        variant: "destructive",
-      });
-    }
-  };
 
   const validateForm = (isSignUp: boolean) => {
     const newErrors: typeof errors = {};
@@ -168,9 +103,6 @@ export default function Login() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card className="border-primary/30 bg-gradient-to-br from-primary/10 via-card to-secondary/10 backdrop-blur-sm hover:border-primary/50 transition-all group">
             <CardHeader className="space-y-1 text-center">
-              <div className="mx-auto w-20 h-20 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <QrCode className="w-10 h-10 text-primary-foreground" />
-              </div>
               <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
                 Check-in de Modelos
               </CardTitle>
@@ -178,27 +110,11 @@ export default function Login() {
                 Escaneie o QR Code ou digite o ID manualmente
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="bg-card/50 rounded-lg p-6 space-y-4">
-                <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                  <Sparkles className="w-5 h-5 text-primary" />
-                  <span>Scannear QR Code em tempo real</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                  <Sparkles className="w-5 h-5 text-primary" />
-                  <span>Busca manual de modelos</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                  <Sparkles className="w-5 h-5 text-primary" />
-                  <span>Confirmação instantânea no Bitrix24</span>
-                </div>
-              </div>
-              
+            <CardContent className="space-y-4">              
               <Button
                 onClick={() => navigate('/')}
                 className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-primary to-secondary hover:opacity-90 transition-all shadow-lg group-hover:shadow-primary/50"
               >
-                <QrCode className="w-6 h-6 mr-2" />
                 Iniciar Check-in
               </Button>
 
@@ -344,28 +260,6 @@ export default function Login() {
           </Card>
         </div>
 
-        {apkInfo && (
-          <div className="w-full flex justify-center">
-            <div className="w-full lg:w-auto lg:min-w-96">
-              <Button
-                onClick={handleDownloadApk}
-                className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 text-primary-foreground font-semibold py-6 rounded-xl shadow-lg"
-                size="lg"
-              >
-                <Smartphone className="w-5 h-5 mr-2" />
-                Baixar APK
-                {apkInfo.versionName && (
-                  <span className="ml-2 text-xs opacity-80">
-                    v{apkInfo.versionName}
-                  </span>
-                )}
-              </Button>
-              <p className="text-xs text-center text-muted-foreground mt-2">
-                Instale o app no seu celular
-              </p>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
