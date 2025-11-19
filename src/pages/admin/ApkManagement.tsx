@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -24,9 +24,10 @@ interface ApkConfig {
 export default function ApkManagement() {
   const queryClient = useQueryClient();
   const [version, setVersion] = useState("");
-  const [downloadUrl, setDownloadUrl] = useState("");
-  const [fileSize, setFileSize] = useState("");
   const [releaseNotes, setReleaseNotes] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch APK configurations
   const { data: apkConfigs, isLoading } = useQuery({
@@ -42,19 +43,42 @@ export default function ApkManagement() {
     },
   });
 
-  // Create APK config
+  // Create APK config with file upload
   const createMutation = useMutation({
     mutationFn: async () => {
+      if (!selectedFile) {
+        throw new Error("Nenhum arquivo selecionado");
+      }
+
+      setIsUploading(true);
+
+      // Upload file to storage
+      const fileName = `${version}-${Date.now()}.apk`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("apk-files")
+        .upload(fileName, selectedFile, {
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from("apk-files")
+        .getPublicUrl(fileName);
+
       // Deactivate all existing configs first
       await supabase
         .from("apk_config")
         .update({ is_active: false })
         .eq("is_active", true);
 
+      // Create new config
       const { error } = await supabase.from("apk_config").insert({
         version,
-        download_url: downloadUrl,
-        file_size: fileSize ? parseInt(fileSize) : null,
+        download_url: urlData.publicUrl,
+        file_size: selectedFile.size,
         release_notes: releaseNotes || null,
         is_active: true,
       });
@@ -63,20 +87,34 @@ export default function ApkManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["apk-configs"] });
-      toast.success("APK configurado com sucesso!");
+      toast.success("APK enviado e configurado com sucesso!");
       setVersion("");
-      setDownloadUrl("");
-      setFileSize("");
       setReleaseNotes("");
+      setSelectedFile(null);
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     },
     onError: (error: Error) => {
-      toast.error("Erro ao configurar APK: " + error.message);
+      toast.error("Erro ao enviar APK: " + error.message);
+      setIsUploading(false);
     },
   });
 
-  // Delete APK config
+  // Delete APK config and file
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ id, downloadUrl }: { id: string; downloadUrl: string }) => {
+      // Extract filename from URL
+      const urlParts = downloadUrl.split("/");
+      const fileName = urlParts[urlParts.length - 1];
+
+      // Delete from storage
+      if (fileName) {
+        await supabase.storage.from("apk-files").remove([fileName]);
+      }
+
+      // Delete from database
       const { error } = await supabase.from("apk_config").delete().eq("id", id);
       if (error) throw error;
     },
@@ -115,10 +153,26 @@ export default function ApkManagement() {
     },
   });
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.name.endsWith(".apk")) {
+        toast.error("Por favor, selecione um arquivo APK válido");
+        e.target.value = "";
+        return;
+      }
+      setSelectedFile(file);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!version.trim() || !downloadUrl.trim()) {
-      toast.error("Versão e URL são obrigatórios");
+    if (!version.trim()) {
+      toast.error("Versão é obrigatória");
+      return;
+    }
+    if (!selectedFile) {
+      toast.error("Selecione um arquivo APK");
       return;
     }
     createMutation.mutate();
@@ -141,9 +195,9 @@ export default function ApkManagement() {
 
       <Alert>
         <AlertDescription>
-          💡 <strong>Como funciona:</strong> Faça upload do APK para um serviço de hospedagem
-          (Google Drive, Dropbox, etc.) e cole o link de download direto aqui. Apenas uma versão
-          pode estar ativa por vez.
+          💡 <strong>Como funciona:</strong> Faça upload do arquivo APK diretamente. O arquivo
+          será armazenado de forma segura e ficará disponível para download automaticamente.
+          Apenas uma versão pode estar ativa por vez.
         </AlertDescription>
       </Alert>
 
@@ -156,39 +210,33 @@ export default function ApkManagement() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="version">Versão *</Label>
-                <Input
-                  id="version"
-                  placeholder="Ex: 1.0.5"
-                  value={version}
-                  onChange={(e) => setVersion(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="fileSize">Tamanho do Arquivo (bytes)</Label>
-                <Input
-                  id="fileSize"
-                  type="number"
-                  placeholder="Ex: 52428800"
-                  value={fileSize}
-                  onChange={(e) => setFileSize(e.target.value)}
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="version">Versão *</Label>
+              <Input
+                id="version"
+                placeholder="Ex: 1.0.5"
+                value={version}
+                onChange={(e) => setVersion(e.target.value)}
+                required
+              />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="downloadUrl">URL de Download *</Label>
+              <Label htmlFor="apkFile">Arquivo APK *</Label>
               <Input
-                id="downloadUrl"
-                type="url"
-                placeholder="https://..."
-                value={downloadUrl}
-                onChange={(e) => setDownloadUrl(e.target.value)}
+                id="apkFile"
+                ref={fileInputRef}
+                type="file"
+                accept=".apk"
+                onChange={handleFileChange}
                 required
+                className="cursor-pointer"
               />
+              {selectedFile && (
+                <p className="text-sm text-muted-foreground">
+                  Arquivo selecionado: {selectedFile.name} ({formatFileSize(selectedFile.size)})
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -202,9 +250,13 @@ export default function ApkManagement() {
               />
             </div>
 
-            <Button type="submit" disabled={createMutation.isPending} className="w-full">
+            <Button 
+              type="submit" 
+              disabled={createMutation.isPending || isUploading} 
+              className="w-full"
+            >
               <Upload className="mr-2 h-4 w-4" />
-              {createMutation.isPending ? "Salvando..." : "Adicionar Versão"}
+              {isUploading || createMutation.isPending ? "Enviando APK..." : "Enviar e Configurar"}
             </Button>
           </form>
         </CardContent>
@@ -275,10 +327,13 @@ export default function ApkManagement() {
                       onClick={() => {
                         if (
                           window.confirm(
-                            `Tem certeza que deseja remover a versão ${config.version}?`
+                            `Tem certeza que deseja remover a versão ${config.version}? O arquivo APK também será deletado.`
                           )
                         ) {
-                          deleteMutation.mutate(config.id);
+                          deleteMutation.mutate({ 
+                            id: config.id, 
+                            downloadUrl: config.download_url 
+                          });
                         }
                       }}
                       disabled={deleteMutation.isPending}
