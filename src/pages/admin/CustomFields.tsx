@@ -81,7 +81,7 @@ export default function CustomFields() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate("/admin/dashboard")}
+              onClick={() => navigate("/dashboard")}
               className="text-gold hover:text-gold/80"
             >
               <ArrowLeft className="w-5 h-5" />

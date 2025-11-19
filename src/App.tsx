@@ -49,10 +49,18 @@ const App = () => (
           <Route path="/home" element={<Home />} />
           <Route path="/painel/:slug" element={<PainelDinamico />} />
 
+          {/* Dashboard - Accessible to all authenticated users */}
+          <Route path="/dashboard" element={
+            <AuthGuard>
+              <AdminLayout>
+                <Dashboard />
+              </AdminLayout>
+            </AuthGuard>
+          } />
+
           {/* Admin Routes */}
           <Route path="/admin/login" element={<Login />} />
           <Route path="/admin" element={<AdminLayout />}>
-            <Route path="dashboard" element={<Dashboard />} />
             <Route path="panels" element={<Panels />} />
             <Route path="panels/new" element={<PanelForm />} />
             <Route path="panels/:id/edit" element={<PanelForm />} />

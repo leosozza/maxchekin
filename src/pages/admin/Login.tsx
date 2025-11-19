@@ -33,8 +33,8 @@ export default function Login() {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (user && role === 'admin') {
-      navigate('/admin/dashboard');
+    if (user && role) {
+      navigate('/dashboard');
     }
   }, [user, role, navigate]);
 
@@ -130,16 +130,7 @@ export default function Login() {
 
     if (!error) {
       setTimeout(() => {
-        if (role === 'admin') {
-          navigate('/admin/dashboard');
-        } else {
-          navigate('/');
-          toast({
-            title: "Acesso Negado",
-            description: "Você não tem permissão de administrador.",
-            variant: "destructive",
-          });
-        }
+        navigate('/dashboard');
       }, 100);
     }
     setIsLoading(false);

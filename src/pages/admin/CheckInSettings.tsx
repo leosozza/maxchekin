@@ -88,7 +88,7 @@ export default function CheckInSettings() {
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbLink href="/admin/dashboard">Dashboard</BreadcrumbLink>
+            <BreadcrumbLink href="/dashboard">Dashboard</BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
