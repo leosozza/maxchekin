@@ -3,7 +3,11 @@ import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { AuthGuard } from '@/components/admin/AuthGuard';
 
-export default function AdminLayout() {
+interface AdminLayoutProps {
+  children?: React.ReactNode;
+}
+
+export default function AdminLayout({ children }: AdminLayoutProps) {
   return (
     <AuthGuard>
       <SidebarProvider>
@@ -14,7 +18,7 @@ export default function AdminLayout() {
               <SidebarTrigger className="text-gold" />
             </header>
             <div className="p-6">
-              <Outlet />
+              {children || <Outlet />}
             </div>
           </main>
         </div>

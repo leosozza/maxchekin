@@ -34,7 +34,7 @@ import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 
 const menuItems = [
-  { title: 'Dashboard', url: '/admin/dashboard', icon: LayoutDashboard },
+  { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
   { title: 'Painéis', url: '/admin/panels', icon: Monitor },
   { title: 'Webhooks', url: '/admin/webhooks', icon: Webhook },
   { title: 'Mídias', url: '/admin/media', icon: Film },

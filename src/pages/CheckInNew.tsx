@@ -1208,14 +1208,8 @@ export default function CheckInNew() {
   const handleMenuClick = () => {
     if (!user) {
       navigate('/admin/login');
-    } else if (isAdmin) {
-      navigate('/admin/dashboard');
     } else {
-      toast({
-        title: "Acesso Restrito",
-        description: "Apenas administradores têm acesso ao painel.",
-        variant: "destructive",
-      });
+      navigate('/dashboard');
     }
   };
 

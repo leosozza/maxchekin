@@ -84,12 +84,12 @@ export default function Home() {
           </div>
 
           <div className="absolute top-4 md:top-8 right-4 md:right-8 flex gap-2">
-            <Button
-              onClick={() => navigate("/admin/dashboard")}
-              variant="outline"
-              className="border-gold/20 hover:bg-gold/10"
-              size="sm"
-            >
+        <Button
+          onClick={() => navigate("/dashboard")}
+          variant="outline"
+          className="border-gold/20 hover:bg-gold/10"
+          size="sm"
+        >
               <Settings className="md:mr-2 h-4 w-4" />
               <span className="hidden md:inline">Admin</span>
             </Button>
