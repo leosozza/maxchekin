@@ -22,6 +22,19 @@ export const AuthGuard = ({ children, requireRole }: AuthGuardProps) => {
     return <Navigate to="/admin/login" replace />;
   }
 
+  // Se não há role no banco mas está autenticado, mostrar mensagem
+  if (!role) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-studio-dark">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gold mb-2">Configurando Permissões</h1>
+          <p className="text-white/60">Seu acesso está sendo configurado. Por favor, atualize a página em alguns segundos.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Se requireRole foi especificado, verificar permissão
   if (requireRole && role !== requireRole && role !== 'admin') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-studio-dark">

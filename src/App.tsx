@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { AuthGuard } from "@/components/admin/AuthGuard";
 import Home from "./pages/Home";
 import CheckInNew from "./pages/CheckInNew";
 import PainelDinamico from "./pages/PainelDinamico";
@@ -25,7 +26,6 @@ import CheckInSettings from "./pages/admin/CheckInSettings";
 import Users from "./pages/admin/Users";
 import LeadSearch from "./pages/admin/LeadSearch";
 import ApkSettings from "./pages/admin/ApkSettings";
-
 import KanbanBoard from "./pages/admin/KanbanBoard";
 
 const queryClient = new QueryClient();
@@ -59,16 +59,37 @@ const App = () => (
             <Route path="panels/:id/editor" element={<PanelLayoutEditor />} />
             <Route path="webhooks" element={<Webhooks />} />
             <Route path="media" element={<Media />} />
-            <Route path="field-mapping" element={<FieldMapping />} />
-            <Route path="custom-fields" element={<CustomFields />} />
-            <Route path="checkin-settings" element={<CheckInSettings />} />
-            <Route path="users" element={<Users />} />
             <Route path="lead-search" element={<LeadSearch />} />
             <Route path="logs" element={<Logs />} />
-            <Route path="settings" element={<Settings />} />
-            <Route path="apk-settings" element={<ApkSettings />} />
-            {/* Kanban dentro do Admin */}
             <Route path="kanban" element={<KanbanBoard />} />
+            <Route path="checkin-settings" element={<CheckInSettings />} />
+            
+            {/* Rotas apenas para Admin */}
+            <Route path="users" element={
+              <AuthGuard requireRole="admin">
+                <Users />
+              </AuthGuard>
+            } />
+            <Route path="field-mapping" element={
+              <AuthGuard requireRole="admin">
+                <FieldMapping />
+              </AuthGuard>
+            } />
+            <Route path="custom-fields" element={
+              <AuthGuard requireRole="admin">
+                <CustomFields />
+              </AuthGuard>
+            } />
+            <Route path="apk-settings" element={
+              <AuthGuard requireRole="admin">
+                <ApkSettings />
+              </AuthGuard>
+            } />
+            <Route path="settings" element={
+              <AuthGuard requireRole="admin">
+                <Settings />
+              </AuthGuard>
+            } />
           </Route>
 
           {/* CATCH-ALL */}
