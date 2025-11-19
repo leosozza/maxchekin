@@ -148,6 +148,24 @@ export default function Users() {
       newPermissions.push({ resource_type: 'checkin', resource_id: null });
     }
 
+    // Check admin pages
+    const adminPages = [
+      'admin.webhooks',
+      'admin.media',
+      'admin.kanban',
+      'admin.logs',
+      'admin.lead-search',
+      'admin.checkin-settings',
+      'admin.panels',
+    ];
+    
+    adminPages.forEach(page => {
+      const checkbox = document.getElementById(`perm-${page}`) as HTMLInputElement;
+      if (checkbox?.checked) {
+        newPermissions.push({ resource_type: page, resource_id: null });
+      }
+    });
+
     // Check panels
     panels?.forEach(panel => {
       const checkbox = document.getElementById(`perm-panel-${panel.id}`) as HTMLInputElement;
@@ -287,23 +305,103 @@ export default function Users() {
             ) : (
               <div className="space-y-6">
                 {/* Check-in Permission */}
-                <div className="flex items-center space-x-3 p-4 rounded-lg bg-black/20 border border-gold/10">
-                  <Checkbox
-                    id="perm-checkin"
-                    defaultChecked={hasPermission('checkin')}
-                    className="border-gold/40"
-                  />
-                  <Label
-                    htmlFor="perm-checkin"
-                    className="text-white font-medium cursor-pointer flex-1"
-                  >
-                    Tela de Check-in
-                  </Label>
+                <div>
+                  <h3 className="text-white font-medium mb-3">Acesso Básico</h3>
+                  <div className="flex items-center space-x-3 p-4 rounded-lg bg-black/20 border border-gold/10">
+                    <Checkbox
+                      id="perm-checkin"
+                      defaultChecked={hasPermission('checkin')}
+                      className="border-gold/40"
+                    />
+                    <Label
+                      htmlFor="perm-checkin"
+                      className="text-white font-medium cursor-pointer flex-1"
+                    >
+                      Tela de Check-in
+                    </Label>
+                  </div>
+                </div>
+
+                {/* Admin Pages Permissions */}
+                <div>
+                  <h3 className="text-white font-medium mb-3">Páginas Administrativas</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex items-center space-x-3 p-3 rounded-lg bg-black/20 border border-gold/10">
+                      <Checkbox
+                        id="perm-admin.webhooks"
+                        defaultChecked={hasPermission('admin.webhooks')}
+                        className="border-gold/40"
+                      />
+                      <Label htmlFor="perm-admin.webhooks" className="text-white cursor-pointer text-sm">
+                        Webhooks
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-3 p-3 rounded-lg bg-black/20 border border-gold/10">
+                      <Checkbox
+                        id="perm-admin.media"
+                        defaultChecked={hasPermission('admin.media')}
+                        className="border-gold/40"
+                      />
+                      <Label htmlFor="perm-admin.media" className="text-white cursor-pointer text-sm">
+                        Mídias
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-3 p-3 rounded-lg bg-black/20 border border-gold/10">
+                      <Checkbox
+                        id="perm-admin.kanban"
+                        defaultChecked={hasPermission('admin.kanban')}
+                        className="border-gold/40"
+                      />
+                      <Label htmlFor="perm-admin.kanban" className="text-white cursor-pointer text-sm">
+                        Kanban
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-3 p-3 rounded-lg bg-black/20 border border-gold/10">
+                      <Checkbox
+                        id="perm-admin.logs"
+                        defaultChecked={hasPermission('admin.logs')}
+                        className="border-gold/40"
+                      />
+                      <Label htmlFor="perm-admin.logs" className="text-white cursor-pointer text-sm">
+                        Logs
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-3 p-3 rounded-lg bg-black/20 border border-gold/10">
+                      <Checkbox
+                        id="perm-admin.lead-search"
+                        defaultChecked={hasPermission('admin.lead-search')}
+                        className="border-gold/40"
+                      />
+                      <Label htmlFor="perm-admin.lead-search" className="text-white cursor-pointer text-sm">
+                        Buscar Leads
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-3 p-3 rounded-lg bg-black/20 border border-gold/10">
+                      <Checkbox
+                        id="perm-admin.checkin-settings"
+                        defaultChecked={hasPermission('admin.checkin-settings')}
+                        className="border-gold/40"
+                      />
+                      <Label htmlFor="perm-admin.checkin-settings" className="text-white cursor-pointer text-sm">
+                        Config Check-in
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-3 p-3 rounded-lg bg-black/20 border border-gold/10">
+                      <Checkbox
+                        id="perm-admin.panels"
+                        defaultChecked={hasPermission('admin.panels')}
+                        className="border-gold/40"
+                      />
+                      <Label htmlFor="perm-admin.panels" className="text-white cursor-pointer text-sm">
+                        Gerenciar Painéis
+                      </Label>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Panel Permissions */}
                 <div className="space-y-3">
-                  <h3 className="text-white font-medium">Painéis</h3>
+                  <h3 className="text-white font-medium">Painéis Específicos</h3>
                   {panels?.map(panel => (
                     <div
                       key={panel.id}
@@ -322,6 +420,14 @@ export default function Users() {
                       </Label>
                     </div>
                   ))}
+                </div>
+
+                {/* Admin Only Note */}
+                <div className="p-4 rounded-lg bg-black/20 border border-gold/10">
+                  <h3 className="text-white/40 font-medium mb-2 text-sm">Acesso Exclusivo Admin</h3>
+                  <p className="text-xs text-white/40">
+                    Campos Customizados, Mapeamento, Usuários, Configurações e APK são acessíveis apenas por administradores.
+                  </p>
                 </div>
 
                 <Button
