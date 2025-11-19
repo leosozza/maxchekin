@@ -30,39 +30,33 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { useAuth } from '@/hooks/useAuth';
-import { usePagePermissions } from '@/hooks/usePagePermissions';
+
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 
-const allMenuItems = [
-  { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, page: 'dashboard' },
-  { title: 'Painéis', url: '/admin/panels', icon: Monitor, page: 'admin.panels' },
-  { title: 'Webhooks', url: '/admin/webhooks', icon: Webhook, page: 'admin.webhooks' },
-  { title: 'Mídias', url: '/admin/media', icon: Film, page: 'admin.media' },
-  { title: 'Kanban', url: '/admin/kanban', icon: LayoutGrid, page: 'admin.kanban' },
-  { title: 'Logs', url: '/admin/logs', icon: FileText, page: 'admin.logs' },
-  { title: 'Buscar Leads', url: '/admin/lead-search', icon: UserSearch, page: 'admin.lead-search' },
-  { title: 'Check-in', url: '/admin/checkin-settings', icon: QrCode, page: 'admin.checkin-settings' },
-  { title: 'Campos Customizados', url: '/admin/custom-fields', icon: Database, page: 'admin.custom-fields', adminOnly: true },
-  { title: 'Mapeamento', url: '/admin/field-mapping', icon: Map, page: 'admin.field-mapping', adminOnly: true },
-  { title: 'Usuários', url: '/admin/users', icon: Users, page: 'admin.users', adminOnly: true },
-  { title: 'Configurações', url: '/admin/settings', icon: Settings, page: 'admin.settings', adminOnly: true },
-  { title: 'Gerenciar APK', url: '/admin/apk-settings', icon: Smartphone, page: 'admin.apk-settings', adminOnly: true },
+const menuItems = [
+  { 
+    title: 'Dashboard', 
+    url: '/dashboard', 
+    icon: LayoutDashboard 
+  },
+  { 
+    title: 'Configurações', 
+    url: '/admin/settings', 
+    icon: Settings,
+    adminOnly: true 
+  },
 ];
 
 export function AdminSidebar() {
   const { state } = useSidebar();
-  const location = useLocation();
-  const { signOut, user, isAdmin } = useAuth();
-  const { canAccessPage } = usePagePermissions();
+  const { signOut, isAdmin } = useAuth();
   const navigate = useNavigate();
 
-  const isActive = (path: string) => location.pathname === path;
-
   // Filtrar itens baseado em permissões
-  const menuItems = allMenuItems.filter(item => {
+  const filteredItems = menuItems.filter(item => {
     if (item.adminOnly && !isAdmin) return false;
-    return canAccessPage(item.page);
+    return true;
   });
 
   const handleLogout = async () => {

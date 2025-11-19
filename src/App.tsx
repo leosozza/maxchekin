@@ -6,28 +6,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AuthGuard } from "@/components/admin/AuthGuard";
-import { PermissionGuard } from "@/components/admin/PermissionGuard";
-import Home from "./pages/Home";
 import CheckInNew from "./pages/CheckInNew";
-import PainelDinamico from "./pages/PainelDinamico";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/admin/Login";
 import AdminLayout from "./pages/admin/AdminLayout";
 import Dashboard from "./pages/admin/Dashboard";
-import Panels from "./pages/admin/Panels";
-import PanelForm from "./pages/admin/PanelForm";
-import PanelLayoutEditor from "./pages/admin/PanelLayoutEditor";
-import Webhooks from "./pages/admin/Webhooks";
-import Media from "./pages/admin/Media";
-import FieldMapping from "./pages/admin/FieldMapping";
-import Logs from "./pages/admin/Logs";
 import Settings from "./pages/admin/Settings";
-import CustomFields from "./pages/admin/CustomFields";
-import CheckInSettings from "./pages/admin/CheckInSettings";
-import Users from "./pages/admin/Users";
-import LeadSearch from "./pages/admin/LeadSearch";
-import ApkSettings from "./pages/admin/ApkSettings";
-import KanbanBoard from "./pages/admin/KanbanBoard";
 
 const queryClient = new QueryClient();
 
