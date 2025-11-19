@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AuthGuard } from "@/components/admin/AuthGuard";
+import { PermissionGuard } from "@/components/admin/PermissionGuard";
 import Home from "./pages/Home";
 import CheckInNew from "./pages/CheckInNew";
 import PainelDinamico from "./pages/PainelDinamico";
@@ -61,16 +62,56 @@ const App = () => (
           {/* Admin Routes */}
           <Route path="/admin/login" element={<Login />} />
           <Route path="/admin" element={<AdminLayout />}>
-            <Route path="panels" element={<Panels />} />
-            <Route path="panels/new" element={<PanelForm />} />
-            <Route path="panels/:id/edit" element={<PanelForm />} />
-            <Route path="panels/:id/editor" element={<PanelLayoutEditor />} />
-            <Route path="webhooks" element={<Webhooks />} />
-            <Route path="media" element={<Media />} />
-            <Route path="lead-search" element={<LeadSearch />} />
-            <Route path="logs" element={<Logs />} />
-            <Route path="kanban" element={<KanbanBoard />} />
-            <Route path="checkin-settings" element={<CheckInSettings />} />
+            <Route path="panels" element={
+              <PermissionGuard page="admin.panels">
+                <Panels />
+              </PermissionGuard>
+            } />
+            <Route path="panels/new" element={
+              <PermissionGuard page="admin.panels">
+                <PanelForm />
+              </PermissionGuard>
+            } />
+            <Route path="panels/:id/edit" element={
+              <PermissionGuard page="admin.panels">
+                <PanelForm />
+              </PermissionGuard>
+            } />
+            <Route path="panels/:id/editor" element={
+              <PermissionGuard page="admin.panels">
+                <PanelLayoutEditor />
+              </PermissionGuard>
+            } />
+            <Route path="webhooks" element={
+              <PermissionGuard page="admin.webhooks">
+                <Webhooks />
+              </PermissionGuard>
+            } />
+            <Route path="media" element={
+              <PermissionGuard page="admin.media">
+                <Media />
+              </PermissionGuard>
+            } />
+            <Route path="lead-search" element={
+              <PermissionGuard page="admin.lead-search">
+                <LeadSearch />
+              </PermissionGuard>
+            } />
+            <Route path="logs" element={
+              <PermissionGuard page="admin.logs">
+                <Logs />
+              </PermissionGuard>
+            } />
+            <Route path="kanban" element={
+              <PermissionGuard page="admin.kanban">
+                <KanbanBoard />
+              </PermissionGuard>
+            } />
+            <Route path="checkin-settings" element={
+              <PermissionGuard page="admin.checkin-settings">
+                <CheckInSettings />
+              </PermissionGuard>
+            } />
             
             {/* Rotas apenas para Admin */}
             <Route path="users" element={
