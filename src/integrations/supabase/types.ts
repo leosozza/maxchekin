@@ -14,6 +14,64 @@ export type Database = {
   }
   public: {
     Tables: {
+      appointments: {
+        Row: {
+          id: string
+          client_name: string
+          phone: string
+          bitrix_id: string
+          model_name: string
+          scheduled_date: string
+          scheduled_time: string
+          scheduled_datetime: string
+          telemarketing_name: string | null
+          source: string | null
+          scouter_name: string | null
+          latitude: number | null
+          longitude: number | null
+          status: string
+          checked_in_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          client_name: string
+          phone: string
+          bitrix_id: string
+          model_name: string
+          scheduled_date: string
+          scheduled_time: string
+          telemarketing_name?: string | null
+          source?: string | null
+          scouter_name?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          status?: string
+          checked_in_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          client_name?: string
+          phone?: string
+          bitrix_id?: string
+          model_name?: string
+          scheduled_date?: string
+          scheduled_time?: string
+          telemarketing_name?: string | null
+          source?: string | null
+          scouter_name?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          status?: string
+          checked_in_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       apk_config: {
         Row: {
           created_at: string | null

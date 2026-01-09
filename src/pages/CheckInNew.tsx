@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import { supabase } from "@/integrations/supabase/client";
-import { Sparkles, QrCode, Search, X, Delete, User, Menu, Loader2, Phone, UserPlus, Edit, Save } from "lucide-react";
+import { Sparkles, QrCode, Search, X, Delete, User, Menu, Loader2, Phone, UserPlus, Edit, Save, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -1279,6 +1279,17 @@ export default function CheckInNew() {
         title="Buscar Lead"
       >
         <Search className="w-5 h-5 text-primary" />
+      </Button>
+
+      {/* Botão Agendados do Dia - sempre visível no topo */}
+      <Button
+        onClick={() => navigate('/agendados')}
+        variant="outline"
+        size="icon"
+        className="fixed top-4 left-28 sm:left-36 z-50 border-primary/30 hover:bg-primary/10 hover:border-primary/50 transition-all"
+        title="Agendados do Dia"
+      >
+        <Calendar className="w-5 h-5 text-primary" />
       </Button>
 
       {/* Estado Idle - Tela de Espera */}

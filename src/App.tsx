@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AuthGuard } from "@/components/admin/AuthGuard";
 import CheckInNew from "./pages/CheckInNew";
+import ScheduledAppointments from "./pages/ScheduledAppointments";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/admin/Login";
 import AdminLayout from "./pages/admin/AdminLayout";
@@ -30,6 +31,9 @@ const App = () => (
           {/* Main Route - Check-in */}
           <Route path="/" element={<CheckInNew />} />
           <Route path="/checkin" element={<CheckInNew />} />
+          
+          {/* Scheduled Appointments Route */}
+          <Route path="/agendados" element={<ScheduledAppointments />} />
 
           {/* Dashboard - Accessible to all authenticated users */}
           <Route path="/dashboard" element={
