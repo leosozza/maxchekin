@@ -14,64 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      appointments: {
-        Row: {
-          id: string
-          client_name: string
-          phone: string
-          bitrix_id: string
-          model_name: string
-          scheduled_date: string
-          scheduled_time: string
-          scheduled_datetime: string
-          telemarketing_name: string | null
-          source: string | null
-          scouter_name: string | null
-          latitude: number | null
-          longitude: number | null
-          status: string
-          checked_in_at: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          client_name: string
-          phone: string
-          bitrix_id: string
-          model_name: string
-          scheduled_date: string
-          scheduled_time: string
-          telemarketing_name?: string | null
-          source?: string | null
-          scouter_name?: string | null
-          latitude?: number | null
-          longitude?: number | null
-          status?: string
-          checked_in_at?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          client_name?: string
-          phone?: string
-          bitrix_id?: string
-          model_name?: string
-          scheduled_date?: string
-          scheduled_time?: string
-          telemarketing_name?: string | null
-          source?: string | null
-          scouter_name?: string | null
-          latitude?: number | null
-          longitude?: number | null
-          status?: string
-          checked_in_at?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       apk_config: {
         Row: {
           created_at: string | null
@@ -102,6 +44,63 @@ export type Database = {
           release_notes?: string | null
           updated_at?: string | null
           version?: string
+        }
+        Relationships: []
+      }
+      appointments: {
+        Row: {
+          bitrix_id: string
+          checked_in_at: string | null
+          client_name: string
+          created_at: string
+          id: string
+          latitude: number | null
+          longitude: number | null
+          model_name: string
+          phone: string | null
+          scheduled_date: string
+          scheduled_time: string
+          scouter_name: string | null
+          source: string | null
+          status: string
+          telemarketing_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          bitrix_id: string
+          checked_in_at?: string | null
+          client_name: string
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          model_name: string
+          phone?: string | null
+          scheduled_date: string
+          scheduled_time: string
+          scouter_name?: string | null
+          source?: string | null
+          status?: string
+          telemarketing_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bitrix_id?: string
+          checked_in_at?: string | null
+          client_name?: string
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          model_name?: string
+          phone?: string | null
+          scheduled_date?: string
+          scheduled_time?: string
+          scouter_name?: string | null
+          source?: string | null
+          status?: string
+          telemarketing_name?: string | null
+          updated_at?: string
         }
         Relationships: []
       }

@@ -9,14 +9,22 @@ const corsHeaders = {
 /**
  * Webhook endpoint for receiving appointment data from Bitrix24
  * 
- * Expected payload:
+ * Accepts both query parameters (GET) and JSON body (POST)
+ * 
+ * Query params format (from Bitrix):
+ * ?lead_id={{ID}}&modelo={{Nome do Modelo}}&responsible_name={{Nome do Responsável}}
+ * &event_date={{Data do agendamento}}&Hora={{Data e Hora do agendamento}}
+ * &Telemarketing={{Op Telemarketing}}&scouter={{Scouter}}&local={{Geolocalização}}
+ * &phone={{Telefone}}&client_name={{Nome}}
+ * 
+ * JSON body format:
  * {
  *   client_name: string,
  *   phone: string,
  *   bitrix_id: string,
  *   model_name: string,
  *   scheduled_date: string (YYYY-MM-DD),
- *   scheduled_time: string (H:MM or HH:MM, accepts both single and double-digit hours),
+ *   scheduled_time: string (H:MM or HH:MM),
  *   telemarketing_name: string,
  *   source: "Scouter" | "Meta",
  *   scouter_name: string,
@@ -35,33 +43,122 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const payload = await req.json();
-    console.log("Received appointment webhook:", payload);
+    let payload: Record<string, any> = {};
+
+    // Parse query parameters for GET requests or URL params
+    const url = new URL(req.url);
+    const queryParams = Object.fromEntries(url.searchParams.entries());
+    
+    // If we have query params, use them
+    if (Object.keys(queryParams).length > 0) {
+      console.log("Received query params:", queryParams);
+      
+      // Map Bitrix field names to our schema
+      // Parse geolocation from "local" field (format: "lat,lng" or "lat, lng")
+      let latitude: number | null = null;
+      let longitude: number | null = null;
+      
+      if (queryParams.local) {
+        const coords = queryParams.local.split(",").map((c: string) => c.trim());
+        if (coords.length === 2) {
+          latitude = parseFloat(coords[0]) || null;
+          longitude = parseFloat(coords[1]) || null;
+        }
+      }
+
+      // Parse date and time from Bitrix fields
+      // event_date format might be: "DD.MM.YYYY" or "YYYY-MM-DD"
+      // Hora format might be: "DD.MM.YYYY HH:MM:SS" or "HH:MM"
+      let scheduledDate = "";
+      let scheduledTime = "";
+
+      // Try to parse event_date
+      if (queryParams.event_date) {
+        const dateStr = queryParams.event_date;
+        // Check if it's DD.MM.YYYY format
+        if (dateStr.includes(".")) {
+          const parts = dateStr.split(".");
+          if (parts.length >= 3) {
+            scheduledDate = `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
+          }
+        } else if (dateStr.includes("-")) {
+          // Already in YYYY-MM-DD format
+          scheduledDate = dateStr;
+        }
+      }
+
+      // Try to parse Hora (time)
+      if (queryParams.Hora) {
+        const horaStr = queryParams.Hora;
+        // Check if it contains both date and time (e.g., "25.12.2024 17:00:00")
+        if (horaStr.includes(" ")) {
+          const timePart = horaStr.split(" ")[1];
+          if (timePart) {
+            // Extract HH:MM from HH:MM:SS
+            scheduledTime = timePart.substring(0, 5);
+          }
+        } else if (horaStr.includes(":")) {
+          // Just time format (HH:MM or HH:MM:SS)
+          scheduledTime = horaStr.substring(0, 5);
+        }
+      }
+
+      // Determine source based on scouter field
+      let source: string | null = null;
+      if (queryParams.scouter && queryParams.scouter.trim() !== "") {
+        source = "Scouter";
+      }
+
+      payload = {
+        client_name: queryParams.client_name || queryParams.modelo || "Cliente",
+        phone: queryParams.phone || queryParams.telefone || null,
+        bitrix_id: queryParams.lead_id || queryParams.bitrix_id || "",
+        model_name: queryParams.modelo || queryParams.model_name || "",
+        scheduled_date: scheduledDate,
+        scheduled_time: scheduledTime,
+        telemarketing_name: queryParams.Telemarketing || queryParams.telemarketing_name || null,
+        source: source,
+        scouter_name: queryParams.scouter || queryParams.scouter_name || null,
+        latitude: latitude,
+        longitude: longitude,
+      };
+    } else if (req.method === "POST") {
+      // Parse JSON body for POST requests
+      payload = await req.json();
+    }
+
+    console.log("Processed payload:", payload);
 
     // Validate required fields
-    const requiredFields = [
-      'client_name', 
-      'phone', 
-      'bitrix_id', 
-      'model_name', 
-      'scheduled_date', 
-      'scheduled_time'
-    ];
+    const requiredFields = ['bitrix_id', 'model_name', 'scheduled_date', 'scheduled_time'];
+    const missingFields = [];
 
     for (const field of requiredFields) {
       if (!payload[field]) {
-        return new Response(
-          JSON.stringify({ error: `Missing required field: ${field}` }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        missingFields.push(field);
       }
     }
 
-    // Parse and validate time (accepts both "9:00" and "09:00" format)
+    if (missingFields.length > 0) {
+      console.error("Missing required fields:", missingFields);
+      return new Response(
+        JSON.stringify({ 
+          error: `Missing required fields: ${missingFields.join(", ")}`,
+          received_params: queryParams,
+          processed_payload: payload
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate time format (accepts both "9:00" and "09:00" format)
     const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
     if (!timeRegex.test(payload.scheduled_time)) {
       return new Response(
-        JSON.stringify({ error: "Invalid time format. Expected H:MM or HH:MM (e.g., 9:00 or 09:00)" }),
+        JSON.stringify({ 
+          error: "Invalid time format. Expected H:MM or HH:MM (e.g., 9:00 or 09:00)",
+          received_time: payload.scheduled_time
+        }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -70,7 +167,10 @@ serve(async (req) => {
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(payload.scheduled_date)) {
       return new Response(
-        JSON.stringify({ error: "Invalid date format. Expected YYYY-MM-DD" }),
+        JSON.stringify({ 
+          error: "Invalid date format. Expected YYYY-MM-DD",
+          received_date: payload.scheduled_date
+        }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -83,12 +183,51 @@ serve(async (req) => {
       );
     }
 
-    // Insert appointment into database
+    // Check if appointment already exists (avoid duplicates)
+    const { data: existing } = await supabaseClient
+      .from("appointments")
+      .select("id")
+      .eq("bitrix_id", payload.bitrix_id)
+      .eq("scheduled_date", payload.scheduled_date)
+      .maybeSingle();
+
+    if (existing) {
+      console.log("Appointment already exists, updating:", existing.id);
+      
+      const { data: updated, error: updateError } = await supabaseClient
+        .from("appointments")
+        .update({
+          client_name: payload.client_name,
+          phone: payload.phone || null,
+          model_name: payload.model_name,
+          scheduled_time: payload.scheduled_time,
+          telemarketing_name: payload.telemarketing_name || null,
+          source: payload.source || null,
+          scouter_name: payload.scouter_name || null,
+          latitude: payload.latitude || null,
+          longitude: payload.longitude || null,
+        })
+        .eq("id", existing.id)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error("Error updating appointment:", updateError);
+        throw updateError;
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, action: "updated", appointment: updated }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Insert new appointment
     const { data: appointment, error } = await supabaseClient
       .from("appointments")
       .insert({
         client_name: payload.client_name,
-        phone: payload.phone,
+        phone: payload.phone || null,
         bitrix_id: payload.bitrix_id,
         model_name: payload.model_name,
         scheduled_date: payload.scheduled_date,
@@ -111,7 +250,7 @@ serve(async (req) => {
     console.log("Appointment created successfully:", appointment);
 
     return new Response(
-      JSON.stringify({ success: true, appointment }),
+      JSON.stringify({ success: true, action: "created", appointment }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
