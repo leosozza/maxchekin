@@ -29,6 +29,13 @@ const DefaultIcon = L.icon({
 
 L.Marker.prototype.options.icon = DefaultIcon;
 
+// Constants for Bitrix integration
+const DEFAULT_PROJECT_ID = 4; // Commercial project
+const BITRIX_FIELD_PROJECT = 'PARENT_ID_1120';
+const BITRIX_FIELD_PROJECT_RELATED = 'UF_CRM_1741215746';
+const BITRIX_FIELD_CHECKIN_TIMESTAMP = 'UF_CRM_1755007072212';
+const BITRIX_SYNC_TIMEOUT = 10000; // 10 seconds
+
 interface Appointment {
   id: string;
   client_name: string;
@@ -122,7 +129,7 @@ export default function ScheduledAppointments() {
       // This runs in the background and won't block the check-in completion
       const syncToBitrix = async () => {
         try {
-          const projectId = appointment.project_id || 4; // Default to 4 (Projeto Comercial)
+          const projectId = appointment.project_id || DEFAULT_PROJECT_ID;
           console.log(`[SCHEDULED-CHECKIN] Syncing project ${projectId} to Bitrix lead ${appointment.bitrix_id}`);
           
           // Get webhook URL
@@ -138,7 +145,7 @@ export default function ScheduledAppointments() {
             // Update lead with project information and check-in timestamp
             // Add timeout to prevent hanging
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+            const timeoutId = setTimeout(() => controller.abort(), BITRIX_SYNC_TIMEOUT);
 
             const response = await fetch(`${config.bitrix_webhook_url}/crm.lead.update.json`, {
               method: 'POST',
@@ -148,9 +155,9 @@ export default function ScheduledAppointments() {
               body: JSON.stringify({
                 id: appointment.bitrix_id,
                 fields: {
-                  PARENT_ID_1120: projectId,
-                  UF_CRM_1741215746: projectId,
-                  UF_CRM_1755007072212: new Date().toISOString(), // Check-in timestamp
+                  [BITRIX_FIELD_PROJECT]: projectId,
+                  [BITRIX_FIELD_PROJECT_RELATED]: projectId,
+                  [BITRIX_FIELD_CHECKIN_TIMESTAMP]: new Date().toISOString(),
                 },
               }),
               signal: controller.signal,
@@ -166,7 +173,7 @@ export default function ScheduledAppointments() {
           }
         } catch (bitrixError) {
           if (bitrixError instanceof Error && bitrixError.name === 'AbortError') {
-            console.error('[SCHEDULED-CHECKIN] Bitrix sync timed out after 10 seconds');
+            console.error(`[SCHEDULED-CHECKIN] Bitrix sync timed out after ${BITRIX_SYNC_TIMEOUT}ms`);
           } else {
             console.error('[SCHEDULED-CHECKIN] Error syncing to Bitrix:', bitrixError);
           }

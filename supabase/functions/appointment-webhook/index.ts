@@ -116,7 +116,9 @@ serve(async (req) => {
       }
 
       // Project ID - defaults to DEFAULT_PROJECT_ID (Projeto Comercial) if not specified
-      const projectId = queryParams.project_id || queryParams.PARENT_ID_1120 || DEFAULT_PROJECT_ID;
+      // Convert to number for type safety
+      const projectIdRaw = queryParams.project_id || queryParams.PARENT_ID_1120 || DEFAULT_PROJECT_ID;
+      const projectId = typeof projectIdRaw === 'string' ? parseInt(projectIdRaw, 10) : projectIdRaw;
 
       payload = {
         client_name: queryParams.client_name || queryParams.modelo || "Cliente",
@@ -138,6 +140,29 @@ serve(async (req) => {
     }
 
     console.log("Processed payload:", payload);
+
+    // Validate and convert project_id to integer
+    if (payload.project_id !== undefined && payload.project_id !== null) {
+      const projectIdNum = typeof payload.project_id === 'string' 
+        ? parseInt(payload.project_id, 10) 
+        : Number(payload.project_id);
+      
+      if (isNaN(projectIdNum)) {
+        console.error("Invalid project_id:", payload.project_id);
+        return new Response(
+          JSON.stringify({ 
+            error: "Invalid project_id. Must be a number.",
+            received_value: payload.project_id
+          }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      payload.project_id = projectIdNum;
+    } else {
+      // Set default if not provided
+      payload.project_id = DEFAULT_PROJECT_ID;
+    }
 
     // Validate required fields
     const requiredFields = ['bitrix_id', 'model_name', 'scheduled_date', 'scheduled_time'];
