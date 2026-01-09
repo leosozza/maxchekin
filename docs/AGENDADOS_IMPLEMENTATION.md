@@ -21,7 +21,13 @@ The `appointments` table stores all appointment data with the following key feat
 - Team: `telemarketing_name`, `scouter_name`
 - Source: `source` (Scouter/Meta)
 - Location: `latitude`, `longitude`
+- Project: `project_id` (defaults to 4 for "Projeto Comercial")
 - Status: `status` (pending/checked_in/cancelled)
+
+**Recent Updates (January 9, 2026)**:
+- Added `project_id` field to track commercial project (PARENT_ID_1120 in Bitrix)
+- Enhanced timezone logging for debugging time handling issues
+- Improved Bitrix synchronization during check-in to include project fields
 
 ### 2. Backend - Webhook Endpoint
 **File**: `supabase/functions/appointment-webhook/index.ts`
@@ -33,8 +39,14 @@ Receives appointment data from Bitrix24 with:
 - Time format validation (accepts H:MM or HH:MM)
 - Date format validation (YYYY-MM-DD)
 - Source enum validation (Scouter/Meta)
+- Project ID support (defaults to 4 for "Projeto Comercial")
+- Timezone awareness (Brazil/America/Sao_Paulo - UTC-3)
+- Enhanced logging for time conversion debugging
 - Comprehensive error messages
 - CORS support
+
+**Timezone Handling**:
+All times are assumed to be in Brazil/Sao_Paulo timezone (UTC-3). The database stores times with timezone awareness using `TIMESTAMP WITH TIME ZONE`, ensuring correct time representation across different client locations.
 
 ### 3. Frontend - Appointments Interface
 **File**: `src/pages/ScheduledAppointments.tsx`
@@ -212,8 +224,14 @@ npm run build
   scouter_name?: string;        // Scouter name
   latitude?: number;            // Location latitude
   longitude?: number;           // Location longitude
+  project_id?: number;          // Project ID (defaults to 4 - Projeto Comercial)
 }
 ```
+
+**Bitrix Field Mapping**:
+- `project_id` corresponds to `PARENT_ID_1120` in Bitrix
+- Default value is 4, representing "Projeto Comercial"
+- This field is synced back to Bitrix during check-in
 
 **Response**:
 ```typescript

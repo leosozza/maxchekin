@@ -6,6 +6,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Default project ID for commercial project (PARENT_ID_1120 in Bitrix)
+const DEFAULT_PROJECT_ID = 4;
+
 /**
  * Webhook endpoint for receiving appointment data from Bitrix24
  * 
@@ -29,8 +32,11 @@ const corsHeaders = {
  *   source: "Scouter" | "Meta",
  *   scouter_name: string,
  *   latitude: number,
- *   longitude: number
+ *   longitude: number,
+ *   project_id: string | number (optional, defaults to 4 for "Projeto Comercial")
  * }
+ * 
+ * Note: All times are assumed to be in Brazil/America/Sao_Paulo timezone (UTC-3)
  */
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -109,6 +115,11 @@ serve(async (req) => {
         source = "Scouter";
       }
 
+      // Project ID - defaults to DEFAULT_PROJECT_ID (Projeto Comercial) if not specified
+      // Convert to number for type safety
+      const projectIdRaw = queryParams.project_id || queryParams.PARENT_ID_1120 || DEFAULT_PROJECT_ID;
+      const projectId = typeof projectIdRaw === 'string' ? parseInt(projectIdRaw, 10) : projectIdRaw;
+
       payload = {
         client_name: queryParams.client_name || queryParams.modelo || "Cliente",
         phone: queryParams.phone || queryParams.telefone || null,
@@ -121,6 +132,7 @@ serve(async (req) => {
         scouter_name: queryParams.scouter || queryParams.scouter_name || null,
         latitude: latitude,
         longitude: longitude,
+        project_id: projectId,
       };
     } else if (req.method === "POST") {
       // Parse JSON body for POST requests
@@ -128,6 +140,29 @@ serve(async (req) => {
     }
 
     console.log("Processed payload:", payload);
+
+    // Validate and convert project_id to integer
+    if (payload.project_id !== undefined && payload.project_id !== null) {
+      const projectIdNum = typeof payload.project_id === 'string' 
+        ? parseInt(payload.project_id, 10) 
+        : Number(payload.project_id);
+      
+      if (isNaN(projectIdNum)) {
+        console.error("Invalid project_id:", payload.project_id);
+        return new Response(
+          JSON.stringify({ 
+            error: "Invalid project_id. Must be a number.",
+            received_value: payload.project_id
+          }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      payload.project_id = projectIdNum;
+    } else {
+      // Set default if not provided
+      payload.project_id = DEFAULT_PROJECT_ID;
+    }
 
     // Validate required fields
     const requiredFields = ['bitrix_id', 'model_name', 'scheduled_date', 'scheduled_time'];
@@ -154,6 +189,7 @@ serve(async (req) => {
     // Validate time format (accepts both "9:00" and "09:00" format)
     const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
     if (!timeRegex.test(payload.scheduled_time)) {
+      console.error("Invalid time format:", payload.scheduled_time);
       return new Response(
         JSON.stringify({ 
           error: "Invalid time format. Expected H:MM or HH:MM (e.g., 9:00 or 09:00)",
@@ -166,6 +202,7 @@ serve(async (req) => {
     // Validate date format (YYYY-MM-DD)
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(payload.scheduled_date)) {
+      console.error("Invalid date format:", payload.scheduled_date);
       return new Response(
         JSON.stringify({ 
           error: "Invalid date format. Expected YYYY-MM-DD",
@@ -174,6 +211,11 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Log the parsed date/time for debugging timezone issues
+    console.log("Timezone handling - Brazil/Sao_Paulo (UTC-3):");
+    console.log(`  Input: ${payload.scheduled_date} ${payload.scheduled_time}`);
+    console.log(`  Note: Times are stored in database with timezone awareness`);
 
     // Validate source if provided
     if (payload.source && !['Scouter', 'Meta'].includes(payload.source)) {
@@ -206,6 +248,7 @@ serve(async (req) => {
           scouter_name: payload.scouter_name || null,
           latitude: payload.latitude || null,
           longitude: payload.longitude || null,
+          project_id: payload.project_id || DEFAULT_PROJECT_ID,
         })
         .eq("id", existing.id)
         .select()
@@ -237,6 +280,7 @@ serve(async (req) => {
         scouter_name: payload.scouter_name || null,
         latitude: payload.latitude || null,
         longitude: payload.longitude || null,
+        project_id: payload.project_id || DEFAULT_PROJECT_ID,
         status: 'pending',
       })
       .select()
