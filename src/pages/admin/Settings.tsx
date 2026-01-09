@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useTheme, type ThemeMode } from '@/hooks/useTheme';
 import { Sun, Moon, Palette } from 'lucide-react';
+import { Motion } from '@/components/ui/motion';
 
 export default function Settings() {
   const { theme, setTheme } = useTheme();
@@ -31,7 +32,7 @@ export default function Settings() {
   ];
 
   return (
-    <div className="space-y-6">
+    <Motion preset="fadeIn" className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-primary mb-2">Configurações</h1>
         <p className="text-muted-foreground">Configurações gerais do sistema</p>
@@ -114,6 +115,6 @@ export default function Settings() {
           <Button>Salvar Configurações</Button>
         </CardContent>
       </Card>
-    </div>
+    </Motion>
   );
 }
