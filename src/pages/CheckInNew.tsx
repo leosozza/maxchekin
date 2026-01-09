@@ -34,6 +34,9 @@ import { MultiModelDialog } from "@/components/checkin/MultiModelDialog";
 import { getDealIdFromLead, cloneDealForNewModel } from "@/utils/bitrix/cloneDeal";
 import { runFullDiagnostics, logDiagnostics } from "@/utils/scannerDiagnostics";
 import { FormShareButton } from "@/components/checkin/FormShareButton";
+import { Surface } from "@/components/ui/surface";
+import { Motion, MotionGroup } from "@/components/ui/motion";
+import { Reveal } from "@/components/ui/reveal";
 
 interface ModelData {
   lead_id: string;
@@ -1241,7 +1244,7 @@ export default function CheckInNew() {
       )}
 
       {/* Main Check-in Interface */}
-      <div className={`min-h-screen max-h-screen overflow-hidden bg-gradient-to-b from-studio-dark via-background to-studio-dark flex flex-col items-center justify-between p-4 md:p-8 portrait:orientation-portrait transition-all duration-800 ${
+      <div className={`min-h-screen max-h-screen overflow-hidden bg-gradient-to-br from-background via-studio-dark to-background flex flex-col items-center justify-between p-6 md:p-10 portrait:orientation-portrait transition-all duration-800 ${
         screenState === 'transition' ? 'animate-scanner-exit' : ''
       } ${
         screenState === 'scanner' && !modelData ? 'animate-scanner-enter' : ''
@@ -1258,66 +1261,78 @@ export default function CheckInNew() {
       {/* Botão Menu/Login - Sempre visível */}
       <Button
         onClick={handleMenuClick}
-        variant="outline"
+        variant="glass"
         size="icon"
-        className="fixed top-4 left-4 z-50 border-primary/30 hover:bg-primary/10 hover:border-primary/50 transition-all"
+        className="fixed top-6 left-6 z-50 transition-all hover:scale-110 w-14 h-14 rounded-xl"
         title={user ? (isAdmin ? "Painel Admin" : "Menu") : "Fazer Login"}
       >
         {user ? (
-          <Menu className="w-5 h-5 text-primary" />
+          <Menu className="w-6 h-6 text-primary" />
         ) : (
-          <User className="w-5 h-5 text-primary" />
+          <User className="w-6 h-6 text-primary" />
         )}
       </Button>
 
       {/* Botão de Busca (Lupa) - sempre visível no topo */}
       <Button
         onClick={() => setManualSearchOpen(true)}
-        variant="outline"
+        variant="glass"
         size="icon"
-        className="fixed top-4 left-16 sm:left-20 z-50 border-primary/30 hover:bg-primary/10 hover:border-primary/50 transition-all"
+        className="fixed top-6 left-24 z-50 transition-all hover:scale-110 w-14 h-14 rounded-xl"
         title="Buscar Lead"
       >
-        <Search className="w-5 h-5 text-primary" />
+        <Search className="w-6 h-6 text-primary" />
       </Button>
 
       {/* Botão Agendados do Dia - sempre visível no topo */}
       <Button
         onClick={() => navigate('/agendados')}
-        variant="outline"
+        variant="glass"
         size="icon"
-        className="fixed top-4 left-28 sm:left-36 z-50 border-primary/30 hover:bg-primary/10 hover:border-primary/50 transition-all"
+        className="fixed top-6 left-40 z-50 transition-all hover:scale-110 w-14 h-14 rounded-xl"
         title="Agendados do Dia"
       >
-        <Calendar className="w-5 h-5 text-primary" />
+        <Calendar className="w-6 h-6 text-primary" />
       </Button>
 
       {/* Estado Idle - Tela de Espera */}
       {screenState === 'scanner' && manualScanMode && (
-        <div className="flex-1 flex flex-col items-center justify-center gap-6 p-8">
-          <div className="text-center space-y-2">
-            <QrCode className="w-24 h-24 mx-auto text-gold animate-pulse" />
-            <p className="text-xl font-semibold text-foreground">
-              Pronto para escanear
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Clique no botão abaixo para ativar o scanner
-            </p>
-          </div>
+        <Motion preset="fadeIn" className="flex-1 flex flex-col items-center justify-center gap-8 p-8">
+          <Surface variant="glass" className="text-center space-y-6 p-10 max-w-md animate-float">
+            <Reveal direction="up">
+              <div className="relative">
+                <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full animate-glow"></div>
+                <QrCode className="w-32 h-32 mx-auto text-primary relative z-10 animate-pulse" />
+              </div>
+            </Reveal>
+            <Reveal direction="up" delay={100}>
+              <p className="text-2xl font-bold text-foreground bg-gradient-gold bg-clip-text text-transparent">
+                Pronto para escanear
+              </p>
+            </Reveal>
+            <Reveal direction="up" delay={200}>
+              <p className="text-base text-muted-foreground leading-relaxed">
+                Clique no botão abaixo para ativar o scanner e iniciar o check-in
+              </p>
+            </Reveal>
+          </Surface>
           
-          <Button
-            onClick={() => {
-              setManualScanMode(false);
-              scannerInitializedRef.current = false;
-              setScreenState('scanner');
-            }}
-            size="lg"
-            className="bg-gold hover:bg-gold/90 text-studio-dark"
-          >
-            <QrCode className="w-5 h-5 mr-2" />
-            Escanear QR Code
-          </Button>
-        </div>
+          <Reveal direction="up" delay={300}>
+            <Button
+              onClick={() => {
+                setManualScanMode(false);
+                scannerInitializedRef.current = false;
+                setScreenState('scanner');
+              }}
+              size="lg"
+              variant="glow"
+              className="text-studio-dark shadow-neon text-lg px-10 py-7 rounded-xl hover:scale-105 transition-transform"
+            >
+              <QrCode className="w-6 h-6 mr-3" />
+              Escanear QR Code
+            </Button>
+          </Reveal>
+        </Motion>
       )}
 
       {screenState === 'scanner' && !manualScanMode && !modelData && (

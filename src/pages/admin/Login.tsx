@@ -12,6 +12,8 @@ import { Loader2, ArrowLeft, Download, Smartphone } from 'lucide-react';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Motion } from '@/components/ui/motion';
+import { Surface } from '@/components/ui/surface';
 
 const authSchema = z.object({
   email: z.string().trim().email({ message: "Email inválido" }),
@@ -115,12 +117,12 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background/95 to-background p-4">
+    <Motion preset="fadeIn" className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background/95 to-background p-4">
       <Button
         onClick={() => navigate('/')}
-        variant="outline"
+        variant="glass"
         size="icon"
-        className="fixed top-4 left-4 z-50 border-primary/30 hover:bg-primary/10 hover:border-primary/50 transition-all"
+        className="fixed top-4 left-4 z-50"
         title="Voltar ao Check-in"
       >
         <ArrowLeft className="w-5 h-5 text-primary" />
@@ -140,7 +142,8 @@ export default function Login() {
             <CardContent className="space-y-4">              
               <Button
                 onClick={() => navigate('/')}
-                className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-primary to-secondary hover:opacity-90 transition-all shadow-lg group-hover:shadow-primary/50"
+                variant="glow"
+                className="w-full h-14 text-lg font-semibold"
               >
                 Iniciar Check-in
               </Button>
@@ -148,8 +151,8 @@ export default function Login() {
               {apkConfig && (
                 <Button
                   onClick={() => window.open(apkConfig.download_url, "_blank")}
-                  variant="outline"
-                  className="w-full h-12 border-primary/40 hover:bg-primary/10 hover:border-primary transition-all"
+                  variant="glass"
+                  className="w-full h-12"
                 >
                   <Download className="mr-2 h-5 w-5" />
                   Baixar App (v{apkConfig.version})
@@ -299,6 +302,6 @@ export default function Login() {
         </div>
 
       </div>
-    </div>
+    </Motion>
   );
 }

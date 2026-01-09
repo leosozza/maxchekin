@@ -13,6 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
+import { Motion, MotionGroup } from "@/components/ui/motion";
+import { Surface } from "@/components/ui/surface";
 
 // Fix for default marker icon
 import icon from "leaflet/dist/images/marker-icon.png";
@@ -155,13 +157,13 @@ export default function ScheduledAppointments() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-studio p-6">
+    <Motion preset="fadeIn" className="min-h-screen bg-gradient-studio p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8 flex items-center justify-between">
           <div>
             <Button
-              variant="ghost"
+              variant="glass"
               onClick={() => navigate("/")}
               className="mb-4"
             >
@@ -353,6 +355,6 @@ export default function ScheduledAppointments() {
           </div>
         )}
       </div>
-    </div>
+    </Motion>
   );
 }
