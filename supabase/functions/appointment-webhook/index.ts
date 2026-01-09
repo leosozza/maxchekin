@@ -16,7 +16,7 @@ const corsHeaders = {
  *   bitrix_id: string,
  *   model_name: string,
  *   scheduled_date: string (YYYY-MM-DD),
- *   scheduled_time: string (HH:MM),
+ *   scheduled_time: string (H:MM or HH:MM, accepts both single and double-digit hours),
  *   telemarketing_name: string,
  *   source: "Scouter" | "Meta",
  *   scouter_name: string,
@@ -57,11 +57,11 @@ serve(async (req) => {
       }
     }
 
-    // Parse and validate time (e.g., "17:00")
+    // Parse and validate time (accepts both "9:00" and "09:00" format)
     const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
     if (!timeRegex.test(payload.scheduled_time)) {
       return new Response(
-        JSON.stringify({ error: "Invalid time format. Expected HH:MM" }),
+        JSON.stringify({ error: "Invalid time format. Expected H:MM or HH:MM (e.g., 9:00 or 09:00)" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

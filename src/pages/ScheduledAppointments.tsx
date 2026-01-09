@@ -149,7 +149,8 @@ export default function ScheduledAppointments() {
     try {
       const dateTime = parseISO(`${date}T${time}`);
       return format(dateTime, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
-    } catch {
+    } catch (error) {
+      console.error("Error formatting date/time:", { date, time, error });
       return `${date} ${time}`;
     }
   };
