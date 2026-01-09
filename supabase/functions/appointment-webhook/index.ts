@@ -6,6 +6,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Default project ID for commercial project (PARENT_ID_1120 in Bitrix)
+const DEFAULT_PROJECT_ID = 4;
+
 /**
  * Webhook endpoint for receiving appointment data from Bitrix24
  * 
@@ -112,8 +115,8 @@ serve(async (req) => {
         source = "Scouter";
       }
 
-      // Project ID - defaults to 4 (Projeto Comercial) if not specified
-      const projectId = queryParams.project_id || queryParams.PARENT_ID_1120 || 4;
+      // Project ID - defaults to DEFAULT_PROJECT_ID (Projeto Comercial) if not specified
+      const projectId = queryParams.project_id || queryParams.PARENT_ID_1120 || DEFAULT_PROJECT_ID;
 
       payload = {
         client_name: queryParams.client_name || queryParams.modelo || "Cliente",
@@ -220,7 +223,7 @@ serve(async (req) => {
           scouter_name: payload.scouter_name || null,
           latitude: payload.latitude || null,
           longitude: payload.longitude || null,
-          project_id: payload.project_id || 4,
+          project_id: payload.project_id || DEFAULT_PROJECT_ID,
         })
         .eq("id", existing.id)
         .select()
@@ -252,7 +255,7 @@ serve(async (req) => {
         scouter_name: payload.scouter_name || null,
         latitude: payload.latitude || null,
         longitude: payload.longitude || null,
-        project_id: payload.project_id || 4,
+        project_id: payload.project_id || DEFAULT_PROJECT_ID,
         status: 'pending',
       })
       .select()

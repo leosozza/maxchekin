@@ -118,47 +118,64 @@ export default function ScheduledAppointments() {
         console.error("Error creating check-in:", checkInError);
       }
 
-      // Sync project information to Bitrix
-      try {
-        const projectId = appointment.project_id || 4; // Default to 4 (Projeto Comercial)
-        console.log(`[SCHEDULED-CHECKIN] Syncing project ${projectId} to Bitrix lead ${appointment.bitrix_id}`);
-        
-        // Get webhook URL
-        const { data: config } = await supabase
-          .from('webhook_config')
-          .select('bitrix_webhook_url')
-          .eq('is_active', true)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
+      // Sync project information to Bitrix (async, non-blocking)
+      // This runs in the background and won't block the check-in completion
+      const syncToBitrix = async () => {
+        try {
+          const projectId = appointment.project_id || 4; // Default to 4 (Projeto Comercial)
+          console.log(`[SCHEDULED-CHECKIN] Syncing project ${projectId} to Bitrix lead ${appointment.bitrix_id}`);
+          
+          // Get webhook URL
+          const { data: config } = await supabase
+            .from('webhook_config')
+            .select('bitrix_webhook_url')
+            .eq('is_active', true)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
 
-        if (config?.bitrix_webhook_url) {
-          // Update lead with project information and check-in timestamp
-          const response = await fetch(`${config.bitrix_webhook_url}/crm.lead.update.json`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              id: appointment.bitrix_id,
-              fields: {
-                PARENT_ID_1120: projectId,
-                UF_CRM_1741215746: projectId,
-                UF_CRM_1755007072212: new Date().toISOString(), // Check-in timestamp
+          if (config?.bitrix_webhook_url) {
+            // Update lead with project information and check-in timestamp
+            // Add timeout to prevent hanging
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+            const response = await fetch(`${config.bitrix_webhook_url}/crm.lead.update.json`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
               },
-            }),
-          });
+              body: JSON.stringify({
+                id: appointment.bitrix_id,
+                fields: {
+                  PARENT_ID_1120: projectId,
+                  UF_CRM_1741215746: projectId,
+                  UF_CRM_1755007072212: new Date().toISOString(), // Check-in timestamp
+                },
+              }),
+              signal: controller.signal,
+            });
 
-          if (!response.ok) {
-            console.error('[SCHEDULED-CHECKIN] Failed to sync to Bitrix:', await response.text());
-          } else {
-            console.log('[SCHEDULED-CHECKIN] Successfully synced project to Bitrix');
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+              console.error('[SCHEDULED-CHECKIN] Failed to sync to Bitrix:', await response.text());
+            } else {
+              console.log('[SCHEDULED-CHECKIN] Successfully synced project to Bitrix');
+            }
           }
+        } catch (bitrixError) {
+          if (bitrixError instanceof Error && bitrixError.name === 'AbortError') {
+            console.error('[SCHEDULED-CHECKIN] Bitrix sync timed out after 10 seconds');
+          } else {
+            console.error('[SCHEDULED-CHECKIN] Error syncing to Bitrix:', bitrixError);
+          }
+          // Don't fail the check-in if Bitrix sync fails
         }
-      } catch (bitrixError) {
-        console.error('[SCHEDULED-CHECKIN] Error syncing to Bitrix:', bitrixError);
-        // Don't fail the check-in if Bitrix sync fails
-      }
+      };
+
+      // Start async sync (non-blocking)
+      syncToBitrix();
 
       toast({
         title: "Check-in realizado!",
