@@ -48,9 +48,9 @@ const Surface = React.forwardRef<HTMLDivElement, SurfaceProps>(
         {...props}
       >
         {children}
-        {glow && (
+        {glow ? (
           <div className="absolute inset-0 -z-10 bg-gradient-to-br from-primary/20 via-transparent to-secondary/20 opacity-50" />
-        )}
+        ) : null}
       </div>
     )
   }

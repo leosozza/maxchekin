@@ -13,10 +13,12 @@ const Reveal = React.forwardRef<HTMLDivElement, RevealProps>(
     const elementRef = React.useRef<HTMLDivElement>(null)
 
     React.useEffect(() => {
+      let timeoutId: NodeJS.Timeout | null = null
+      
       const observer = new IntersectionObserver(
         ([entry]) => {
           if (entry.isIntersecting) {
-            setTimeout(() => setIsVisible(true), delay)
+            timeoutId = setTimeout(() => setIsVisible(true), delay)
           }
         },
         { threshold: 0.1 }
@@ -28,6 +30,9 @@ const Reveal = React.forwardRef<HTMLDivElement, RevealProps>(
       }
 
       return () => {
+        if (timeoutId) {
+          clearTimeout(timeoutId)
+        }
         if (currentElement) {
           observer.unobserve(currentElement)
         }
