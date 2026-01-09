@@ -34,6 +34,9 @@ import { MultiModelDialog } from "@/components/checkin/MultiModelDialog";
 import { getDealIdFromLead, cloneDealForNewModel } from "@/utils/bitrix/cloneDeal";
 import { runFullDiagnostics, logDiagnostics } from "@/utils/scannerDiagnostics";
 import { FormShareButton } from "@/components/checkin/FormShareButton";
+import { Surface } from "@/components/ui/surface";
+import { Motion, MotionGroup } from "@/components/ui/motion";
+import { Reveal } from "@/components/ui/reveal";
 
 interface ModelData {
   lead_id: string;
@@ -1258,9 +1261,9 @@ export default function CheckInNew() {
       {/* Botão Menu/Login - Sempre visível */}
       <Button
         onClick={handleMenuClick}
-        variant="outline"
+        variant="glass"
         size="icon"
-        className="fixed top-4 left-4 z-50 border-primary/30 hover:bg-primary/10 hover:border-primary/50 transition-all"
+        className="fixed top-4 left-4 z-50 transition-all hover:scale-110"
         title={user ? (isAdmin ? "Painel Admin" : "Menu") : "Fazer Login"}
       >
         {user ? (
@@ -1273,9 +1276,9 @@ export default function CheckInNew() {
       {/* Botão de Busca (Lupa) - sempre visível no topo */}
       <Button
         onClick={() => setManualSearchOpen(true)}
-        variant="outline"
+        variant="glass"
         size="icon"
-        className="fixed top-4 left-16 sm:left-20 z-50 border-primary/30 hover:bg-primary/10 hover:border-primary/50 transition-all"
+        className="fixed top-4 left-16 sm:left-20 z-50 transition-all hover:scale-110"
         title="Buscar Lead"
       >
         <Search className="w-5 h-5 text-primary" />
@@ -1284,9 +1287,9 @@ export default function CheckInNew() {
       {/* Botão Agendados do Dia - sempre visível no topo */}
       <Button
         onClick={() => navigate('/agendados')}
-        variant="outline"
+        variant="glass"
         size="icon"
-        className="fixed top-4 left-28 sm:left-36 z-50 border-primary/30 hover:bg-primary/10 hover:border-primary/50 transition-all"
+        className="fixed top-4 left-28 sm:left-36 z-50 transition-all hover:scale-110"
         title="Agendados do Dia"
       >
         <Calendar className="w-5 h-5 text-primary" />
@@ -1294,30 +1297,39 @@ export default function CheckInNew() {
 
       {/* Estado Idle - Tela de Espera */}
       {screenState === 'scanner' && manualScanMode && (
-        <div className="flex-1 flex flex-col items-center justify-center gap-6 p-8">
-          <div className="text-center space-y-2">
-            <QrCode className="w-24 h-24 mx-auto text-gold animate-pulse" />
-            <p className="text-xl font-semibold text-foreground">
-              Pronto para escanear
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Clique no botão abaixo para ativar o scanner
-            </p>
-          </div>
+        <Motion preset="fadeIn" className="flex-1 flex flex-col items-center justify-center gap-6 p-8">
+          <Surface variant="glass" className="text-center space-y-4 p-8">
+            <Reveal direction="up">
+              <QrCode className="w-24 h-24 mx-auto text-gold animate-pulse" />
+            </Reveal>
+            <Reveal direction="up" delay={100}>
+              <p className="text-xl font-semibold text-foreground">
+                Pronto para escanear
+              </p>
+            </Reveal>
+            <Reveal direction="up" delay={200}>
+              <p className="text-sm text-muted-foreground">
+                Clique no botão abaixo para ativar o scanner
+              </p>
+            </Reveal>
+          </Surface>
           
-          <Button
-            onClick={() => {
-              setManualScanMode(false);
-              scannerInitializedRef.current = false;
-              setScreenState('scanner');
-            }}
-            size="lg"
-            className="bg-gold hover:bg-gold/90 text-studio-dark"
-          >
-            <QrCode className="w-5 h-5 mr-2" />
-            Escanear QR Code
-          </Button>
-        </div>
+          <Reveal direction="up" delay={300}>
+            <Button
+              onClick={() => {
+                setManualScanMode(false);
+                scannerInitializedRef.current = false;
+                setScreenState('scanner');
+              }}
+              size="lg"
+              variant="glow"
+              className="text-studio-dark shadow-neon"
+            >
+              <QrCode className="w-5 h-5 mr-2" />
+              Escanear QR Code
+            </Button>
+          </Reveal>
+        </Motion>
       )}
 
       {screenState === 'scanner' && !manualScanMode && !modelData && (

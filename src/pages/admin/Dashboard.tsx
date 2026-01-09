@@ -9,6 +9,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Users, Download } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { Motion, MotionGroup } from '@/components/ui/motion';
+import { Surface } from '@/components/ui/surface';
 
 type CheckinRow = {
   id: string;
@@ -146,7 +148,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="space-y-6">
+    <Motion preset="fadeIn" className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-gold mb-2">Dashboard</h1>
         <p className="text-white/60">Visão geral do sistema MaxCheckin</p>
@@ -166,7 +168,7 @@ export default function Dashboard() {
             <label className="text-white/70 text-sm block mb-1">Fim</label>
             <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-background/50 border-gold/20 text-white"/>
           </div>
-          <Button onClick={applyFilters} disabled={loading} className="bg-gold hover:bg-gold/90 text-black">
+          <Button onClick={applyFilters} disabled={loading} variant="glow">
             {loading ? 'Carregando...' : 'Aplicar'}
           </Button>
         </CardContent>
@@ -196,7 +198,7 @@ export default function Dashboard() {
                       <td className="py-2 text-white">{new Date(d.date).toLocaleDateString()}</td>
                       <td className="py-2 text-white">{d.count}</td>
                       <td className="py-2">
-                        <Button variant="outline" className="border-gold/30 text-white" onClick={() => openDay(d.date)}>
+                        <Button variant="glass" onClick={() => openDay(d.date)}>
                           Ver lista
                         </Button>
                       </td>
@@ -216,7 +218,7 @@ export default function Dashboard() {
             <DialogTitle className="text-gold flex items-center justify-between">
               Check-ins de {selectedDate ? new Date(selectedDate).toLocaleDateString() : ''}
               <div className="flex items-center gap-2">
-                <Button onClick={exportPdf} disabled={loadingRows || rows.length===0} className="bg-gold hover:bg-gold/90 text-black">
+                <Button onClick={exportPdf} disabled={loadingRows || rows.length===0} variant="glow">
                   <Download className="w-4 h-4 mr-2" /> Exportar PDF
                 </Button>
               </div>
@@ -266,6 +268,6 @@ export default function Dashboard() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </Motion>
   );
 }
