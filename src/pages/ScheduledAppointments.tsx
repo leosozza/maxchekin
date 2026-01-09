@@ -42,6 +42,7 @@ interface Appointment {
   scouter_name: string | null;
   latitude: number | null;
   longitude: number | null;
+  project_id: number | null;
   status: string;
   checked_in_at: string | null;
   created_at: string;
@@ -115,6 +116,48 @@ export default function ScheduledAppointments() {
 
       if (checkInError) {
         console.error("Error creating check-in:", checkInError);
+      }
+
+      // Sync project information to Bitrix
+      try {
+        const projectId = appointment.project_id || 4; // Default to 4 (Projeto Comercial)
+        console.log(`[SCHEDULED-CHECKIN] Syncing project ${projectId} to Bitrix lead ${appointment.bitrix_id}`);
+        
+        // Get webhook URL
+        const { data: config } = await supabase
+          .from('webhook_config')
+          .select('bitrix_webhook_url')
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (config?.bitrix_webhook_url) {
+          // Update lead with project information and check-in timestamp
+          const response = await fetch(`${config.bitrix_webhook_url}/crm.lead.update.json`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              id: appointment.bitrix_id,
+              fields: {
+                PARENT_ID_1120: projectId,
+                UF_CRM_1741215746: projectId,
+                UF_CRM_1755007072212: new Date().toISOString(), // Check-in timestamp
+              },
+            }),
+          });
+
+          if (!response.ok) {
+            console.error('[SCHEDULED-CHECKIN] Failed to sync to Bitrix:', await response.text());
+          } else {
+            console.log('[SCHEDULED-CHECKIN] Successfully synced project to Bitrix');
+          }
+        }
+      } catch (bitrixError) {
+        console.error('[SCHEDULED-CHECKIN] Error syncing to Bitrix:', bitrixError);
+        // Don't fail the check-in if Bitrix sync fails
       }
 
       toast({
@@ -286,6 +329,15 @@ export default function ScheduledAppointments() {
                           <div className="flex items-center gap-2 text-sm">
                             <User className="h-4 w-4 text-muted-foreground" />
                             <span>Scouter: {appointment.scouter_name}</span>
+                          </div>
+                        )}
+
+                        {appointment.project_id && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="font-medium">Projeto:</span>
+                            <Badge variant="outline">
+                              {appointment.project_id === 4 ? "Comercial" : `ID ${appointment.project_id}`}
+                            </Badge>
                           </div>
                         )}
                       </div>
