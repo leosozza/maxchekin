@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -54,14 +54,8 @@ export default function ScheduledAppointments() {
   const [loading, setLoading] = useState(true);
   const [filterDate, setFilterDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [filterTime, setFilterTime] = useState("");
-  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
 
-  useEffect(() => {
-    fetchAppointments();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterDate, filterTime]);
-
-  const fetchAppointments = async () => {
+  const fetchAppointments = useCallback(async () => {
     setLoading(true);
     try {
       let query = supabase
@@ -89,7 +83,11 @@ export default function ScheduledAppointments() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filterDate, filterTime, toast]);
+
+  useEffect(() => {
+    fetchAppointments();
+  }, [fetchAppointments]);
 
   const handleCheckIn = async (appointment: Appointment) => {
     try {
